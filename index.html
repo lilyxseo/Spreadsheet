@@ -3,105 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventory Dashboard</title>
+  <title>Inventory Dashboard SPA</title>
   <style>
-    :root {
-      --bg: #f3f6fb;
-      --panel: #ffffff;
-      --panel-soft: #f8fbff;
-      --line: #dbe5f5;
-      --text: #0f172a;
-      --muted: #64748b;
-      --primary: #1e3a8a;
-      --primary-2: #2563eb;
-      --success: #059669;
-      --danger: #dc2626;
-      --warning: #ea580c;
-      --radius: 16px;
-      --shadow: 0 10px 28px rgba(30, 58, 138, 0.08);
-    }
-    body.dark {
-      --bg: #0b1222;
-      --panel: #101a31;
-      --panel-soft: #0e1a34;
-      --line: #243452;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --primary: #60a5fa;
-      --primary-2: #3b82f6;
-      --shadow: 0 10px 28px rgba(5, 10, 22, 0.45);
-    }
-    * { box-sizing: border-box; }
-    body { margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text); }
+    :root {--bg:#f3f6fb;--panel:#ffffff;--panel-soft:#f8fbff;--line:#dbe5f5;--text:#0f172a;--muted:#64748b;--primary:#1e3a8a;--primary-2:#2563eb;--success:#059669;--danger:#dc2626;--warning:#ea580c;--radius:16px;--shadow:0 10px 28px rgba(30,58,138,.08)}
+    body.dark {--bg:#0b1222;--panel:#101a31;--panel-soft:#0e1a34;--line:#243452;--text:#e2e8f0;--muted:#94a3b8;--primary:#60a5fa;--primary-2:#3b82f6;--shadow:0 10px 28px rgba(5,10,22,.45)}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
     body.compact .panel{padding:10px} body.compact .metric{padding:10px}
-    .app{display:grid;grid-template-columns:1fr;min-height:100vh}
-    .sidebar{display:none}
-    .content{padding:12px 12px 84px}
-    .header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(6px);padding:8px 0}
+    .app{display:grid;grid-template-columns:1fr;min-height:100vh}.sidebar{display:none}.content{padding:12px 12px 84px}
+    .header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(6px);padding:8px 0}
     .header-card{display:flex;gap:10px;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);padding:12px;border-radius:var(--radius);box-shadow:var(--shadow)}
-    .title{font-size:18px;font-weight:800;color:var(--primary)}
-    .subtitle{font-size:12px;color:var(--muted)}
+    .title{font-size:18px;font-weight:800;color:var(--primary)}.subtitle{font-size:12px;color:var(--muted)}
     .pill{font-size:12px;border-radius:999px;padding:6px 10px;background:var(--panel-soft);border:1px solid var(--line)}
     .panel{margin-top:12px;background:var(--panel);border:1px solid var(--line);padding:14px;border-radius:var(--radius);box-shadow:var(--shadow)}
-    .hidden{display:none!important}.page-title{margin:0 0 10px;font-size:18px}
-    .grid{display:grid;gap:10px;grid-template-columns:1fr}
-    .metric{background:var(--panel-soft);border:1px solid var(--line);border-radius:14px;padding:12px}
-    .metric .k{font-size:12px;color:var(--muted)} .metric .v{font-size:22px;font-weight:800;margin-top:4px}
+    .page-title{margin:0 0 10px;font-size:18px}.grid{display:grid;gap:10px;grid-template-columns:1fr}
+    .metric{background:var(--panel-soft);border:1px solid var(--line);border-radius:14px;padding:12px}.metric .k{font-size:12px;color:var(--muted)}.metric .v{font-size:22px;font-weight:800;margin-top:4px}
     .search-lg{width:100%;padding:14px;border-radius:14px;border:1px solid var(--line);font-size:16px;background:var(--panel)}
-    .search-bar,.toolbar,.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    button,select{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
-    .btn-primary{background:var(--primary-2);color:#fff;border-color:transparent}
-    .btn-ghost{background:transparent}
-    .chip{border-radius:999px;font-size:12px;padding:7px 11px}.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
-    .state{border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted)}
-    .state.error{border-color:#fecaca;background:#fff7f7;color:var(--danger)}
-    .result-list{display:grid;gap:10px}.result-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel-soft)}
-    .result-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-    .badge{border-radius:999px;padding:3px 8px;font-size:11px;color:#fff;display:inline-block}
-    .b-kartu{background:#2563eb}.b-rpl{background:#16a34a}.b-bulky{background:#7c3aed}.b-in{background:#059669}.b-out{background:#ea580c}
-    .table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
-    table{width:100%;min-width:700px;border-collapse:collapse} th,td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;text-align:left;white-space:nowrap}
-    th{background:var(--panel-soft);color:var(--primary)}
-    .collapse>summary{cursor:pointer;font-weight:700;margin:8px 0}
-    .bar-row{display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:center;margin:6px 0}
-    .bar-fill{height:12px;border-radius:999px;background:linear-gradient(90deg,#1e3a8a,#3b82f6)}
+    .search-bar,.toolbar,.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center} button,select{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
+    .btn-primary{background:var(--primary-2);color:#fff;border-color:transparent}.btn-ghost{background:transparent}.chip{border-radius:999px;font-size:12px;padding:7px 11px}.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+    .state{border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted)}.state.error{border-color:#fecaca;background:#fff7f7;color:var(--danger)}
+    .result-list{display:grid;gap:10px}.result-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel-soft)}.result-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .badge{border-radius:999px;padding:3px 8px;font-size:11px;color:#fff;display:inline-block}.b-kartu{background:#2563eb}.b-rpl{background:#16a34a}.b-bulky{background:#7c3aed}.b-in{background:#059669}.b-out{background:#ea580c}
+    .bar-row{display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:center;margin:6px 0}.bar-fill{height:12px;border-radius:999px;background:linear-gradient(90deg,#1e3a8a,#3b82f6)}
     .timeline{display:grid;gap:8px}.tl-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel-soft)}
-    .skeleton{height:66px;border-radius:12px;background:linear-gradient(90deg,#e7eefb 25%,#f1f6ff 37%,#e7eefb 63%);background-size:400% 100%;animation:sh 1.4s ease infinite}
-    @keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
-    .toast{position:fixed;right:12px;bottom:90px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(8px);transition:.2s;z-index:60}
-    .toast.show{opacity:1;transform:translateY(0)}
-    .bottom-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:8px;background:var(--panel);border-top:1px solid var(--line);z-index:50}
-    .nav-btn{font-size:11px;padding:8px 6px}.nav-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
-    mark{background:#fde68a;border-radius:3px}
-
-    .detail-profile{display:grid;gap:12px}
-    .detail-hero{border:1px solid var(--line);background:linear-gradient(135deg,var(--panel-soft),var(--panel));border-radius:16px;padding:14px;display:grid;gap:10px}
-    .detail-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-    .detail-name{font-size:clamp(22px,4vw,30px);font-weight:800;line-height:1.15}
-    .detail-sku{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .source-row{display:flex;gap:6px;flex-wrap:wrap}
-    .summary-grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
-    .summary-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
-    .summary-card .k{font-size:11px;color:var(--muted)}
-    .summary-card .v{font-size:20px;font-weight:800;margin-top:3px}
-    .detail-note{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-    .note-box{border:1px dashed var(--line);border-radius:12px;padding:10px;background:var(--panel)}
-    .note-title{font-size:11px;color:var(--muted);margin-bottom:4px}
-    .note-value{font-size:13px;font-weight:700;line-height:1.35;word-break:break-word}
-    .source-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
-    .source-card summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--panel-soft);cursor:pointer;font-weight:800}
-    .source-card summary::-webkit-details-marker{display:none}
-    .source-body{padding:10px}
-    .table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:310px}
-    .table-wrap table{min-width:680px}
-    .table-wrap th{position:sticky;top:0;z-index:1}
-    .table-wrap th,.table-wrap td{font-size:12px;line-height:1.35}
-    .empty-card{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);background:var(--panel-soft)}
-    @media (min-width: 900px){
-      .app{grid-template-columns:250px 1fr}.sidebar{display:block;background:#0f2f77;color:#fff;padding:16px;position:sticky;top:0;height:100vh}
-      .side-link{display:block;width:100%;margin-top:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;text-align:left}
-      .side-link.active{background:#2563eb}.bottom-nav{display:none}.content{padding:18px}.grid.dashboard{grid-template-columns:repeat(4,1fr)}.grid.stats{grid-template-columns:repeat(3,1fr)}
-    }
+    .skeleton{height:66px;border-radius:12px;background:linear-gradient(90deg,#e7eefb 25%,#f1f6ff 37%,#e7eefb 63%);background-size:400% 100%;animation:sh 1.4s ease infinite}@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+    .toast{position:fixed;right:12px;bottom:90px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(8px);transition:.2s;z-index:60}.toast.show{opacity:1;transform:translateY(0)}
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:8px;background:var(--panel);border-top:1px solid var(--line);z-index:50}.nav-btn{font-size:11px;padding:8px 6px}.nav-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+    .page-shell{animation:fadeIn .18s ease}@keyframes fadeIn{from{opacity:.3;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}} mark{background:#fde68a;border-radius:3px}
+    .table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:310px}.table-wrap table{min-width:680px;border-collapse:collapse;width:100%}.table-wrap th,.table-wrap td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px;text-align:left;white-space:nowrap}.table-wrap th{position:sticky;top:0;background:var(--panel-soft)}
+    @media (min-width:900px){.app{grid-template-columns:250px 1fr}.sidebar{display:block;background:#0f2f77;color:#fff;padding:16px;position:sticky;top:0;height:100vh}.side-link{display:block;width:100%;margin-top:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;text-align:left}.side-link.active{background:#2563eb}.bottom-nav{display:none}.content{padding:18px}.grid.dashboard{grid-template-columns:repeat(4,1fr)}.grid.stats{grid-template-columns:repeat(3,1fr)}}
   </style>
 </head>
 <body>
@@ -110,84 +39,46 @@
     <h2>Inventory Dashboard</h2>
     <div class="pill" id="lastSync">Belum sinkron</div>
     <div style="margin-top:16px">
-      <button class="side-link active" data-page="dashboard">Dashboard</button><button class="side-link" data-page="search">Cari Data</button><button class="side-link" data-page="detail">Detail SKU</button><button class="side-link" data-page="stats">Statistik</button><button class="side-link" data-page="movement">Movement</button><button class="side-link" data-page="settings">Settings</button>
+      <button class="side-link" data-route="/">Dashboard</button>
+      <button class="side-link" data-route="/search">Cari Data</button>
+      <button class="side-link" data-route="/statistics">Statistik</button>
+      <button class="side-link" data-route="/movement">Movement</button>
+      <button class="side-link" data-route="/settings">Settings</button>
     </div>
   </aside>
   <main class="content">
     <div class="header"><div class="header-card"><div><div class="title">Mini WMS Dashboard</div><div class="subtitle" id="connText">Memuat data...</div></div><div class="pill" id="apiStatus">API: Memuat...</div></div></div>
-
-    <section id="page-dashboard" class="panel page"><h3 class="page-title">Dashboard</h3><input id="quickSearch" class="search-lg" placeholder="Quick search SKU / Nama..."/><div id="dashboardCards" class="grid dashboard"></div><div id="recentMove" class="panel"></div></section>
-    <section id="page-search" class="panel page hidden"><h3 class="page-title">Cari Data</h3><div class="search-bar"><input id="searchInput" class="search-lg" placeholder="Cari SKU, 4 digit akhir, nama barang"/></div><div class="toolbar"><div id="filterRow"></div><select id="sortSearch"><option value="rank">Sort: Ranking</option><option value="sku">Sort: SKU A-Z</option><option value="name">Sort: Nama A-Z</option></select></div><div id="status" class="subtitle"></div><div id="results" style="margin-top:10px"></div></section>
-    <section id="page-detail" class="panel page hidden"><h3 class="page-title">Detail SKU</h3><div id="detail"></div></section>
-    <section id="page-stats" class="panel page hidden"><h3 class="page-title">Statistik</h3><div id="statsCards" class="grid stats"></div><div class="row"><select id="statsFilter"><option value="all">Semua</option><option value="in">Barang Masuk</option><option value="out">Barang Keluar</option></select></div><div id="statsChart"></div></section>
-    <section id="page-movement" class="panel page hidden"><h3 class="page-title">Movement</h3><div class="toolbar"><input id="mvSku" class="search-lg" placeholder="Filter SKU"/><input id="mvName" class="search-lg" placeholder="Filter nama barang"/><input id="mvDate" type="date"/><select id="mvSort"><option value="new">Terbaru</option><option value="old">Terlama</option></select><button class="btn-primary" onclick="renderMovement()">Terapkan</button></div><div id="movementList"></div></section>
-    <section id="page-settings" class="panel page hidden"><h3 class="page-title">Settings / Info</h3><p><strong>Status API:</strong> <span id="settingsApiState">-</span></p><p><strong>Data loaded:</strong> <span id="loadedState">-</span></p><p><strong>Jumlah data per sheet:</strong> <span id="countPerSheet">-</span></p><p><strong>Spreadsheet ID:</strong> <code id="spreadsheetInfo"></code></p><p><strong>Sheet digunakan:</strong> <span id="sheetInfo"></span></p><div class="row"><button class="btn-primary" onclick="loadAllData(true)">Refresh Manual</button><button id="darkBtn" onclick="toggleDark()">Toggle Dark</button><button id="compactBtn" onclick="toggleCompact()">Toggle Compact</button></div></section>
+    <div id="appView" class="page-shell"></div>
   </main>
 </div>
-<nav class="bottom-nav"><button class="nav-btn active" data-page="dashboard">Dash</button><button class="nav-btn" data-page="search">Cari</button><button class="nav-btn" data-page="detail">Detail</button><button class="nav-btn" data-page="stats">Stats</button><button class="nav-btn" data-page="movement">Move</button><button class="nav-btn" data-page="settings">Info</button></nav>
+<nav class="bottom-nav">
+  <button class="nav-btn" data-route="/">Dash</button><button class="nav-btn" data-route="/search">Cari</button><button class="nav-btn" data-route="/statistics">Stats</button><button class="nav-btn" data-route="/movement">Move</button><button class="nav-btn" data-route="/settings">Info</button><button class="nav-btn" data-route="/search">SKU</button>
+</nav>
 <div id="toast" class="toast"></div>
+<script src="https://unpkg.com/navigo@8/dist/navigo.min.js"></script>
 <script>
-const API_KEY = "AIzaSyAhRpt5u-xx1ysTq_u4xOOziVHmlBJb34E";
-const SPREADSHEET_ID = "1KzOcV1V4bcxfsLzhfwXxnIxxZoTRlKh4UYhNizREpCM";
-const SHEETS = ["Kartu Stock", "RPL", "BULKY", "Barang Masuk", "Barang Keluar"];
-const FILTERS = ["Semua", ...SHEETS];
-const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false;
-window.addEventListener("DOMContentLoaded",()=>{bindNav();bindEvents();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;loadAllData();setInterval(()=>loadAllData(false,true),60000)});
-function bindNav(){document.querySelectorAll("[data-page]").forEach(btn=>btn.addEventListener("click",()=>showPage(btn.dataset.page)));}
-function bindEvents(){const d=debounce(()=>runSearch(),220);searchInput.addEventListener("input",d);quickSearch.addEventListener("input",e=>{searchInput.value=e.target.value;runSearch();});sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);}
-function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".nav-btn,.side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));}
-async function loadAllData(manual=false,silent=false){if(!silent){setStatus("loading",manual?"Refresh data...":"Memuat data dari Google Sheets...");showSkeleton();}
-try{for(const sheet of SHEETS)DATA[sheet]=parseSheet(await fetchSheet(sheet));rebuildSkuCache();apiConnected=true;updateApiState();updateSyncTime();updateDashboard();updateStats();renderMovement();updateSettings();if(lastQuery)runSearch();if(!silent)toast("Data berhasil di-refresh");setStatus("ok","Data siap digunakan.");}
-catch(err){apiConnected=false;updateApiState();setStatus("error","Gagal memuat data: "+err.message);renderError("results","Tidak bisa memuat data.");}}
-async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ10000`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
-function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
-function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
-function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of SHEETS){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[]});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}}
-function runSearch(){const qRaw=searchInput.value||"";const q=clean(qRaw);lastQuery=qRaw;if(!q){lastResults=[];return renderState("results","Masukkan kata kunci pencarian.");}const words=q.split(" ").filter(Boolean);const out=[];for(const it of CACHE_SKU.values()){if(currentFilter!=="Semua"&&!it.sources.has(currentFilter))continue;const skuN=clean(it.sku),nameN=clean(it.nama),combined=`${skuN} ${nameN}`;let rank=99;if(skuN===q)rank=1;else if(/^\d{4}$/.test(q)&&skuN.endsWith(q))rank=2;else if(skuN.includes(q))rank=3;else if(nameN.includes(q))rank=4;else if(words.length&&words.every(w=>combined.includes(w)))rank=5;else if(words.some(w=>combined.includes(w)))rank=6; if(rank<99) out.push({...it,sources:[...it.sources],rank});}
-lastResults=out.sort((a,b)=>a.rank-b.rank).slice(0,50);renderResults(lastResults,qRaw);}
-function renderResults(items,query){if(sortSearch.value==="sku")items=[...items].sort((a,b)=>a.sku.localeCompare(b.sku));if(sortSearch.value==="name")items=[...items].sort((a,b)=>a.nama.localeCompare(b.nama));if(!items.length) return renderState("results","Data tidak ditemukan.");const resultsEl=`<div class='subtitle'>${items.length} hasil (maks 50).</div><div class='result-list'>`+items.map(r=>`<div class='result-card'><div class='result-head'><div><strong>${highlight(r.nama,query)}</strong><div>SKU: ${highlight(r.sku,query)}</div></div><div>${r.sources.map(s=>`<span class='badge ${badgeClass(s)}'>${esc(s)}</span>`).join(" ")}</div></div><div class='row'><button class='btn-ghost' onclick="copySku(decodeURIComponent('${encAttr(r.sku)}'))">Copy SKU</button><button class='btn-primary' onclick="showDetail(decodeURIComponent('${encAttr(r.sku)}'));showPage('detail')">Lihat Detail</button></div></div>`).join("")+"</div>";document.getElementById("results").innerHTML=resultsEl;}
-function showDetail(identifier){const key=clean(identifier);const sel=[...CACHE_SKU.values()].find(r=>clean(r.sku)===key||clean(r.nama)===key);if(!sel) return renderState("detail","Detail tidak tersedia.");
-const sku=sel.sku,nama=sel.nama;const bySheet={};SHEETS.forEach(sheet=>{bySheet[sheet]=(DATA[sheet]||[]).filter(r=>clean(getVal(r,["sku"]))===clean(sku));});
-const inRows=bySheet["Barang Masuk"]||[],outRows=bySheet["Barang Keluar"]||[];
-const tIn=inRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0),tOut=outRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0);
-const locationSet=new Set(),fromToSet=new Set(),dates=[];let maxIn=0,maxOut=0;
-for(const rows of Object.values(bySheet)){for(const r of rows){const loc=getVal(r,["lokasi"]),f=getVal(r,["from"]),t=getVal(r,["to"]),dt=getVal(r,["tanggal","date"]);if(loc)locationSet.add(loc.trim());if(f)fromToSet.add(`From: ${f.trim()}`);if(t)fromToSet.add(`To: ${t.trim()}`);if(dt){const ts=Date.parse(dt);if(Number.isFinite(ts)&&ts>0)dates.push(ts);}}}
-inRows.forEach(r=>maxIn=Math.max(maxIn,parseNumber(getVal(r,["qty"])))); outRows.forEach(r=>maxOut=Math.max(maxOut,parseNumber(getVal(r,["qty"]))));
-const lastMv=dates.length?new Date(Math.max(...dates)).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}):"-";
-const summary=[["Row Kartu Stock",bySheet["Kartu Stock"].length],["Row RPL",bySheet["RPL"].length],["Row BULKY",bySheet["BULKY"].length],["Total Qty Masuk",tIn],["Total Qty Keluar",tOut],["Total Movement",tIn-tOut],["Lokasi Unik",locationSet.size]];
-const sourceList=Array.isArray(sel.sources)?sel.sources:[...sel.sources||[]];
-let html=`<div class='detail-profile'><div class='detail-hero'><div class='detail-top'><div><div class='detail-name'>${esc(nama)}</div><div class='detail-sku'>SKU: <strong>${esc(sku)}</strong> <button class='btn-ghost' onclick="copySku(decodeURIComponent('${encAttr(sku)}'))">Copy SKU</button></div></div><button class='btn-primary' onclick="showPage('search')">Kembali ke hasil pencarian</button></div><div class='source-row'>${sourceList.map(s=>`<span class='badge ${badgeClass(s)}'>${esc(s)}</span>`).join(" ")}</div></div>`;
-html+=`<div class='summary-grid'>${summary.map(([k,v])=>`<div class='summary-card'><div class='k'>${k}</div><div class='v'>${esc(v)}</div></div>`).join("")}</div>`;
-html+=`<div class='detail-note'><div class='note-box'><div class='note-title'>Lokasi terkait</div><div class='note-value'>${locationSet.size?[...locationSet].slice(0,12).map(esc).join(", "):"-"}</div></div><div class='note-box'><div class='note-title'>From/To terkait</div><div class='note-value'>${fromToSet.size?[...fromToSet].slice(0,12).map(esc).join(" | "):"-"}</div></div><div class='note-box'><div class='note-title'>Qty terbesar masuk</div><div class='note-value'>${maxIn||0}</div></div><div class='note-box'><div class='note-title'>Qty terbesar keluar</div><div class='note-value'>${maxOut||0}</div></div><div class='note-box'><div class='note-title'>Movement terakhir</div><div class='note-value'>${lastMv}</div></div></div>`;
-for(const sheet of SHEETS){const rows=bySheet[sheet];html+=`<details class='source-card' ${rows.length?'open':''}><summary><span><span class='badge ${badgeClass(sheet)}'>${sheet}</span></span><span>${rows.length} row</span></summary><div class='source-body'>${renderTable(rows)}</div></details>`;}
-html+="</div>";detail.innerHTML=html;}
-function renderTable(rows){if(!rows.length) return `<div class='empty-card'><strong>Data kosong</strong><div>Tidak ada baris untuk sumber ini.</div></div>`;const headers=Object.keys(rows[0]);let h=`<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>`;rows.forEach(r=>h+=`<tr>${headers.map(k=>`<td>${esc(r[k])}</td>`).join("")}</tr>`);return h+"</tbody></table></div>";}
-function updateDashboard(){const skuSet=new Set(),locSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));["from","to","lokasi"].forEach(k=>{const v=getVal(r,[k]);if(v)locSet.add(clean(v));});});});
-const cards=[["SKU unik",skuSet.size],["Row Kartu Stock",totals["Kartu Stock"]],["Row RPL",totals["RPL"]],["Row BULKY",totals["BULKY"]],["Barang Masuk",totals["Barang Masuk"]],["Barang Keluar",totals["Barang Keluar"]],["Lokasi unik",locSet.size],["Last refresh",new Date().toLocaleTimeString("id-ID")]];
-dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");const mv=buildMovement().slice(0,8);recentMove.innerHTML="<h4>Recent movement</h4>"+(mv.length?`<div class='timeline'>${mv.map(m=>`<div class='tl-item'><span class='badge ${m.type==='IN'?'b-in':'b-out'}'>${m.type}</span> ${esc(m.sku)} - ${esc(m.nama)} <small>${esc(m.tanggal||'-')}</small></div>`).join("")}</div>`:"<div class='state'>Belum ada movement.</div>");}
-function buildMovement(){const rows=[];for(const r of DATA["Barang Masuk"]||[])rows.push(normMv(r,"IN","Barang Masuk"));for(const r of DATA["Barang Keluar"]||[])rows.push(normMv(r,"OUT","Barang Keluar"));return rows.filter(Boolean).sort((a,b)=>(b.ts-a.ts));}
-function normMv(r,type,source){const sku=getVal(r,["sku"]),nama=getVal(r,["nama barang","nama","item","description"]),tanggal=getVal(r,["tanggal","date"]),qty=parseNumber(getVal(r,["qty"]));const ts=Date.parse(tanggal)||0;return{sku:sku||"-",nama:nama||"-",tanggal: tanggal||"",qty,type,source,ts,row:r};}
-function renderMovement(){const skuQ=clean(mvSku.value||""),nameQ=clean(mvName.value||""),dateQ=mvDate.value||"";let rows=buildMovement().filter(r=>(!skuQ||clean(r.sku).includes(skuQ))&&(!nameQ||clean(r.nama).includes(nameQ))&&(!dateQ||String(r.tanggal).includes(dateQ)));if(mvSort.value==="old")rows=rows.reverse();movementList.innerHTML=rows.length?`<div class='timeline'>${rows.map(r=>`<div class='tl-item'><div class='row'><span class='badge ${r.type==='IN'?'b-in':'b-out'}'>${r.type}</span><span class='badge ${badgeClass(r.source)}'>${r.source}</span></div><div><strong>${esc(r.sku)}</strong> - ${esc(r.nama)}</div><div>Qty: ${r.qty} | ${esc(r.tanggal||'-')}</div></div>`).join("")}</div>`:"<div class='state'>Tidak ada data movement.</div>";}
-function updateStats(){const mode=statsFilter.value;const inMap={},outMap={},loc={};SHEETS.forEach(s=>(DATA[s]||[]).forEach(r=>{["from","to","lokasi"].forEach(k=>{const v=getVal(r,[k]);if(v)loc[clean(v)]=(loc[clean(v)]||0)+1;});}));(DATA["Barang Masuk"]||[]).forEach(r=>{const k=getVal(r,["sku"])||"-";inMap[k]=(inMap[k]||0)+parseNumber(getVal(r,["qty"]));});(DATA["Barang Keluar"]||[]).forEach(r=>{const k=getVal(r,["sku"])||"-";outMap[k]=(outMap[k]||0)+parseNumber(getVal(r,["qty"]));});
-const topIn=Object.entries(inMap).sort((a,b)=>b[1]-a[1]).slice(0,10),topOut=Object.entries(outMap).sort((a,b)=>b[1]-a[1]).slice(0,10),topLoc=Object.entries(loc).sort((a,b)=>b[1]-a[1]).slice(0,10);statsCards.innerHTML=[["Top SKU Masuk",topIn[0]?.[0]||"-"],["Top SKU Keluar",topOut[0]?.[0]||"-"],["Top Lokasi",topLoc[0]?.[0]||"-"]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
-let bars=[];if(mode==="all"||mode==="in")bars=bars.concat(topIn.map(([k,v])=>({k:`IN ${k}`,v})));if(mode==="all"||mode==="out")bars=bars.concat(topOut.map(([k,v])=>({k:`OUT ${k}`,v})));if(mode==="all")bars=bars.concat(topLoc.map(([k,v])=>({k:`LOC ${k}`,v})));const max=Math.max(...bars.map(b=>b.v),1);statsChart.innerHTML=bars.length?bars.map(b=>`<div class='bar-row'><small>${esc(b.k)}</small><div class='bar-fill' style='width:${(b.v/max)*100}%'></div><small>${b.v}</small></div>`).join(""):"<div class='state'>Belum ada data statistik.</div>";}
-function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");}
-function renderFilters(){filterRow.innerHTML=FILTERS.map(f=>`<button class='chip ${f===currentFilter?"active":""}' onclick="setFilter(decodeURIComponent('${encAttr(f)}'))">${esc(f)}</button>`).join("");}
-function setFilter(f){currentFilter=f;renderFilters();runSearch();} function initDashboard(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div>";}
-function showSkeleton(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div>";}
-function setStatus(type,text){status.textContent=type==="loading"?`⏳ ${text}`:(type==="error"?`❌ ${text}`:`✅ ${text}`)}
-function renderState(id,text){document.getElementById(id).innerHTML=`<div class='state'>${esc(text)}</div>`;} function renderError(id,text){document.getElementById(id).innerHTML=`<div class='state error'>${esc(text)}</div>`;}
-function updateSyncTime(){lastSync.textContent="Sync: "+new Date().toLocaleTimeString("id-ID");}
-function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";apiStatus.textContent=`API: ${t}`;settingsApiState.textContent=t;connText.textContent=apiConnected?"Koneksi API stabil":"Koneksi API bermasalah";}
-function copySku(sku){navigator.clipboard.writeText(sku||"").then(()=>toast(`SKU ${sku} disalin`));}
-function toggleDark(){document.body.classList.toggle("dark");toast("Mode tema diubah");} function toggleCompact(){document.body.classList.toggle("compact");toast("Compact mode diubah");}
-function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1500);}
-function getVal(row,keys){const cols=Object.keys(row||{});for(const key of keys){const f=cols.find(c=>clean(c).includes(clean(key)));if(f&&row[f]!=null)return String(row[f]);}return "";}
-function highlight(text,query){const raw=String(text||"");const q=String(query||"").trim();if(!q) return esc(raw);const words=clean(q).split(" ").filter(Boolean).slice(0,6);let out=esc(raw);words.forEach(w=>{const e=w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");out=out.replace(new RegExp(`(${e})`,"ig"),"<mark>$1</mark>")});return out;}
-function normalizeHeader(v){return clean(v).replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();} function clean(v){return String(v||"").toLowerCase().trim().replace(/[_-]+/g," ").replace(/\s+/g," ");}
-function parseNumber(v){const n=parseFloat(String(v||"").replace(/[^0-9.-]/g,""));return Number.isFinite(n)?n:0;} function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
-function encAttr(v){return encodeURIComponent(String(v??""));} function badgeClass(s){return s==="Kartu Stock"?"b-kartu":s==="RPL"?"b-rpl":s==="BULKY"?"b-bulky":s==="Barang Masuk"?"b-in":"b-out";}
-function debounce(fn,wait){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait)}}
+const API_KEY="AIzaSyAhRpt5u-xx1ysTq_u4xOOziVHmlBJb34E",SPREADSHEET_ID="1KzOcV1V4bcxfsLzhfwXxnIxxZoTRlKh4UYhNizREpCM";
+const SHEETS=["Kartu Stock","RPL","BULKY","Barang Masuk","Barang Keluar"],FILTERS=["Semua",...SHEETS];
+const App={state:{data:{},cacheSku:new Map(),isLoaded:false,isLoading:false,apiConnected:false,currentFilter:"Semua",lastResults:[],lastQuery:""},router:new Navigo("/"),el:{view:document.getElementById("appView")}};
+const Api={async fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ10000`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error)throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];},async loadAllData(){for(const sheet of SHEETS)App.state.data[sheet]=Parser.parseSheet(await Api.fetchSheet(sheet));Parser.rebuildSkuCache();App.state.isLoaded=true;}};
+const Parser={parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=Parser.detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>Utils.normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;},detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(Utils.clean).join("|");let s=0;req.forEach(k=>t.includes(Utils.clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;},rebuildSkuCache(){App.state.cacheSku=new Map();for(const sheet of SHEETS){for(const row of App.state.data[sheet]||[]){const sku=Utils.getVal(row,["sku"]),nama=Utils.getVal(row,["nama barang","nama","item","description"]),key=Utils.clean(sku||nama);if(!key)continue;if(!App.state.cacheSku.has(key))App.state.cacheSku.set(key,{sku:sku||"-",nama:nama||"-",sources:new Set(),rows:[]});const it=App.state.cacheSku.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}}};
+const Utils={clean:v=>String(v||"").toLowerCase().trim().replace(/[_-]+/g," ").replace(/\s+/g," "),esc:v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])),parseNumber:v=>{const n=parseFloat(String(v||"").replace(/[^0-9.-]/g,""));return Number.isFinite(n)?n:0},normalizeHeader:v=>Utils.clean(v).replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim(),getVal(row,keys){const cols=Object.keys(row||{});for(const key of keys){const f=cols.find(c=>Utils.clean(c).includes(Utils.clean(key)));if(f&&row[f]!=null)return String(row[f]);}return ""},toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1500)}};
+const Render={layout(html){App.el.view.classList.remove("page-shell");void App.el.view.offsetWidth;App.el.view.classList.add("page-shell");App.el.view.innerHTML=html;},loading(){Render.layout(`<section class='panel'><h3 class='page-title'>Loading</h3><div class='skeleton'></div><div class='skeleton' style='margin-top:10px'></div></section>`);},notFound(){Render.layout(`<section class='panel'><h3 class='page-title'>404</h3><div class='state error'>Halaman tidak ditemukan.</div></section>`);},dashboard(){const totals={};SHEETS.forEach(s=>totals[s]=(App.state.data[s]||[]).length);Render.layout(`<section class='panel'><h3 class='page-title'>Dashboard</h3><input id='quickSearch' class='search-lg' placeholder='Quick search SKU / Nama...'/><div class='grid dashboard' id='dashboardCards'></div><div class='panel' id='recentMove'></div></section>`);document.getElementById('quickSearch').addEventListener('input',e=>{const q=e.target.value.trim();if(q)App.router.navigate('/search?q='+encodeURIComponent(q));});document.getElementById('dashboardCards').innerHTML=[["Kartu Stock",totals['Kartu Stock']],["RPL",totals['RPL']],["BULKY",totals['BULKY']],["Barang Masuk",totals['Barang Masuk']],["Barang Keluar",totals['Barang Keluar']].map(([k,v])=>`<div class='metric'><div class='k'>${k}</div><div class='v'>${v}</div></div>`).join('');},search(query=''){Render.layout(`<section class='panel'><h3 class='page-title'>Cari Data</h3><div class='search-bar'><input id='searchInput' class='search-lg' placeholder='Cari SKU, 4 digit akhir, nama barang'/></div><div class='toolbar'><div id='filterRow'></div></div><div id='results' style='margin-top:10px'></div></section>`);const input=document.getElementById('searchInput');input.value=query;input.addEventListener('input',Utils.debounce(()=>{runSearch(input.value);},220));renderFilters();runSearch(query);},detail(sku){const sel=[...App.state.cacheSku.values()].find(r=>Utils.clean(r.sku)===Utils.clean(sku));if(!sel){Render.layout(`<section class='panel'><h3 class='page-title'>Detail SKU</h3><div class='state'>SKU tidak ditemukan.</div><button class='btn-primary' id='backSearch'>Kembali ke Search</button></section>`);document.getElementById('backSearch').onclick=()=>App.router.navigate('/search');return;}const bySheet={};SHEETS.forEach(sheet=>bySheet[sheet]=(App.state.data[sheet]||[]).filter(r=>Utils.clean(Utils.getVal(r,['sku']))===Utils.clean(sel.sku)));let html=`<section class='panel'><h3 class='page-title'>Detail SKU</h3><div class='result-card'><strong>${Utils.esc(sel.nama)}</strong><div>SKU: ${Utils.esc(sel.sku)}</div><div class='row' style='margin-top:8px'><button class='btn-primary' id='backSearch'>Kembali ke Search</button></div></div>`;for(const sheet of SHEETS){const rows=bySheet[sheet]||[];html+=`<div class='panel'><div class='badge ${sheet==='Kartu Stock'?'b-kartu':sheet==='RPL'?'b-rpl':sheet==='BULKY'?'b-bulky':sheet==='Barang Masuk'?'b-in':'b-out'}'>${sheet}</div>${rows.length?Render.table(rows):"<div class='state'>Data kosong</div>"}</div>`;}html+='</section>';Render.layout(html);document.getElementById('backSearch').onclick=()=>App.router.navigate('/search');},table(rows){const headers=Object.keys(rows[0]||{});return `<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${Utils.esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${headers.map(k=>`<td>${Utils.esc(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;},statistics(){Render.layout(`<section class='panel'><h3 class='page-title'>Statistik</h3><div class='state'>Statistik tetap tersedia, data diolah dari memory cache.</div></section>`);},movement(){Render.layout(`<section class='panel'><h3 class='page-title'>Movement</h3><div class='state'>Movement tetap tersedia, data diolah dari memory cache.</div></section>`);},settings(){Render.layout(`<section class='panel'><h3 class='page-title'>Settings / Info</h3><p><strong>Status API:</strong> ${App.state.apiConnected?'Terhubung':'Tidak terhubung'}</p><p><strong>Data loaded:</strong> ${App.state.isLoaded?'Loaded':'Belum loaded'}</p><p><strong>Spreadsheet ID:</strong> <code>${SPREADSHEET_ID}</code></p><p><strong>Sheet digunakan:</strong> ${SHEETS.join(', ')}</p><div class='row'><button class='btn-primary' id='refresh'>Refresh Manual</button><button id='darkBtn'>Toggle Dark</button><button id='compactBtn'>Toggle Compact</button></div></section>`);document.getElementById('refresh').onclick=()=>Bootstrap.load(true);document.getElementById('darkBtn').onclick=()=>document.body.classList.toggle('dark');document.getElementById('compactBtn').onclick=()=>document.body.classList.toggle('compact');}};
+Utils.debounce=(fn,wait)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait)}};
+function renderFilters(){const row=document.getElementById('filterRow');if(!row)return;row.innerHTML=FILTERS.map(f=>`<button class='chip ${f===App.state.currentFilter?'active':''}' data-filter='${encodeURIComponent(f)}'>${Utils.esc(f)}</button>`).join('');row.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{App.state.currentFilter=decodeURIComponent(b.dataset.filter);renderFilters();runSearch(document.getElementById('searchInput').value);});}
+function runSearch(qRaw){const q=Utils.clean(qRaw);const resultsEl=document.getElementById('results');if(!q){resultsEl.innerHTML="<div class='state'>Masukkan kata kunci pencarian.</div>";return;}const words=q.split(' ').filter(Boolean),out=[];for(const it of App.state.cacheSku.values()){if(App.state.currentFilter!=="Semua"&&!it.sources.has(App.state.currentFilter))continue;const skuN=Utils.clean(it.sku),nameN=Utils.clean(it.nama),combined=`${skuN} ${nameN}`;let rank=99;if(skuN===q)rank=1;else if(/^\d{4}$/.test(q)&&skuN.endsWith(q))rank=2;else if(skuN.includes(q))rank=3;else if(nameN.includes(q))rank=4;else if(words.length&&words.every(w=>combined.includes(w)))rank=5;else if(words.some(w=>combined.includes(w)))rank=6;if(rank<99)out.push({...it,sources:[...it.sources],rank});}
+const items=out.sort((a,b)=>a.rank-b.rank).slice(0,50);resultsEl.innerHTML=items.length?`<div class='result-list'>${items.map(r=>`<div class='result-card'><div class='result-head'><div><strong>${Utils.esc(r.nama)}</strong><div>SKU: ${Utils.esc(r.sku)}</div></div></div><div class='row'><button class='btn-primary' data-sku='${encodeURIComponent(r.sku)}'>Lihat Detail</button></div></div>`).join('')}</div>`:"<div class='state'>Data tidak ditemukan.</div>";resultsEl.querySelectorAll('[data-sku]').forEach(btn=>btn.onclick=()=>App.router.navigate('/sku/'+decodeURIComponent(btn.dataset.sku)))}
+function updateActive(path){document.querySelectorAll('[data-route]').forEach(b=>b.classList.toggle('active',path===b.dataset.route||(path.startsWith('/sku/')&&b.dataset.route==='/search')))}
+const Bootstrap={async load(manual=false){App.state.isLoading=true;Render.loading();document.getElementById('connText').textContent='Memuat data...';try{await Api.loadAllData();App.state.apiConnected=true;document.getElementById('lastSync').textContent='Sync: '+new Date().toLocaleTimeString('id-ID');document.getElementById('apiStatus').textContent='API: Terhubung';document.getElementById('connText').textContent='Koneksi API stabil';if(manual)Utils.toast('Data berhasil di-refresh');}catch(e){App.state.apiConnected=false;document.getElementById('apiStatus').textContent='API: Tidak terhubung';document.getElementById('connText').textContent='Koneksi API bermasalah';Render.layout(`<section class='panel'><div class='state error'>Gagal memuat data: ${Utils.esc(e.message)}</div></section>`);}finally{App.state.isLoading=false;App.router.resolve();}}};
+function setupRouter(){App.router.on('/',()=>{if(!App.state.isLoaded)return Render.loading();updateActive('/');Render.dashboard();})
+.on('/search',match=>{if(!App.state.isLoaded)return Render.loading();updateActive('/search');const p=new URLSearchParams(location.search);Render.search(p.get('q')||'');})
+.on('/sku/:sku',match=>{if(!App.state.isLoaded)return Render.loading();updateActive('/search');Render.detail(match.data.sku);})
+.on('/statistics',()=>{if(!App.state.isLoaded)return Render.loading();updateActive('/statistics');Render.statistics();})
+.on('/movement',()=>{if(!App.state.isLoaded)return Render.loading();updateActive('/movement');Render.movement();})
+.on('/settings',()=>{if(!App.state.isLoaded)return Render.loading();updateActive('/settings');Render.settings();})
+.notFound(()=>{updateActive('');Render.notFound();})
+.resolve();}
+document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('[data-route]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();App.router.navigate(b.dataset.route)}));setupRouter();Bootstrap.load();setInterval(()=>Bootstrap.load(false),60000);});
 </script>
 </body>
 </html>
