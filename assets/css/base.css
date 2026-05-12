@@ -146,15 +146,11 @@
   box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
-.brand-logo-placeholder svg {
-  width: 70%;
-  height: 70%;
-
+.brand-logo-placeholder .brand-logo {
+  width: 72%;
+  height: 72%;
   display: block;
-
-  /* warna icon */
-  fill: #ffffff;
-
   max-width: 100%;
   max-height: 100%;
+  object-fit: contain;
 }
