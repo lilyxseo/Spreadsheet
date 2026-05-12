@@ -252,3 +252,62 @@ body.dark .side-link.nav-item:hover{background: rgba(148,163,184,.2)}
   .side-link.nav-item{min-height:44px;padding:10px 11px}
   .side-link.nav-item span{font-size:13px}
 }
+
+/* Enhanced scrollbar styling */
+:root{
+  --scroll-track: color-mix(in srgb, var(--panel-soft) 80%, #ffffff 20%);
+  --scroll-thumb: color-mix(in srgb, var(--primary) 58%, #ffffff 42%);
+  --scroll-thumb-hover: color-mix(in srgb, var(--primary-2) 70%, #ffffff 30%);
+}
+
+.table-scroll,
+.table-wrap,
+.table-wrap-full,
+.sidebar,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.table-scroll::-webkit-scrollbar,
+.table-wrap::-webkit-scrollbar,
+.table-wrap-full::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.table-scroll::-webkit-scrollbar-track,
+.table-wrap::-webkit-scrollbar-track,
+.table-wrap-full::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 999px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb,
+.table-wrap::-webkit-scrollbar-thumb,
+.table-wrap-full::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--scroll-thumb), var(--scroll-thumb-hover));
+  border-radius: 999px;
+  border: 2px solid var(--scroll-track);
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover,
+.table-wrap::-webkit-scrollbar-thumb:hover,
+.table-wrap-full::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scroll-thumb-hover), var(--primary-2));
+}
+
+.table-scroll::-webkit-scrollbar-corner,
+.table-wrap::-webkit-scrollbar-corner,
+.table-wrap-full::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner {
+  background: transparent;
+}
