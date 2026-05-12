@@ -123,4 +123,38 @@
     .empty-card{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);background:var(--panel-soft)}
     @media (min-width: 900px){.sidebar{transform:none}.content{margin-left:260px;padding:18px}.mobile-only,.close-side,.sidebar-overlay{display:none}.grid.dashboard{grid-template-columns:repeat(4,1fr)}.grid.stats{grid-template-columns:repeat(3,1fr)}.recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media (max-width: 899px){.recent-grid{grid-template-columns:1fr}.header-card{padding:12px}.title{font-size:16px}}
-  
+
+.brand-logo-placeholder {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  /* warna brand */
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+
+  /* biar svg tidak keluar */
+  overflow: hidden;
+
+  /* efek halus */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.brand-logo-placeholder svg {
+  width: 70%;
+  height: 70%;
+
+  display: block;
+
+  /* warna icon */
+  fill: #ffffff;
+
+  max-width: 100%;
+  max-height: 100%;
+}
