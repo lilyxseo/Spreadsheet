@@ -1,0 +1,6 @@
+    :root {
+    body.dark {
+    * { box-sizing: border-box; }
+    body { margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden; }
+    body.dark .loader-line{background:linear-gradient(90deg,#1f2d48 25%,#2b3f63 37%,#1f2d48 63%);background-size:300% 100%}
+    mark{background:#fde68a;border-radius:3px}
