@@ -1,26 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Inventory Dashboard</title>
   <style>
-    body { font-family: Arial; background:#f4f6fb; padding:20px; }
-    .card { background:white; padding:20px; border-radius:12px; margin-bottom:15px; }
-    input { width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; }
-    button { margin-top:10px; padding:10px 15px; border:none; background:#2563eb; color:white; border-radius:8px; }
-    .item { padding:10px; border-bottom:1px solid #eee; cursor:pointer; }
+    body{font-family:Arial;background:#f4f6fb;margin:0;padding:20px;color:#111827}
+    .container{max-width:1200px;margin:auto}
+    .card{background:white;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+    input{width:100%;padding:14px;border:1px solid #d1d5db;border-radius:12px;font-size:16px;box-sizing:border-box}
+    button{margin-top:10px;padding:12px 20px;border:0;border-radius:12px;background:#2563eb;color:white;cursor:pointer}
+    .item{padding:12px;border-bottom:1px solid #eee;cursor:pointer}
+    .item:hover{background:#f3f4f6}
+    .muted{color:#6b7280;font-size:13px}
+    table{width:100%;border-collapse:collapse;display:block;overflow-x:auto;margin-top:10px}
+    th,td{border:1px solid #e5e7eb;padding:8px;font-size:13px;white-space:nowrap;text-align:left}
+    th{background:#f9fafb}
+    h2,h3{margin-top:0}
+    .badge{display:inline-block;background:#dbeafe;color:#1d4ed8;padding:4px 8px;border-radius:999px;font-size:12px}
   </style>
 </head>
 
 <body>
+<div class="container">
 
-<div class="card">
-  <h2>Inventory Dashboard</h2>
-  <input id="search" placeholder="Cari SKU / Nama / 4 digit">
-  <button onclick="search()">Cari</button>
+  <div class="card">
+    <h2>Inventory Dashboard</h2>
+    <input id="searchInput" placeholder="Cari SKU / 4 digit SKU / nama barang" onkeydown="if(event.key==='Enter') searchData()">
+    <button onclick="searchData()">Cari</button>
+    <div id="status" class="muted" style="margin-top:10px">Loading data...</div>
+  </div>
+
+  <div class="card">
+    <h3>Hasil Pencarian</h3>
+    <div id="results" class="muted">Tunggu data selesai dimuat.</div>
+  </div>
+
+  <div class="card">
+    <h3>Detail SKU</h3>
+    <div id="detail" class="muted">Detail akan tampil di sini.</div>
+  </div>
+
 </div>
-
-<div class="card" id="results"></div>
-<div class="card" id="detail"></div>
 
 <script>
 const API_KEY = "AIzaSyAhRpt5u-xx1ysTq_u4xOOziVHmlBJb34E";
@@ -36,89 +56,204 @@ const SHEETS = [
 
 let DATA = {};
 
-async function loadAll() {
-  for (let sheet of SHEETS) {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}?key=${API_KEY}`;
-    
-    const res = await fetch(url);
-    const json = await res.json();
+window.onload = loadAllData;
 
-    DATA[sheet] = parse(json.values);
+async function loadAllData() {
+  try {
+    for (const sheet of SHEETS) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}?key=${API_KEY}`;
+      const res = await fetch(url);
+      const json = await res.json();
+
+      if (json.error) {
+        document.getElementById("status").innerHTML =
+          `Error sheet ${sheet}: ${json.error.message}`;
+        return;
+      }
+
+      DATA[sheet] = parseSheet(json.values || []);
+    }
+
+    document.getElementById("status").innerHTML =
+      "Data berhasil dimuat. Silakan cari SKU atau nama barang.";
+
+    document.getElementById("results").innerHTML =
+      "Masukkan keyword pencarian.";
+
+    console.log("DATA:", DATA);
+
+  } catch (err) {
+    document.getElementById("status").innerHTML = "Error load data: " + err.message;
   }
 }
 
-function parse(values) {
-  const headers = values[0];
+function parseSheet(values) {
+  if (!values || values.length < 2) return [];
+
+  const headers = values[0].map(h => cleanHeader(h));
+
   return values.slice(1).map(row => {
-    let obj = {};
-    headers.forEach((h,i)=> obj[h.toLowerCase()] = row[i]);
+    const obj = {};
+    headers.forEach((h, i) => {
+      obj[h] = row[i] || "";
+    });
     return obj;
   });
 }
 
-function normalize(v){
-  return (v||"").toLowerCase().trim();
-}
-
-function search(){
-  const q = normalize(document.getElementById("search").value);
+function searchData() {
+  const q = normalize(document.getElementById("searchInput").value);
+  if (!q) return;
 
   let results = [];
+  const words = q.split(" ").filter(Boolean);
 
-  ["Kartu Stock","RPL","BULKY"].forEach(sheet=>{
-    (DATA[sheet]||[]).forEach(row=>{
-      const sku = normalize(row["sku"] || row["kode"] || "");
-      const nama = normalize(row["nama barang"] || row["nama"] || "");
+  ["Kartu Stock", "RPL", "BULKY"].forEach(sheet => {
+    (DATA[sheet] || []).forEach(row => {
+      const sku = getVal(row, ["sku", "kode", "item"]);
+      const nama = getVal(row, ["nama barang", "nama", "description", "item name"]);
+      const combined = normalize(`${sku} ${nama}`);
 
-      if(!sku && !nama) return;
+      if (!sku && !nama) return;
 
-      if(
-        sku.includes(q) ||
-        nama.includes(q) ||
-        (q.length === 4 && sku.endsWith(q))
-      ){
-        results.push({sku,nama,sheet});
+      const match =
+        normalize(sku).includes(q) ||
+        normalize(nama).includes(q) ||
+        (q.length === 4 && normalize(sku).endsWith(q)) ||
+        words.every(w => combined.includes(w));
+
+      if (match) {
+        results.push({
+          sku: sku,
+          nama: nama,
+          sheet: sheet,
+          row: row
+        });
       }
     });
   });
 
-  render(results);
+  const unique = {};
+  results.forEach(r => {
+    const key = normalize(r.sku || r.nama);
+    if (!unique[key]) unique[key] = r;
+  });
+
+  renderResults(Object.values(unique).slice(0, 30));
 }
 
-function render(data){
-  let el = document.getElementById("results");
+function renderResults(results) {
+  const el = document.getElementById("results");
 
-  if(!data.length){
-    el.innerHTML = "Tidak ditemukan";
+  if (!results.length) {
+    el.innerHTML = "Data tidak ditemukan.";
     return;
   }
 
-  let html = "";
-  data.slice(0,20).forEach(d=>{
+  let html = `<b>${results.length} hasil ditemukan</b>`;
+
+  results.forEach(r => {
     html += `
-      <div class="item" onclick="detail('${d.sku}')">
-        <b>${d.nama}</b><br>
-        ${d.sku}
+      <div class="item" onclick="showDetail('${escapeAttr(r.sku)}')">
+        <b>${escapeHtml(r.nama || "-")}</b><br>
+        SKU: ${escapeHtml(r.sku || "-")}<br>
+        <span class="badge">${escapeHtml(r.sheet)}</span>
       </div>
     `;
   });
 
   el.innerHTML = html;
+
+  if (results.length === 1) showDetail(results[0].sku);
 }
 
-function detail(sku){
-  let masuk = (DATA["Barang Masuk"]||[]).filter(r=>normalize(r["sku"])===sku);
-  let keluar = (DATA["Barang Keluar"]||[]).filter(r=>normalize(r["sku"])===sku);
+function showDetail(sku) {
+  const skuKey = normalize(sku);
 
-  document.getElementById("detail").innerHTML = `
-    <h3>SKU: ${sku}</h3>
-    <b>Barang Masuk:</b> ${masuk.length}<br>
-    <b>Barang Keluar:</b> ${keluar.length}
+  const kartu = filterSku(DATA["Kartu Stock"], skuKey);
+  const rpl = filterSku(DATA["RPL"], skuKey);
+  const bulky = filterSku(DATA["BULKY"], skuKey);
+  const masuk = filterSku(DATA["Barang Masuk"], skuKey);
+  const keluar = filterSku(DATA["Barang Keluar"], skuKey);
+
+  const first = kartu[0] || rpl[0] || bulky[0] || masuk[0] || keluar[0] || {};
+  const nama = getVal(first, ["nama barang", "nama", "description", "item name"]);
+
+  let html = `
+    <h2>${escapeHtml(nama || "Detail SKU")}</h2>
+    <b>SKU:</b> ${escapeHtml(sku)}
   `;
+
+  html += renderTable("Kartu Stock", kartu);
+  html += renderTable("RPL", rpl);
+  html += renderTable("BULKY", bulky);
+  html += renderTable("Barang Masuk", masuk);
+  html += renderTable("Barang Keluar", keluar);
+
+  document.getElementById("detail").innerHTML = html;
 }
 
-// load awal
-loadAll();
+function filterSku(rows, skuKey) {
+  return (rows || []).filter(row => {
+    const sku = getVal(row, ["sku", "kode", "item"]);
+    return normalize(sku) === skuKey;
+  });
+}
+
+function renderTable(title, rows) {
+  if (!rows || !rows.length) {
+    return `<h3>${title}</h3><div class="muted">Tidak ada data.</div>`;
+  }
+
+  const headers = Object.keys(rows[0]);
+
+  let html = `<h3>${title}</h3><table><tr>`;
+  headers.forEach(h => html += `<th>${escapeHtml(h)}</th>`);
+  html += `</tr>`;
+
+  rows.forEach(row => {
+    html += `<tr>`;
+    headers.forEach(h => html += `<td>${escapeHtml(row[h] || "")}</td>`);
+    html += `</tr>`;
+  });
+
+  html += `</table>`;
+  return html;
+}
+
+function getVal(row, keys) {
+  if (!row) return "";
+
+  for (const key of keys) {
+    const found = Object.keys(row).find(k =>
+      cleanHeader(k).includes(cleanHeader(key))
+    );
+    if (found && row[found]) return row[found];
+  }
+
+  return "";
+}
+
+function normalize(v) {
+  return String(v || "").toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function cleanHeader(v) {
+  return normalize(v).replace(/[_-]/g, " ");
+}
+
+function escapeHtml(v) {
+  return String(v || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function escapeAttr(v) {
+  return String(v || "").replace(/'/g, "\\'");
+}
 </script>
 
 </body>
