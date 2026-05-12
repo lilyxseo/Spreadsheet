@@ -1,6 +1,7 @@
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
-const ids=["searchInput","sortSearch","statsFilter","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","mvSku","mvName","mvDate","mvSort","movementList","statsCards","statsChart","loadedState","countPerSheet","filterRow","status","lastSync","settingsApiState","sidebarApi","detail"];
+const ids=["searchInput","sortSearch","statsFilter","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","mvSku","mvName","mvDate","mvSort","movementList","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail"];
 ids.forEach(id=>window[id]=document.getElementById(id));
+const statusEl=document.getElementById("status");
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="";
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;loadAllData();routeFromPath(location.pathname);setInterval(()=>loadAllData(false,true),60000);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
@@ -56,7 +57,7 @@ function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum l
 function renderFilters(){filterRow.innerHTML=FILTERS.map(f=>`<button class='chip ${f===currentFilter?"active":""}' onclick="setFilter(decodeURIComponent('${encAttr(f)}'))">${esc(f)}</button>`).join("");}
 function setFilter(f){currentFilter=f;renderFilters();runSearch();} function initDashboard(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div>";}
 function showSkeleton(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div>";}
-function setStatus(type,text){status.textContent=type==="loading"?`⏳ ${text}`:(type==="error"?`❌ ${text}`:`✅ ${text}`)}
+function setStatus(type,text){statusEl.textContent=type==="loading"?`⏳ ${text}`:(type==="error"?`❌ ${text}`:`✅ ${text}`)}
 function renderState(id,text){document.getElementById(id).innerHTML=`<div class='state'>${esc(text)}</div>`;} function renderError(id,text){document.getElementById(id).innerHTML=`<div class='state error'>${esc(text)}</div>`;}
 function updateSyncTime(){lastSync.textContent="Sync: "+new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});}
 function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";settingsApiState.textContent=t;sidebarApi.textContent=apiConnected?"Online / Loaded":"Offline / Error";}
