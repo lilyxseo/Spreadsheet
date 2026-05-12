@@ -1,0 +1,4 @@
+
+.location-empty-table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:auto}
+.location-empty-table th,.location-empty-table td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+.location-empty-table th:first-child,.location-empty-table td:first-child{width:80px;text-align:center}
