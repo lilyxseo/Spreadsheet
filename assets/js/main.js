@@ -5,10 +5,10 @@ const statusEl=document.getElementById("status");
 const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"inventory_cache_version"};
 const CACHE_VERSION="1";
 const CACHE_TTL_MS=5*60*1000;
-const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="";
+const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false;
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();routeFromPath(location.pathname);setInterval(()=>syncData({silent:true}),60000);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
-function bindEvents(){const d=debounce(()=>runSearch(),220);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),220),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),220);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);inDate?.addEventListener("change",()=>renderDataTablePage("in","Barang Masuk"));outDate?.addEventListener("change",()=>renderDataTablePage("out","Barang Keluar"));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;renderDataTablePage(m,m==="in"?"Barang Masuk":"Barang Keluar",true);}});document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(!btn)return;const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}});}
+function bindEvents(){const d=debounce(()=>runSearch(),220);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),220),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),220);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);inDate?.addEventListener("change",()=>renderDataTablePage("in","Barang Masuk"));outDate?.addEventListener("change",()=>renderDataTablePage("out","Barang Keluar"));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}});document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(!btn)return;const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}});}
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/statistics")return showPage("stats");if(path==="/location")return showPage("location");if(path==="/settings")return showPage("settings");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
@@ -30,38 +30,61 @@ try{localStorage.setItem(CACHE_KEYS.data,JSON.stringify(data));localStorage.setI
 }
 function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts&&(Date.now()-ts)<CACHE_TTL_MS;}
 function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);}
-function applyData(newData,{fromCache=false}={}){
+function applyData(newData,{fromCache=false,deferRender=true}={}){
 for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
 rebuildSkuCache();
 apiConnected=true;
 updateApiState();
 updateSyncTime();
-updateDashboard();
-updateStats();
 updateSettings();
-if(lastQuery)runSearch();
-renderDataTablePage("in","Barang Masuk");
-renderDataTablePage("out","Barang Keluar");
-renderEmptyLocations();
+if(deferRender){scheduleUIWork(()=>rerenderCurrentPage({fromCache}));return;}
+rerenderCurrentPage({fromCache});
+}
+
+function scheduleUIWork(cb){
+const runner=()=>setTimeout(cb,16);
+if(typeof window.requestIdleCallback==="function")return window.requestIdleCallback(runner,{timeout:120});
+return setTimeout(cb,16);
+}
+function getActivePage(){
+const active=document.querySelector(".page:not(.hidden)");
+return active?.id?.replace("page-","")||"dashboard";
+}
+function rerenderCurrentPage({fromCache=false}={}){
+const page=getActivePage();
+if(page==="dashboard")updateDashboard();
+if(page==="stats")updateStats();
+if(page==="location")renderEmptyLocations();
+if(page==="detail"&&currentSku)showDetail(currentSku);
+if(page==="search"&&String(lastQuery||"").trim())runSearch();
+if(page==="barang-masuk")renderDataTablePage("in","Barang Masuk",true);
+if(page==="barang-keluar")renderDataTablePage("out","Barang Keluar",true);
 if(fromCache)setStatus("loading","Data dari cache");
 }
-async function syncData({force=false,silent=false}={}){
+async function syncData({force=false,silent=true}={}){
+if(isSyncing)return false;
+isSyncing=true;
+updateSyncUI();
 if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat data dari Google Sheets...");showSkeleton();}
 if(silent)setStatus("loading","Sinkronisasi...");
 const freshData={};
 try{
 for(const sheet of SHEETS)freshData[sheet]=parseSheet(await fetchSheet(sheet));
-applyData(freshData);
+applyData(freshData,{deferRender:true});
 saveCache(freshData);
-if(!silent)toast("Data berhasil di-refresh");
 setStatus("ok","Data terbaru");
+toast("Data berhasil diperbarui");
 return true;
 }catch(err){
 apiConnected=false;updateApiState();
 const hasCache=!!loadCache();
 if(hasCache){setStatus("error","Gagal sync, memakai cache");return false;}
 setStatus("error","Gagal memuat data: "+err.message);renderError("results","Tidak bisa memuat data.");throw err;
-}finally{hideInitialLoader();}
+}finally{
+isSyncing=false;
+updateSyncUI();
+hideInitialLoader();
+}
 }
 async function initAppData(){
 const cached=loadCache();
@@ -124,6 +147,10 @@ function renderFilters(){const searchFilters=FILTERS.filter(f=>!["Barang Masuk",
 function setFilter(f){currentFilter=f;renderFilters();runSearch();} function initDashboard(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div>";}
 function showSkeleton(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div>";}
 function setStatus(type,text){statusEl.textContent=type==="loading"?`⏳ ${text}`:(type==="error"?`❌ ${text}`:text)}
+function updateSyncUI(){
+const refreshBtn=document.querySelector("[data-refresh-btn]");
+if(refreshBtn){refreshBtn.classList.toggle("is-syncing",isSyncing);refreshBtn.disabled=false;}
+}
 function renderState(id,text){document.getElementById(id).innerHTML=`<div class='state'>${esc(text)}</div>`;} function renderError(id,text){document.getElementById(id).innerHTML=`<div class='state error'>${esc(text)}</div>`;}
 function updateSyncTime(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||Date.now());lastSync.textContent="Sync: "+new Date(ts).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});}
 function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";settingsApiState.textContent=t;sidebarApi.textContent=apiConnected?"Online / Loaded":"Offline / Error";}
@@ -143,6 +170,8 @@ function debounce(fn,wait){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=
 
 
 function normalizeMovementRows(sheet,type){return (DATA[sheet]||[]).map(r=>{const sku=getVal(r,["sku"])||"-";const nama=getVal(r,["nama barang","nama","item","description"])||"-";const qty=parseNumber(getVal(r,["qty"]));const tanggal=getVal(r,["tanggal","date","created at","waktu"])||"";const from=getVal(r,["from"])||"-";const to=getVal(r,["to"])||"-";const status=getVal(r,["status"])||"-";const pic=getVal(r,["pic","user","operator"])||"-";const lokasi=getVal(r,["lokasi","location","rak","bin","area"])||"-";const ket=getVal(r,["keterangan","notes","remark"])||"-";return {tanggal,from,to,sku,nama,qty,status,pic,lokasi,keterangan:ket,type,row:r};});}
+const DEBOUNCED_RENDER={in:debounce(()=>renderDataTablePage("in","Barang Masuk",true),180),out:debounce(()=>renderDataTablePage("out","Barang Keluar",true),180)};
+function debouncedTableRender(mode){return (DEBOUNCED_RENDER[mode]||(()=>{}))();}
 const TABLE_STATE={in:{page:1,pageSize:25,rows:[],filtered:[]},out:{page:1,pageSize:25,rows:[],filtered:[]}};
 function getUniqueOptions(rows,key){return [...new Set(rows.map(r=>String(r[key]||"-")).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
 function applyTableFilters(rows,mode){const q=clean((mode==="in"?inSearch:outSearch)?.value||"");const root=document.getElementById(`mv-filters-${mode}`);const get=name=>root?.querySelector(`[name="${name}"]`)?.value||"";const start=get("dateStart"),end=get("dateEnd");return rows.filter(r=>{const rowDate=String(r.tanggal||"");if(start&&rowDate&&rowDate<start)return false;if(end&&rowDate&&rowDate>end)return false;const fields=["from","to","status","pic","lokasi","sku"];if(fields.some(f=>{const v=get(f);return v&&String(r[f]||"-")!==v;}))return false;if(q&&!clean(`${r.sku} ${r.nama} ${r.from} ${r.to} ${r.status} ${r.pic} ${r.keterangan}`).includes(q))return false;return true;});}
@@ -150,10 +179,14 @@ function sortTableRows(rows,sort){const m={latest:(a,b)=>String(b.tanggal).local
 function paginateRows(mode,action){const st=TABLE_STATE[mode];const max=Math.max(1,Math.ceil(st.filtered.length/st.pageSize));if(action==="prev")st.page=Math.max(1,st.page-1);if(action==="next")st.page=Math.min(max,st.page+1);renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}
 function toggleColumnVisibility(mode){const root=document.getElementById(`mv-cols-${mode}`);const cols=[...root.querySelectorAll('input[type="checkbox"]')].filter(c=>c.checked).map(c=>c.value);renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true,cols);}
 function exportFilteredCsv(mode){const st=TABLE_STATE[mode];const cols=st.columns||["tanggal","from","to","sku","nama","qty","status","pic","keterangan"];const lines=[cols.join(","),...st.filtered.map(r=>cols.map(c=>`"${String(r[c]??"").replaceAll('"','""')}"`).join(","))];const blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=mode==="in"?"barang-masuk-filtered.csv":"barang-keluar-filtered.csv";a.click();URL.revokeObjectURL(a.href);} 
-function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];if(!keepPage||!st.rows.length)st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT");const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","nama","qty","status","pic","keterangan","lokasi"];st.columns=selectedCols||st.columns||["tanggal","from","to","sku","nama","qty","status","pic","keterangan"];const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(!keepPage)st.page=1;const pageRows=st.pageSize===-1?st.filtered:st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);const totalQty=st.filtered.reduce((n,r)=>n+r.qty,0),skuCount=new Set(st.filtered.map(r=>r.sku)).size,fromCount=new Set(st.filtered.map(r=>r.from)).size,toCount=new Set(st.filtered.map(r=>r.to)).size;
+function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];if(!keepPage||!st.rows.length)st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT");const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","nama","qty","status","pic","keterangan","lokasi"];st.columns=selectedCols||st.columns||["tanggal","from","to","sku","nama","qty","status","pic","keterangan"];const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(!keepPage)st.page=1;const hardLimit=100;
+if(st.pageSize===-1&&st.filtered.length>hardLimit)toast("Mode semua dibatasi 100 baris per render agar UI tetap ringan");
+const size=st.pageSize===-1?hardLimit:Math.min(st.pageSize,hardLimit);
+st.pageSize=size;
+const pageRows=st.filtered.slice((st.page-1)*size,st.page*size);const totalQty=st.filtered.reduce((n,r)=>n+r.qty,0),skuCount=new Set(st.filtered.map(r=>r.sku)).size,fromCount=new Set(st.filtered.map(r=>r.from)).size,toCount=new Set(st.filtered.map(r=>r.to)).size;
 summaryEl.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Total Row</div><div class='v'>${st.filtered.length}</div></div><div class='summary-card'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div><div class='summary-card'><div class='k'>SKU Unik</div><div class='v'>${skuCount}</div></div><div class='summary-card'><div class='k'>From Unik</div><div class='v'>${fromCount}</div></div><div class='summary-card'><div class='k'>To Unik</div><div class='v'>${toCount}</div></div></div>`;
-const filterHtml=`<div class='mv-toolbar'><button class='btn-ghost mv-mobile-only' data-mv-action='toggle-filter' data-mv-mode='${mode}'>Filter</button><div id='mv-filters-${mode}' class='mv-filters'><input data-mv-filter data-mv-mode='${mode}' name='dateStart' type='date'><input data-mv-filter data-mv-mode='${mode}' name='dateEnd' type='date'>${["from","to","status","pic","lokasi","sku"].map(k=>`<select data-mv-filter data-mv-mode='${mode}' name='${k}'><option value=''>${k.toUpperCase()} (Semua)</option>${getUniqueOptions(rows,k).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select>`).join("")}<select id='mv-sort-${mode}' data-mv-filter data-mv-mode='${mode}'><option value='latest'>Terbaru</option><option value='oldest'>Terlama</option><option value='sku'>SKU A-Z</option><option value='name'>Nama A-Z</option><option value='qtyDesc'>Qty terbesar</option><option value='qtyAsc'>Qty terkecil</option></select><select id='mv-size-${mode}' data-mv-filter data-mv-mode='${mode}'><option value='25'>25</option><option value='50'>50</option><option value='100'>100</option><option value='-1'>Semua</option></select><button class='btn-ghost' data-mv-action='reset' data-mv-mode='${mode}'>Reset Filter</button><button class='btn-ghost' data-mv-action='export' data-mv-mode='${mode}'>Export CSV</button><button class='btn-ghost' data-mv-action='columns' data-mv-mode='${mode}'>Kolom</button></div><div id='mv-cols-${mode}' class='mv-columns'>${allCols.map(c=>`<label><input type='checkbox' ${st.columns.includes(c)?"checked":""} value='${c}' onchange='toggleColumnVisibility("${mode}")'> ${c}</label>`).join("")}</div></div>`;
-const headers=st.columns.map(c=>`<th>${esc(c.toUpperCase())}</th>`).join("");const body=pageRows.map(r=>`<tr>${st.columns.map(c=>`<td>${esc(r[c]??"-")}</td>`).join("")}</tr>`).join("");const start=st.filtered.length?((st.pageSize===-1?1:((st.page-1)*st.pageSize+1))):0;const end=st.filtered.length?(st.pageSize===-1?st.filtered.length:Math.min(st.page*st.pageSize,st.filtered.length)):0;
+const filterHtml=`<div class='mv-toolbar'><button class='btn-ghost mv-mobile-only' data-mv-action='toggle-filter' data-mv-mode='${mode}'>Filter</button><div id='mv-filters-${mode}' class='mv-filters'><input data-mv-filter data-mv-mode='${mode}' name='dateStart' type='date'><input data-mv-filter data-mv-mode='${mode}' name='dateEnd' type='date'>${["from","to","status","pic","lokasi","sku"].map(k=>`<select data-mv-filter data-mv-mode='${mode}' name='${k}'><option value=''>${k.toUpperCase()} (Semua)</option>${getUniqueOptions(rows,k).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select>`).join("")}<select id='mv-sort-${mode}' data-mv-filter data-mv-mode='${mode}'><option value='latest'>Terbaru</option><option value='oldest'>Terlama</option><option value='sku'>SKU A-Z</option><option value='name'>Nama A-Z</option><option value='qtyDesc'>Qty terbesar</option><option value='qtyAsc'>Qty terkecil</option></select><select id='mv-size-${mode}' data-mv-filter data-mv-mode='${mode}'><option value='25'>25</option><option value='50'>50</option><option value='100'>100</option><option value='-1'>Semua (virtual)</option></select><button class='btn-ghost' data-mv-action='reset' data-mv-mode='${mode}'>Reset Filter</button><button class='btn-ghost' data-mv-action='export' data-mv-mode='${mode}'>Export CSV</button><button class='btn-ghost' data-mv-action='columns' data-mv-mode='${mode}'>Kolom</button></div><div id='mv-cols-${mode}' class='mv-columns'>${allCols.map(c=>`<label><input type='checkbox' ${st.columns.includes(c)?"checked":""} value='${c}' onchange='toggleColumnVisibility("${mode}")'> ${c}</label>`).join("")}</div></div>`;
+const headers=st.columns.map(c=>`<th>${esc(c.toUpperCase())}</th>`).join("");const bodyRows=[];for(const r of pageRows){bodyRows.push(`<tr>${st.columns.map(c=>`<td>${esc(r[c]??"-")}</td>`).join("")}</tr>`);}const body=bodyRows.join("");const start=st.filtered.length?((st.pageSize===-1?1:((st.page-1)*st.pageSize+1))):0;const end=st.filtered.length?(st.pageSize===-1?st.filtered.length:Math.min(st.page*st.pageSize,st.filtered.length)):0;
 resultEl.innerHTML=`${filterHtml}<div class='table-wrap table-wrap-full'><table><thead><tr>${headers}</tr></thead><tbody>${body||`<tr><td colspan='${st.columns.length}'><div class='state'>Tidak ada data.</div></td></tr>`}</tbody></table></div><div class='mv-pagination'><span>Menampilkan ${start}–${end} dari ${st.filtered.length} data</span><div class='row'><button class='btn-ghost' data-mv-action='prev' data-mv-mode='${mode}'>Prev</button><button class='btn-ghost' data-mv-action='next' data-mv-mode='${mode}'>Next</button><span class='badge ${isIn?"b-in":"b-out"}'>${isIn?"IN":"OUT"}</span></div></div>`;}
 function resetMovementFilter(mode){if(mode==="in"){if(inSearch)inSearch.value="";if(inDate)inDate.value="";}else{if(outSearch)outSearch.value="";if(outDate)outDate.value="";}const root=document.getElementById(`mv-filters-${mode}`);root?.querySelectorAll('select,input[type="date"]').forEach(el=>el.value="");TABLE_STATE[mode].page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);} 
 function getAllValidLocations(){const all=[];for(let zoneCode=65;zoneCode<=72;zoneCode++){const zone=String.fromCharCode(zoneCode);for(let slot=1;slot<=20;slot++){for(let floor=1;floor<=5;floor++){const code=`${zone}${String(slot).padStart(2,"0")}-${floor}`;const parsed=parseLocationCode(code);if(parsed.valid&&!parsed.blocked)all.push(parsed.raw);}}}return all;}
