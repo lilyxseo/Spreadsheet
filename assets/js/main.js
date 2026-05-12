@@ -46,6 +46,13 @@ recentMove.innerHTML="<h4>Recent movement</h4>"+`<div class='recent-grid'>
 <div class='recent-col'><div class='recent-head'><strong>Barang Keluar Terbaru</strong><span class='badge b-out'>OUT</span></div>${renderRecentList(outRecent,"Keluar")}</div>
 </div>`;}
 function buildRecentBySheet(sheet,type,limit=5){return [...(DATA[sheet]||[])].reverse().map(r=>normMv(r,type,sheet)).filter(r=>r&&r.sku!=="-"&&r.nama!=="-").slice(0,limit);}
+function normMv(row,type,sheet){
+const sku=getVal(row,["sku"])||"-";
+const nama=getVal(row,["nama barang","nama","item","description"])||"-";
+const qty=parseNumber(getVal(row,["qty"]));
+const tanggal=getVal(row,["tanggal","date","created at","waktu"])||"-";
+return{sku,nama,qty,tanggal,type,sheet,row};
+}
 function renderRecentList(rows,label){if(!rows.length)return "<div class='state'>Belum ada data.</div>";return `<div class='recent-list'>${rows.map(r=>`<div class='mv-card'><div class='mv-row'><span class='badge ${r.type==='IN'?'b-in':'b-out'}'>${r.type}</span><small>${esc(r.tanggal||'-')}</small></div><div class='mv-title'>${esc(r.sku)} · ${esc(r.nama)}</div><div class='mv-sub'>Qty ${r.qty} • ${label==="Masuk"?"From":"To"}: ${esc(getVal(r.row,[label==="Masuk"?"from":"to"])||"-")}</div></div>`).join("")}</div>`;}
 function updateStats(){const mode=statsFilter.value;const inMap={},outMap={},loc={};SHEETS.forEach(s=>(DATA[s]||[]).forEach(r=>{["from","to","lokasi"].forEach(k=>{const v=getVal(r,[k]);if(v)loc[clean(v)]=(loc[clean(v)]||0)+1;});}));(DATA["Barang Masuk"]||[]).forEach(r=>{const k=getVal(r,["sku"])||"-";inMap[k]=(inMap[k]||0)+parseNumber(getVal(r,["qty"]));});(DATA["Barang Keluar"]||[]).forEach(r=>{const k=getVal(r,["sku"])||"-";outMap[k]=(outMap[k]||0)+parseNumber(getVal(r,["qty"]));});
 const topIn=Object.entries(inMap).sort((a,b)=>b[1]-a[1]).slice(0,10),topOut=Object.entries(outMap).sort((a,b)=>b[1]-a[1]).slice(0,10),topLoc=Object.entries(loc).sort((a,b)=>b[1]-a[1]).slice(0,10);statsCards.innerHTML=[["Top SKU Masuk",topIn[0]?.[0]||"-"],["Top SKU Keluar",topOut[0]?.[0]||"-"],["Top Lokasi",topLoc[0]?.[0]||"-"]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
@@ -75,4 +82,3 @@ function debounce(fn,wait){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=
 function parseLocationCode(value){const raw=String(value||"").trim().toUpperCase();const m=raw.match(/^([A-H])(\d{2})-(\d)$/);if(!m)return{raw,valid:false,reason:"Format tidak valid. Gunakan pola seperti A01-1 sampai H20-5."};const zone=m[1],slot=Number(m[2]),floor=Number(m[3]);if(slot<1||slot>20)return{raw,valid:false,reason:"Nomor lokasi harus 01 sampai 20."};if(floor<1||floor>5)return{raw,valid:false,reason:"Lantai harus 1 sampai 5."};const blocked=slot===7;return{raw:`${zone}${String(slot).padStart(2,"0")}-${floor}`,valid:true,blocked,zone,slot,floor};}
 function checkLocation(){const result=parseLocationCode(locInput.value);if(!result.valid){locationResult.innerHTML=`<div class="state error">${esc(result.reason)}</div>`;return;}if(result.blocked){locationResult.innerHTML=`<div class="state error">Lokasi <strong>${esc(result.raw)}</strong> tidak bisa digunakan (blokir A07-1 sampai H07-5).</div>`;return;}locationResult.innerHTML=`<div class="state">Lokasi <strong>${esc(result.raw)}</strong> tersedia dan bisa digunakan.</div>`;}
 window.loadAllData=loadAllData;window.checkLocation=checkLocation;window.toggleDark=toggleDark;window.toggleCompact=toggleCompact;window.setFilter=setFilter;window.copySku=copySku;window.showDetail=showDetail;window.navigateTo=navigateTo;window.showPage=showPage;
-
