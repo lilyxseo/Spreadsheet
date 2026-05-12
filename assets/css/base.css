@@ -80,7 +80,6 @@
     .mv-title{font-size:13px;font-weight:700}
     .mv-sub{font-size:12px;color:var(--muted);word-break:break-word}
     .theme-btn{display:grid;place-items:center;width:38px;height:38px;padding:0;border-radius:10px}
-}
     .skeleton{height:66px;border-radius:12px;background:linear-gradient(90deg,#e7eefb 25%,#f1f6ff 37%,#e7eefb 63%);background-size:400% 100%;animation:sh 1.4s ease infinite}
     @keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
     .toast{position:fixed;right:12px;bottom:90px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(8px);transition:.2s;z-index:60}
@@ -152,3 +151,13 @@
 .search-toolbar{justify-content:space-between}
 .chip-group{display:flex;flex-wrap:wrap;gap:8px}
 #sortSearch{min-width:170px}
+
+
+.dashboard-insights{margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.insight-card{border:1px solid var(--line);background:var(--panel-soft);border-radius:14px;padding:12px}
+.insight-card h4{margin:0 0 8px;font-size:14px}
+.insight-stats{display:grid;gap:6px;font-size:13px}.insight-stats .ok{color:var(--success)}.insight-stats .warn{color:var(--warning)}.insight-stats .danger{color:var(--danger)}
+.mini-list{display:grid;gap:8px}.mini-list div{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center}.mini-list small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.big-number{font-size:32px;font-weight:800;color:var(--primary)}
+.trend-list{display:grid;gap:8px}.trend-row{display:grid;grid-template-columns:80px 1fr;gap:10px;align-items:center}.trend-day{font-size:12px;color:var(--muted)}.trend-bars{display:grid;gap:5px}.trend-bar{height:22px;border-radius:999px;color:#fff;font-size:11px;display:flex;align-items:center;padding:0 8px;min-width:max-content}.trend-bar.in{background:linear-gradient(90deg,#059669,#10b981)}.trend-bar.out{background:linear-gradient(90deg,#ea580c,#f97316)}
+@media (max-width: 640px){.trend-row{grid-template-columns:1fr}.mini-list div{grid-template-columns:1fr auto}}
