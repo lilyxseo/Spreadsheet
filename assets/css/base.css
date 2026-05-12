@@ -109,9 +109,10 @@
     .source-card summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--panel-soft);cursor:pointer;font-weight:800}
     .source-card summary::-webkit-details-marker{display:none}
     .source-body{padding:10px}
-    .table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:310px}
-    .table-wrap table{min-width:680px}
-    .table-wrap th{position:sticky;top:0;z-index:1}
+.table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:310px}
+.table-wrap table{min-width:680px}
+.table-wrap.table-wrap-compact table{min-width:0;width:100%}
+.table-wrap th{position:sticky;top:0;z-index:1}
     .table-wrap th,.table-wrap td{font-size:12px;line-height:1.35}
     .empty-card{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);background:var(--panel-soft)}
     @media (min-width: 900px){.sidebar{transform:none}.content{margin-left:260px;padding:18px}.close-side,.sidebar-overlay{display:none}.grid.dashboard{grid-template-columns:repeat(4,1fr)}.grid.stats{grid-template-columns:repeat(3,1fr)}.recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
