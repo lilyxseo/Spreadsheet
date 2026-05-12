@@ -61,7 +61,7 @@ window.onload = loadAllData;
 async function loadAllData() {
   try {
     for (const sheet of SHEETS) {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}?key=${API_KEY}`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet + "!A1:Z10000")}?key=${API_KEY}`;
       const res = await fetch(url);
       const json = await res.json();
 
