@@ -17,12 +17,12 @@
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <aside class="sidebar" id="sidebar">
     <div>
-      <div class="brand">
+      <div class="brand sidebar-brand">
         <div class="brand-logo-placeholder" aria-label="Logo Goto Living"><img src="./assets/goto.svg" alt="Logo Goto Living" class="brand-logo"/></div>
         <div><h2>Goto Living</h2><p>Inventory Management</p></div>
         <button class="icon-btn close-side" id="closeSidebar" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
-      <div class="status-mini"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
+      <div class="status-mini sidebar-status"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
       <nav style="margin-top:16px" id="menuWrap">
         <button class="side-link active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
         <button class="side-link" data-page="search" data-route="/search"><i data-lucide="search"></i><span>Cari Data</span></button>
@@ -33,7 +33,7 @@
         <button class="side-link" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Settings</span></button>
       </nav>
     </div>
-    <div class="side-footer">
+    <div class="side-footer sidebar-footer">
       <div class="profile-card"><strong>Inventory App</strong><small>Warehouse Team</small></div>
       <div class="api-mini"><span id="sidebarApi">Online / Loaded</span><button class="icon-btn" onclick="loadAllData(true)" title="Refresh"><i data-lucide="refresh-cw"></i></button></div>
     </div>
