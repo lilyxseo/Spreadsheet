@@ -175,19 +175,19 @@
 
 /* Sidebar redesign: clean, modern, premium */
 .sidebar{
-  background: linear-gradient(165deg, #7f1d1d 0%, #991b1b 46%, #111827 100%);
-  border-right: 1px solid rgba(255,255,255,.18);
-  color: #ffe4e6;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  color: #111827;
   padding: 20px 14px 14px;
 }
 .sidebar-brand{
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.18);
+  background: #ffffff;
+  border: 0;
   border-radius: 20px;
   padding: 10px;
 }
 .sidebar-brand h2{font-size:16px;letter-spacing:.2px}
-.sidebar-brand p{font-size:11px;color:rgba(255,228,230,.78)}
+.sidebar-brand p{font-size:11px;color:#6b7280}
 .brand-logo-placeholder{
   background: rgba(255,255,255,.96);
   border: 1px solid rgba(255,255,255,.45);
@@ -195,57 +195,55 @@
 }
 .sidebar-status{
   margin-top: 14px;
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.2);
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-radius: 18px;
   font-size: 11px;
   padding: 7px 10px;
 }
 .sidebar-status .dot{width:7px;height:7px}
-#menuWrap{display:grid;gap:8px;margin-top:16px !important}
+#menuWrap{display:grid;gap:6px;margin-top:16px !important}
 .side-link.nav-item{
   margin-top: 0;
-  min-height: 46px;
-  padding: 11px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.22);
-  background: rgba(255,255,255,.08);
-  color: rgba(255,244,246,.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  color: #374151;
+  justify-content:flex-start;
+  gap:10px;
+  transition: background .2s ease, color .2s ease;
 }
-.side-link.nav-item i{width:18px;height:18px;flex-shrink:0}
-.side-link.nav-item span{font-size:14px;font-weight:600;line-height:1.15}
-.side-link.nav-item:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,.16);
-  border-color: rgba(255,255,255,.32);
-}
-.side-link.nav-item.active{
-  background: linear-gradient(135deg,#ef233c 0%,#dc2626 100%);
-  border-color: rgba(255,255,255,.55);
-  box-shadow: 0 10px 20px rgba(127,29,29,.35);
-}
+.side-link.nav-item i{width:18px;height:18px;flex-shrink:0;opacity:.9}
+.side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15}
+.side-link.nav-item:hover{background:#f3f4f6;color:#111827}
+.side-link.nav-item.active{background:#eef2ff;color:#111827;font-weight:600}
+
+
 .sidebar-footer{gap:8px}
-.sidebar-footer .profile-card,
-.sidebar-footer .api-mini{
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(17,24,39,.35);
-}
-.sidebar-footer .profile-card{padding:9px 10px}
-.sidebar-footer .profile-card strong{font-size:12px;font-weight:700}
-.sidebar-footer .profile-card small{font-size:11px;color:rgba(255,228,230,.7)}
-.sidebar-footer .api-mini{padding:7px 9px;font-size:11px}
-.sidebar-footer .icon-btn{width:32px;height:32px;border-radius:10px}
+.account-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:999px;border:0;background:#f3f4f6}
+.account-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#ffffff;color:#334155;border:1px solid #e5e7eb}
+.account-avatar i{width:16px;height:16px}
+.account-meta{display:grid;line-height:1.2;flex:1;min-width:0}
+.account-meta strong{font-size:12px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-meta small{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-status{display:none}
+.account-more.icon-btn{width:28px;height:28px;border-radius:8px;background:transparent;border-color:transparent;color:#6b7280}
+
 
 body.dark .sidebar{
-  background: linear-gradient(165deg, #1f2937 0%, #111827 55%, #030712 100%);
+  background: #111827;
   border-right-color: rgba(148,163,184,.28);
 }
-body.dark .side-link.nav-item{background: rgba(148,163,184,.12);border-color: rgba(148,163,184,.3)}
-body.dark .side-link.nav-item:hover{background: rgba(148,163,184,.2)}
+body.dark .side-link.nav-item{color:rgba(226,232,240,.9)}
+body.dark .side-link.nav-item:hover{background:rgba(148,163,184,.16)}
+body.dark .side-link.nav-item.active{background:rgba(99,102,241,.25);color:#fff}
+body.dark .account-card{background:rgba(148,163,184,.16)}
+body.dark .account-meta strong{color:#fff}
+body.dark .account-meta small,
+body.dark .account-more.icon-btn{color:#cbd5e1}
+
 
 @media (max-width: 899px){
   .sidebar{width:min(86vw,300px)}
