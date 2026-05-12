@@ -7,14 +7,14 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root {
-      --bg: #f3f6fb;
-      --panel: #ffffff;
-      --panel-soft: #f8fbff;
-      --line: #dbe5f5;
-      --text: #0f172a;
-      --muted: #64748b;
-      --primary: #1e3a8a;
-      --primary-2: #2563eb;
+      --bg: #070d1f;
+      --panel: #131a2f;
+      --panel-soft: #1a2239;
+      --line: #273553;
+      --text: #e6ecff;
+      --muted: #94a3c7;
+      --primary: #8b5cf6;
+      --primary-2: #7c3aed;
       --success: #059669;
       --danger: #dc2626;
       --warning: #ea580c;
@@ -37,18 +37,18 @@
     body { margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden; }
     .app{display:block;min-height:100vh}
     .sidebar-overlay{position:fixed;inset:0;background:rgba(2,6,23,.55);opacity:0;pointer-events:none;transition:.25s;z-index:65}
-    .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(180deg,#081a3a,#0d2f67);color:#e5edff;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid rgba(148,163,184,.25);z-index:70;transform:translateX(-100%);transition:transform .28s ease}
+    .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(180deg,#171c33,#1b2238);color:#e5edff;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid #2a3554;z-index:70;transform:translateX(-100%);transition:transform .28s ease}
     .brand{display:flex;align-items:center;gap:10px}.brand-icon{width:38px;height:38px;border-radius:11px;background:#1d4ed8;display:grid;place-items:center;font-weight:800}.brand h2{margin:0;font-size:17px}.brand p{margin:2px 0 0;font-size:11px;color:#bfd3ff}
     .status-mini{margin-top:12px;padding:8px 10px;border:1px solid rgba(191,219,254,.24);border-radius:10px;background:rgba(30,64,175,.25);font-size:12px;display:flex;gap:8px;align-items:center}.dot{width:8px;height:8px;border-radius:50%;background:#22c55e}
-    .side-link{display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;background:rgba(255,255,255,.07);border:1px solid rgba(191,219,254,.2);color:#e5edff;text-align:left;border-radius:12px;transition:.2s} .side-link:hover{background:rgba(59,130,246,.35)} .side-link.active{background:#2563eb;border-color:#60a5fa}
+    .side-link{display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;background:rgba(255,255,255,.03);border:1px solid #2a3554;color:#c8d2ef;text-align:left;border-radius:12px;transition:.2s} .side-link:hover{background:rgba(139,92,246,.2)} .side-link.active{background:rgba(139,92,246,.22);border-color:#8b5cf6;color:#efe9ff}
     .side-footer{display:grid;gap:10px}.profile-card{padding:10px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(191,219,254,.2);display:grid}.profile-card small{color:#bfd3ff}.api-mini{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(14,116,144,.22);border:1px solid rgba(125,211,252,.3);font-size:12px}
     .icon-btn{display:grid;place-items:center;width:38px;height:38px;padding:0;border-radius:10px}.close-side{margin-left:auto;background:rgba(255,255,255,.08);color:#fff;border-color:rgba(191,219,254,.3)}
     .content{padding:12px 12px 30px}
     .mobile-only{display:grid}
 
     body.compact .panel{padding:10px} body.compact .metric{padding:10px}
-    .header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(6px);padding:8px 0}
-    .header-card{display:flex;gap:10px;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);padding:12px;border-radius:var(--radius);box-shadow:var(--shadow)}
+    .header{position:sticky;top:0;z-index:40;background:linear-gradient(90deg,#151b31,#11172b);backdrop-filter:blur(8px);padding:8px 0;border:1px solid #263452;border-radius:14px}
+    .header-card{display:flex;gap:10px;justify-content:space-between;align-items:center;background:transparent;border:none;padding:10px 12px;border-radius:var(--radius);box-shadow:none}
     .title{font-size:18px;font-weight:800;color:var(--primary)}
     .subtitle{font-size:12px;color:var(--muted)}
     .pill{font-size:12px;border-radius:999px;padding:6px 10px;background:var(--panel-soft);border:1px solid var(--line)}
@@ -129,7 +129,7 @@
     <div>
       <div class="brand">
         <div class="brand-icon">IW</div>
-        <div><h2>Inventory WMS</h2><p>Hemat Woi Style</p></div>
+        <div><h2>HematWoi</h2><p>Realtime inventory management</p></div>
         <button class="icon-btn close-side" id="closeSidebar" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
       <div class="status-mini"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
@@ -148,7 +148,7 @@
     </div>
   </aside>
   <main class="content">
-    <div class="header"><div class="header-card"><div class="header-top"><div class="row"><button class="icon-btn mobile-only" id="openSidebar" aria-label="Menu"><i data-lucide="menu"></i></button><div><div class="title">Mini WMS Dashboard</div><div class="subtitle">Realtime inventory monitoring from Google Sheets</div></div></div><button class="icon-btn" onclick="toggleDark()" title="Toggle Dark"><i data-lucide="moon"></i></button></div></div></div>
+    <div class="header"><div class="header-card"><div class="header-top"><div class="row"><button class="icon-btn mobile-only" id="openSidebar" aria-label="Menu"><i data-lucide="menu"></i></button><div><div class="title">Dashboard</div><div class="subtitle">Realtime inventory monitoring from Google Sheets</div></div></div><button class="icon-btn" onclick="toggleDark()" title="Toggle Dark"><i data-lucide="moon"></i></button></div></div></div>
 
     <section id="page-dashboard" class="panel page"><h3 class="page-title">Dashboard Overview</h3><div id="dashboardCards" class="grid dashboard"></div><div id="recentMove" class="panel"></div></section>
     <section id="page-search" class="panel page hidden"><h3 class="page-title">Cari Data</h3><div class="search-bar"><input id="searchInput" class="search-lg" placeholder="Cari SKU, 4 digit akhir, nama barang"/></div><div class="toolbar"><div id="filterRow"></div><select id="sortSearch"><option value="rank">Sort: Ranking</option><option value="sku">Sort: SKU A-Z</option><option value="name">Sort: Nama A-Z</option></select></div><div id="status" class="subtitle"></div><div id="results" style="margin-top:10px"></div></section>
