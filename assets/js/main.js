@@ -43,12 +43,14 @@ const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lo
 const TOTAL_LOKASI_AKTIF=(8*20*5)-(8*5),lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
 const cards=[["Total SKU",skuSet.size],["Baris Kartu Stock",totals["Kartu Stock"]],["Baris RPL",totals["RPL"]],["Baris BULKY",totals["BULKY"]],["Barang Masuk",totals["Barang Masuk"]],["Barang Keluar",totals["Barang Keluar"]],["Lokasi terpakai",lokasiTerpakai],["Lokasi tersisa",lokasiTersisa]];
 dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
-const inRecent=buildRecentBySheet("Barang Masuk","IN",5),outRecent=buildRecentBySheet("Barang Keluar","OUT",5);
-recentMove.innerHTML="<h4>Recent movement</h4>"+`<div class='recent-grid'>
-<div class='recent-col'><div class='recent-head'><strong>Barang Masuk Terbaru</strong><span class='badge b-in'>IN</span></div>${renderRecentList(inRecent,"Masuk")}</div>
-<div class='recent-col'><div class='recent-head'><strong>Barang Keluar Terbaru</strong><span class='badge b-out'>OUT</span></div>${renderRecentList(outRecent,"Keluar")}</div>
+const inRows=getLatestRows("Barang Masuk",50),outRows=getLatestRows("Barang Keluar",50);
+recentMove.innerHTML=`<div class='dashboard-tables-grid'>
+${renderDashboardTableSection("Barang Masuk","Data terbaru dari sheet Barang Masuk",inRows,"b-in")}
+${renderDashboardTableSection("Barang Keluar","Data terbaru dari sheet Barang Keluar",outRows,"b-out")}
 </div>`;}
-function buildRecentBySheet(sheet,type,limit=5){return [...(DATA[sheet]||[])].reverse().map(r=>normMv(r,type,sheet)).filter(r=>r&&r.sku!=="-"&&r.nama!=="-").slice(0,limit);}
+function getLatestRows(sheetName,limit=50){return (DATA[sheetName]||[]).slice().reverse().slice(0,limit);}
+function renderDashboardTableSection(title,subtitle,rows,badgeClassName){const badgeText=`${rows.length} terbaru`;return `<section class='dashboard-table-section'><div class='section-head'><div><h4>${esc(title)}</h4><small>${esc(subtitle)}</small></div><span class='badge ${badgeClassName}'>${esc(badgeText)}</span></div>${renderDashboardSheetTable(rows,title)}</section>`;}
+function renderDashboardSheetTable(rows,title){if(!rows.length)return `<div class='empty-card'><strong>Data kosong</strong><div>Belum ada data pada section ${esc(title)}.</div></div>`;const headers=[];rows.forEach(row=>Object.keys(row||{}).forEach(k=>{if(!headers.includes(k))headers.push(k);}));const th=headers.map(h=>`<th>${esc(String(h).toUpperCase())}</th>`).join("");const tr=rows.map(row=>`<tr>${headers.map(k=>`<td>${esc(row[k]??"")}</td>`).join("")}</tr>`).join("");return `<div class='table-scroll'><table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;}
 function normMv(row,type,sheet){
 const sku=getVal(row,["sku"])||"-";
 const nama=getVal(row,["nama barang","nama","item","description"])||"-";
@@ -56,7 +58,6 @@ const qty=parseNumber(getVal(row,["qty"]));
 const tanggal=getVal(row,["tanggal","date","created at","waktu"])||"-";
 return{sku,nama,qty,tanggal,type,sheet,row};
 }
-function renderRecentList(rows,label){if(!rows.length)return "<div class='state'>Belum ada data.</div>";return `<div class='recent-list'>${rows.map(r=>`<div class='mv-card'><div class='mv-row'><span class='badge ${r.type==='IN'?'b-in':'b-out'}'>${r.type}</span><small>${esc(r.tanggal||'-')}</small></div><div class='mv-title'>${esc(r.sku)} · ${esc(r.nama)}</div><div class='mv-sub'>Qty ${r.qty} • ${label==="Masuk"?"From":"To"}: ${esc(getVal(r.row,[label==="Masuk"?"from":"to"])||"-")}</div></div>`).join("")}</div>`;}
 function updateStats(){const mode=statsFilter.value;const inMap={},outMap={},loc={};SHEETS.forEach(s=>(DATA[s]||[]).forEach(r=>{["from","to","lokasi"].forEach(k=>{const v=getVal(r,[k]);if(v)loc[clean(v)]=(loc[clean(v)]||0)+1;});}));(DATA["Barang Masuk"]||[]).forEach(r=>{const k=getVal(r,["sku"])||"-";inMap[k]=(inMap[k]||0)+parseNumber(getVal(r,["qty"]));});(DATA["Barang Keluar"]||[]).forEach(r=>{const k=getVal(r,["sku"])||"-";outMap[k]=(outMap[k]||0)+parseNumber(getVal(r,["qty"]));});
 const topIn=Object.entries(inMap).sort((a,b)=>b[1]-a[1]).slice(0,10),topOut=Object.entries(outMap).sort((a,b)=>b[1]-a[1]).slice(0,10),topLoc=Object.entries(loc).sort((a,b)=>b[1]-a[1]).slice(0,10);statsCards.innerHTML=[["Top SKU Masuk",topIn[0]?.[0]||"-"],["Top SKU Keluar",topOut[0]?.[0]||"-"],["Top Lokasi",topLoc[0]?.[0]||"-"]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
 let bars=[];if(mode==="all"||mode==="in")bars=bars.concat(topIn.map(([k,v])=>({k:`IN ${k}`,v})));if(mode==="all"||mode==="out")bars=bars.concat(topOut.map(([k,v])=>({k:`OUT ${k}`,v})));if(mode==="all")bars=bars.concat(topLoc.map(([k,v])=>({k:`LOC ${k}`,v})));const max=Math.max(...bars.map(b=>b.v),1);statsChart.innerHTML=bars.length?bars.map(b=>`<div class='bar-row'><small>${esc(b.k)}</small><div class='bar-fill' style='width:${(b.v/max)*100}%'></div><small>${b.v}</small></div>`).join(""):"<div class='state'>Belum ada data statistik.</div>";}
