@@ -1,218 +1,461 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Inventory Dashboard</title>
-<style>
-body{font-family:Arial;background:#f4f6fb;margin:0;padding:20px;color:#111827}
-.card{background:white;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 14px rgba(0,0,0,.06)}
-input{width:100%;padding:14px;border:1px solid #ddd;border-radius:12px;font-size:16px;box-sizing:border-box}
-button{margin-top:10px;padding:12px 20px;border:0;border-radius:12px;background:#2563eb;color:white}
-.item{padding:12px;border-bottom:1px solid #eee;cursor:pointer}
-.item:hover{background:#f3f4f6}
-.muted{color:#6b7280}
-table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}
-th,td{border:1px solid #ddd;padding:8px;font-size:13px;white-space:nowrap}
-th{background:#f9fafb}
-.badge{background:#dbeafe;color:#1d4ed8;padding:4px 8px;border-radius:999px;font-size:12px}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Dashboard</title>
+  <style>
+    :root {
+      --bg: #f3f7ff;
+      --panel: #ffffff;
+      --line: #d7e2ff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-soft: #dbeafe;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --shadow: 0 10px 30px rgba(37, 99, 235, 0.08);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+      color: var(--text);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #0b3aa5;
+      color: #fff;
+      padding: 24px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .subtitle { opacity: .85; font-size: 13px; margin-bottom: 22px; }
+    .pill {
+      display: inline-block;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .content { padding: 20px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .toolbar { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    .search-wrap { display: flex; gap: 10px; flex-wrap: wrap; }
+    input[type="text"] {
+      flex: 1;
+      min-width: 240px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary { background: #1e40af; }
+    button.ghost {
+      background: #fff;
+      color: var(--primary);
+      border: 1px solid var(--line);
+    }
+
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chip {
+      border: 1px solid var(--line);
+      color: #1e3a8a;
+      background: #fff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .summary { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+    .metric { background: #f8fbff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .metric .k { color: var(--muted); font-size: 12px; }
+    .metric .v { font-size: 24px; font-weight: 800; margin-top: 4px; }
+
+    .status { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .state {
+      border: 1px dashed var(--line);
+      background: #fafcff;
+      border-radius: 12px;
+      padding: 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .state.error { border-color: #fecaca; background: #fff5f5; color: var(--danger); }
+
+    .list { display: grid; gap: 10px; }
+    .result-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .result-card:hover { border-color: var(--primary); }
+    .result-head { display: flex; justify-content: space-between; gap: 10px; }
+    .badge { background: var(--primary-soft); color: #1d4ed8; border-radius: 999px; font-size: 11px; padding: 5px 8px; }
+
+    .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; min-width: 680px; }
+    th, td { border-bottom: 1px solid #edf2ff; padding: 8px 10px; font-size: 13px; white-space: nowrap; text-align: left; }
+    th { background: #f8fbff; color: #1e3a8a; }
+
+    mark { background: #fef08a; color: inherit; padding: 0 2px; border-radius: 3px; }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { height: auto; position: relative; }
+      .summary { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Inventory Dashboard</div>
+      <div class="subtitle">Google Sheets API · Vanilla JS</div>
+      <div class="pill">Auto Refresh 60 detik</div><br />
+      <div class="pill" id="lastSync">Belum sinkron</div>
+    </aside>
 
-<div class="card">
-  <h2>Inventory Dashboard</h2>
-  <input id="searchInput" placeholder="Cari SKU / 4 digit SKU / nama barang" onkeydown="if(event.key==='Enter') searchData()">
-  <button onclick="searchData()">Cari</button>
-  <div id="status" class="muted">Loading data...</div>
-</div>
+    <main class="content">
+      <section class="panel">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <input id="searchInput" type="text" placeholder="Cari SKU / 4 digit akhir / nama barang" />
+            <button onclick="runSearch()">Cari</button>
+          </div>
+          <button class="secondary" onclick="loadAllData(true)">Refresh</button>
+        </div>
 
-<div class="card">
-  <h3>Hasil Pencarian</h3>
-  <div id="results" class="muted">Tunggu data dimuat.</div>
-</div>
+        <div id="filterRow" class="filter-row"></div>
+        <div id="status" class="status">Memuat data...</div>
+      </section>
 
-<div class="card">
-  <h3>Detail SKU</h3>
-  <div id="detail" class="muted">Detail akan tampil di sini.</div>
-</div>
+      <section class="panel">
+        <div class="summary" id="summaryCards"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Hasil Pencarian</h3>
+        <div id="results"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Detail SKU</h3>
+        <div id="detail"></div>
+      </section>
+    </main>
+  </div>
 
 <script>
 const API_KEY = "AIzaSyAhRpt5u-xx1ysTq_u4xOOziVHmlBJb34E";
 const SPREADSHEET_ID = "1KzOcV1V4bcxfsLzhfwXxnIxxZoTRlKh4UYhNizREpCM";
+const SHEETS = ["Kartu Stock", "RPL", "BULKY", "Barang Masuk", "Barang Keluar"];
+const FILTERS = ["Semua", ...SHEETS];
+const DATA = {};
+let currentFilter = "Semua";
+let lastResults = [];
+let lastQuery = "";
 
-const SHEETS = [
-  "Kartu Stock",
-  "RPL",
-  "BULKY",
-  "Barang Masuk",
-  "Barang Keluar"
-];
+window.addEventListener("DOMContentLoaded", () => {
+  renderFilters();
+  initSummary();
+  bindEvents();
+  loadAllData();
+  setInterval(() => loadAllData(false, true), 60000);
+});
 
-let DATA = {};
+function bindEvents() {
+  document.getElementById("searchInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") runSearch();
+  });
+}
 
-window.onload = loadAllData;
-
-async function loadAllData(){
-  for(const sheet of SHEETS){
-    const range = `${sheet}!A1:Z10000`;
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
-
-    const res = await fetch(url);
-    const json = await res.json();
-
-    if(json.error){
-      document.getElementById("status").innerHTML = `Error ${sheet}: ${json.error.message}`;
-      return;
+async function loadAllData(manual=false, silent=false) {
+  if (!silent) setStatus("loading", manual ? "Refresh data..." : "Memuat data dari Google Sheets...");
+  try {
+    for (const sheet of SHEETS) {
+      const values = await fetchSheet(sheet);
+      DATA[sheet] = parseSheet(values);
     }
-
-    DATA[sheet] = parseSheet(json.values || []);
+    setStatus("ok", "Data siap. Silakan cari SKU atau nama barang.");
+    updateSyncTime();
+    if (lastQuery) runSearch();
+    else renderState("results", "Ketik keyword untuk mulai pencarian.");
+  } catch (err) {
+    setStatus("error", "Gagal memuat data: " + err.message);
+    renderError("results", "Tidak bisa memuat data. Cek API Key / Spreadsheet ID.");
   }
-
-  document.getElementById("status").innerHTML = "Data berhasil dimuat. Silakan cari SKU atau nama barang.";
-  document.getElementById("results").innerHTML = "Masukkan keyword pencarian.";
 }
 
-function parseSheet(values){
-  if(!values || values.length < 2) return [];
+async function fetchSheet(sheetName) {
+  const range = `${sheetName}!A1:ZZ10000`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!res.ok || json.error) throw new Error(`${sheetName}: ${(json.error && json.error.message) || res.statusText}`);
+  return json.values || [];
+}
 
-  let headerIndex = values.findIndex(row =>
-    row.some(cell => clean(cell).includes("sku")) ||
-    row.some(cell => clean(cell).includes("nama"))
-  );
+function parseSheet(values) {
+  if (!Array.isArray(values) || values.length === 0) return [];
+  const headerIdx = detectHeaderIndex(values);
+  if (headerIdx < 0 || !values[headerIdx]) return [];
 
-  if(headerIndex === -1) headerIndex = 2;
+  const headers = values[headerIdx].map((v, i) => normalizeHeader(v) || `col_${i+1}`);
+  const rows = [];
 
-  const headers = values[headerIndex].map(h => clean(h));
-
-  return values.slice(headerIndex + 1).map(row => {
+  for (let r = headerIdx + 1; r < values.length; r++) {
+    const row = values[r] || [];
+    if (!row.length || row.every(c => !String(c || "").trim())) continue;
     const obj = {};
-    headers.forEach((h,i) => obj[h] = row[i] || "");
-    return obj;
-  });
+    headers.forEach((h, i) => obj[h] = row[i] || "");
+    rows.push(obj);
+  }
+  return rows;
 }
 
-function searchData(){
-  const q = clean(document.getElementById("searchInput").value);
-  if(!q) return;
+function detectHeaderIndex(values) {
+  const required = ["sku", "nama", "from", "to", "qty"];
+  let bestIdx = -1, bestScore = 0;
 
-  const words = q.split(" ").filter(Boolean);
-  let results = [];
-
-  ["Kartu Stock","RPL","BULKY","Barang Masuk","Barang Keluar"].forEach(sheet=>{
-    (DATA[sheet] || []).forEach(row=>{
-      const sku = getVal(row, ["sku"]);
-      const nama = getVal(row, ["nama barang","nama","item name","description"]);
-      const combined = clean(`${sku} ${nama}`);
-
-      const match =
-        clean(sku).includes(q) ||
-        clean(nama).includes(q) ||
-        (q.length === 4 && clean(sku).endsWith(q)) ||
-        words.every(w => combined.includes(w));
-
-      if(match && (sku || nama)){
-        results.push({sku,nama,sheet});
-      }
-    });
-  });
-
-  const unique = {};
-  results.forEach(r=>{
-    const key = clean(r.sku || r.nama);
-    if(!unique[key]) unique[key] = r;
-  });
-
-  renderResults(Object.values(unique).slice(0,30));
+  for (let i = 0; i < Math.min(values.length, 25); i++) {
+    const rowText = (values[i] || []).map(c => clean(c)).join(" |");
+    let score = 0;
+    required.forEach(k => { if (rowText.includes(k)) score++; });
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  return bestScore >= 1 ? bestIdx : -1;
 }
 
-function renderResults(results){
-  if(!results.length){
-    document.getElementById("results").innerHTML = "Data tidak ditemukan.";
+function runSearch() {
+  const qRaw = document.getElementById("searchInput").value || "";
+  const q = clean(qRaw);
+  lastQuery = qRaw;
+
+  if (!q) {
+    lastResults = [];
+    updateSummary([], "");
+    renderState("results", "Masukkan kata kunci pencarian.");
+    renderState("detail", "Pilih salah satu SKU untuk lihat detail.");
     return;
   }
 
-  let html = `<b>${results.length} hasil ditemukan</b>`;
+  const words = q.split(" ").filter(Boolean);
+  const bySku = new Map();
 
-  results.forEach(r=>{
-    html += `
-      <div class="item" onclick="showDetail('${escAttr(r.sku)}')">
-        <b>${esc(r.nama || "-")}</b><br>
-        SKU: ${esc(r.sku || "-")}<br>
-        <span class="badge">${esc(r.sheet)}</span>
-      </div>
-    `;
-  });
+  for (const sheet of SHEETS) {
+    if (currentFilter !== "Semua" && currentFilter !== sheet) continue;
+    for (const row of DATA[sheet] || []) {
+      const sku = getVal(row, ["sku"]);
+      const name = getVal(row, ["nama barang", "nama", "item", "description"]);
+      if (!sku && !name) continue;
 
-  document.getElementById("results").innerHTML = html;
+      const skuNorm = clean(sku);
+      const nameNorm = clean(name);
+      const combined = `${skuNorm} ${nameNorm}`;
 
-  if(results.length === 1) showDetail(results[0].sku);
+      const match = skuNorm === q ||
+        skuNorm.includes(q) ||
+        (q.length === 4 && skuNorm.endsWith(q)) ||
+        nameNorm.includes(q) ||
+        words.every(w => combined.includes(w));
+
+      if (!match) continue;
+
+      const key = skuNorm || nameNorm;
+      if (!bySku.has(key)) bySku.set(key, { sku, nama: name, sources: new Set(), rows: [] });
+      const item = bySku.get(key);
+      item.sources.add(sheet);
+      item.rows.push({ sheet, row });
+    }
+  }
+
+  lastResults = Array.from(bySku.values()).map(v => ({ ...v, sources: [...v.sources] }));
+  renderResults(lastResults, qRaw);
+  updateSummary(lastResults, qRaw);
+  if (lastResults.length === 1) showDetail(lastResults[0].sku || lastResults[0].nama);
+  else renderState("detail", "Pilih salah satu hasil untuk melihat detail SKU.");
 }
 
-function showDetail(sku){
-  const key = clean(sku);
+function renderResults(results, query) {
+  const el = document.getElementById("results");
+  if (!results.length) return renderState("results", "Data tidak ditemukan.");
 
-  const kartu = filterSku(DATA["Kartu Stock"], key);
-  const rpl = filterSku(DATA["RPL"], key);
-  const bulky = filterSku(DATA["BULKY"], key);
-  const masuk = filterSku(DATA["Barang Masuk"], key);
-  const keluar = filterSku(DATA["Barang Keluar"], key);
+  el.innerHTML = `<div class="status">${results.length} hasil ditemukan.</div><div class="list">` +
+    results.map(r => {
+      const sku = r.sku || "-";
+      const nm = r.nama || "(Tanpa Nama)";
+      const sourceBadges = r.sources.map(s => `<span class="badge">${esc(s)}</span>`).join(" ");
+      return `
+        <div class="result-card" onclick="showDetail('${escAttr(sku)}')">
+          <div class="result-head">
+            <strong>${highlight(nm, query)}</strong>
+            <div>${sourceBadges}</div>
+          </div>
+          <div>SKU: ${highlight(esc(sku), query)}</div>
+        </div>`;
+    }).join("") + "</div>";
+}
 
-  let html = `<h2>SKU: ${esc(sku)}</h2>`;
-  html += renderTable("Kartu Stock", kartu);
-  html += renderTable("RPL", rpl);
-  html += renderTable("BULKY", bulky);
-  html += renderTable("Barang Masuk", masuk);
-  html += renderTable("Barang Keluar", keluar);
+function showDetail(identifier) {
+  const key = clean(identifier);
+  const selected = lastResults.find(r => clean(r.sku) === key || clean(r.nama) === key);
+  if (!selected) return renderState("detail", "Detail tidak tersedia.");
+
+  const sku = selected.sku || "-";
+  const nama = selected.nama || "-";
+  let html = `
+    <div class="detail-head">
+      <div>
+        <div><strong>SKU:</strong> ${esc(sku)}</div>
+        <div><strong>Nama Barang:</strong> ${esc(nama)}</div>
+      </div>
+      <button class="ghost" onclick="copySku('${escAttr(sku)}')">Copy SKU</button>
+    </div>`;
+
+  SHEETS.forEach(sheet => {
+    const rows = (DATA[sheet] || []).filter(r => clean(getVal(r, ["sku"])) === clean(sku));
+    html += `<h4>${sheet}</h4>` + renderTable(rows);
+  });
 
   document.getElementById("detail").innerHTML = html;
 }
 
-function filterSku(rows, key){
-  return (rows || []).filter(row => clean(getVal(row, ["sku"])) === key);
-}
-
-function renderTable(title, rows){
-  if(!rows || !rows.length) return `<h3>${title}</h3><div class="muted">Tidak ada data.</div>`;
-
-  const headers = Object.keys(rows[0]);
-  let html = `<h3>${title}</h3><table><tr>`;
-
+function renderTable(rows) {
+  if (!rows || rows.length === 0) return `<div class="state">Tidak ada data.</div>`;
+  const headers = Object.keys(rows[0] || {});
+  let html = `<div class="table-scroll"><table><thead><tr>`;
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
-  html += `</tr>`;
-
-  rows.forEach(row=>{
-    html += `<tr>`;
-    headers.forEach(h => html += `<td>${esc(row[h] || "")}</td>`);
-    html += `</tr>`;
+  html += `</tr></thead><tbody>`;
+  rows.forEach(row => {
+    html += "<tr>";
+    headers.forEach(h => html += `<td>${esc(row[h])}</td>`);
+    html += "</tr>";
   });
-
-  html += `</table>`;
+  html += `</tbody></table></div>`;
   return html;
 }
 
-function getVal(row, keys){
-  for(const key of keys){
-    const found = Object.keys(row).find(k => clean(k).includes(clean(key)));
-    if(found && row[found]) return row[found];
+function updateSummary(results) {
+  const skuSet = new Set();
+  let totalIn = 0, totalOut = 0;
+  const locSet = new Set();
+
+  results.forEach(item => {
+    skuSet.add(clean(item.sku || item.nama));
+    item.rows.forEach(({sheet, row}) => {
+      const qty = parseNumber(getVal(row, ["qty", "jumlah", "pcs"]));
+      if (sheet === "Barang Masuk") totalIn += qty;
+      if (sheet === "Barang Keluar") totalOut += qty;
+      ["from", "to", "lokasi", "location"].forEach(k => {
+        const v = getVal(row, [k]);
+        if (v) locSet.add(clean(v));
+      });
+    });
+  });
+
+  const cards = [
+    { k: "Total Hasil", v: skuSet.size },
+    { k: "Total Masuk", v: totalIn },
+    { k: "Total Keluar", v: totalOut },
+    { k: "Jumlah Lokasi", v: locSet.size }
+  ];
+
+  document.getElementById("summaryCards").innerHTML = cards.map(c =>
+    `<div class="metric"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join("");
+}
+
+function initSummary() {
+  document.getElementById("summaryCards").innerHTML = ["Total Hasil", "Total Masuk", "Total Keluar", "Jumlah Lokasi"]
+    .map(k => `<div class="metric"><div class="k">${k}</div><div class="v">0</div></div>`).join("");
+}
+
+function renderFilters() {
+  const row = document.getElementById("filterRow");
+  row.innerHTML = FILTERS.map(f => `<button class="chip ${f===currentFilter ? "active": ""}" onclick="setFilter('${escAttr(f)}')">${esc(f)}</button>`).join("");
+}
+
+function setFilter(f) { currentFilter = f; renderFilters(); runSearch(); }
+
+function setStatus(type, text) {
+  const el = document.getElementById("status");
+  el.textContent = type === "loading" ? "⏳ " + text : (type === "error" ? "❌ " + text : "✅ " + text);
+}
+
+function renderState(id, text) { document.getElementById(id).innerHTML = `<div class="state">${esc(text)}</div>`; }
+function renderError(id, text) { document.getElementById(id).innerHTML = `<div class="state error">${esc(text)}</div>`; }
+function updateSyncTime() { document.getElementById("lastSync").textContent = "Sync: " + new Date().toLocaleTimeString("id-ID"); }
+
+function copySku(sku) {
+  navigator.clipboard.writeText(sku || "").then(() => setStatus("ok", `SKU ${sku} berhasil disalin.`));
+}
+
+function getVal(row, keys) {
+  const columns = Object.keys(row || {});
+  for (const key of keys) {
+    const f = columns.find(c => clean(c).includes(clean(key)));
+    if (f && row[f] != null) return String(row[f]);
   }
   return "";
 }
 
-function clean(v){
-  return String(v || "").toLowerCase().trim().replace(/[_-]/g," ").replace(/\s+/g," ");
+function highlight(text, query) {
+  const raw = String(text || "");
+  const q = String(query || "").trim();
+  if (!q) return esc(raw);
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return esc(raw).replace(new RegExp(`(${escaped})`, "ig"), "<mark>$1</mark>");
 }
 
-function esc(v){
-  return String(v || "").replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
+function normalizeHeader(v) {
+  return clean(v).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
 }
-
-function escAttr(v){
-  return String(v || "").replace(/'/g,"\\'");
-}
+function clean(v) { return String(v || "").toLowerCase().trim().replace(/[_-]+/g, " ").replace(/\s+/g, " "); }
+function parseNumber(v) { const n = parseFloat(String(v || "").replace(/[^0-9.-]/g, "")); return Number.isFinite(n) ? n : 0; }
+function esc(v){ return String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
+function escAttr(v){ return String(v ?? "").replace(/'/g,"\\'"); }
 </script>
-
 </body>
 </html>
