@@ -61,7 +61,7 @@ function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";set
 function copySku(sku){navigator.clipboard.writeText(sku||"").then(()=>toast(`SKU ${sku} disalin`));}
 function applyTheme(){const saved=localStorage.getItem("theme");if(saved==="dark")document.body.classList.add("dark");syncThemeButton();}
 function toggleDark(){document.body.classList.toggle("dark");localStorage.setItem("theme",document.body.classList.contains("dark")?"dark":"light");syncThemeButton();toast("Mode tema diubah");}
-function syncThemeButton(){const dark=document.body.classList.contains("dark");darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i><span>${dark?"Light mode":"Dark mode"}</span>`;if(window.lucide)lucide.createIcons();}
+function syncThemeButton(){const dark=document.body.classList.contains("dark");darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i>`;if(window.lucide)lucide.createIcons();}
 function hideInitialLoader(){const ld=document.getElementById("initialLoader");if(ld)ld.remove();}
 function toggleCompact(){document.body.classList.toggle("compact");toast("Compact mode diubah");}
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1500);}
