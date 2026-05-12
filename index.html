@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Inventory Dashboard</title>
+  <style>
+    body { font-family: Arial; background:#f4f6fb; padding:20px; }
+    .card { background:white; padding:20px; border-radius:12px; margin-bottom:15px; }
+    input { width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; }
+    button { margin-top:10px; padding:10px 15px; border:none; background:#2563eb; color:white; border-radius:8px; }
+    .item { padding:10px; border-bottom:1px solid #eee; cursor:pointer; }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>Inventory Dashboard</h2>
+  <input id="search" placeholder="Cari SKU / Nama / 4 digit">
+  <button onclick="search()">Cari</button>
+</div>
+
+<div class="card" id="results"></div>
+<div class="card" id="detail"></div>
+
+<script>
+const API_KEY = "ISI_API_KEY_KAMU";
+const SPREADSHEET_ID = "ISI_SPREADSHEET_ID_KAMU";
+
+const SHEETS = [
+  "Kartu Stock",
+  "RPL",
+  "BULKY",
+  "Barang Masuk",
+  "Barang Keluar"
+];
+
+let DATA = {};
+
+async function loadAll() {
+  for (let sheet of SHEETS) {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}?key=${API_KEY}`;
+    
+    const res = await fetch(url);
+    const json = await res.json();
+
+    DATA[sheet] = parse(json.values);
+  }
+}
+
+function parse(values) {
+  const headers = values[0];
+  return values.slice(1).map(row => {
+    let obj = {};
+    headers.forEach((h,i)=> obj[h.toLowerCase()] = row[i]);
+    return obj;
+  });
+}
+
+function normalize(v){
+  return (v||"").toLowerCase().trim();
+}
+
+function search(){
+  const q = normalize(document.getElementById("search").value);
+
+  let results = [];
+
+  ["Kartu Stock","RPL","BULKY"].forEach(sheet=>{
+    (DATA[sheet]||[]).forEach(row=>{
+      const sku = normalize(row["sku"] || row["kode"] || "");
+      const nama = normalize(row["nama barang"] || row["nama"] || "");
+
+      if(!sku && !nama) return;
+
+      if(
+        sku.includes(q) ||
+        nama.includes(q) ||
+        (q.length === 4 && sku.endsWith(q))
+      ){
+        results.push({sku,nama,sheet});
+      }
+    });
+  });
+
+  render(results);
+}
+
+function render(data){
+  let el = document.getElementById("results");
+
+  if(!data.length){
+    el.innerHTML = "Tidak ditemukan";
+    return;
+  }
+
+  let html = "";
+  data.slice(0,20).forEach(d=>{
+    html += `
+      <div class="item" onclick="detail('${d.sku}')">
+        <b>${d.nama}</b><br>
+        ${d.sku}
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
+function detail(sku){
+  let masuk = (DATA["Barang Masuk"]||[]).filter(r=>normalize(r["sku"])===sku);
+  let keluar = (DATA["Barang Keluar"]||[]).filter(r=>normalize(r["sku"])===sku);
+
+  document.getElementById("detail").innerHTML = `
+    <h3>SKU: ${sku}</h3>
+    <b>Barang Masuk:</b> ${masuk.length}<br>
+    <b>Barang Keluar:</b> ${keluar.length}
+  `;
+}
+
+// load awal
+loadAll();
+</script>
+
+</body>
+</html>
