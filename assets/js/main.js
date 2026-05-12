@@ -5,11 +5,11 @@ const statusEl=document.getElementById("status");
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="";
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;loadAllData();routeFromPath(location.pathname);setInterval(()=>loadAllData(false,true),60000);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
-function bindEvents(){const d=debounce(()=>runSearch(),220);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);}
+function bindEvents(){const d=debounce(()=>runSearch(),220);if(searchInput)searchInput.addEventListener("input",d);if(sortSearch)sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));if(statsFilter)statsFilter.addEventListener("change",updateStats);if(darkBtnHeader)darkBtnHeader.addEventListener("click",toggleDark);}
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/statistics")return showPage("stats");if(path==="/movement")return showPage("movement");if(path==="/settings")return showPage("settings");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
-function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
+function setupSidebar(){if(openSidebar)openSidebar.onclick=()=>document.body.classList.add("sidebar-open");if(closeSidebar)closeSidebar.onclick=()=>closeSidebarFn();if(sidebarOverlay)sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
 async function loadAllData(manual=false,silent=false){if(!silent){setStatus("loading",manual?"Refresh data...":"Memuat data dari Google Sheets...");showSkeleton();}
@@ -64,7 +64,7 @@ function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";set
 function copySku(sku){navigator.clipboard.writeText(sku||"").then(()=>toast(`SKU ${sku} disalin`));}
 function applyTheme(){const saved=localStorage.getItem("theme");if(saved==="dark")document.body.classList.add("dark");syncThemeButton();}
 function toggleDark(){document.body.classList.toggle("dark");localStorage.setItem("theme",document.body.classList.contains("dark")?"dark":"light");syncThemeButton();toast("Mode tema diubah");}
-function syncThemeButton(){const dark=document.body.classList.contains("dark");darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i><span>${dark?"Light mode":"Dark mode"}</span>`;if(window.lucide)lucide.createIcons();}
+function syncThemeButton(){const dark=document.body.classList.contains("dark");if(darkBtnHeader)darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i><span>${dark?"Light mode":"Dark mode"}</span>`;if(window.lucide)lucide.createIcons();}
 function hideInitialLoader(){const ld=document.getElementById("initialLoader");if(ld)ld.remove();}
 function toggleCompact(){document.body.classList.toggle("compact");toast("Compact mode diubah");}
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1500);}
