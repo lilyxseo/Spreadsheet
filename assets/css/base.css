@@ -147,3 +147,8 @@
   max-height: 100%;
   object-fit: contain;
 }
+
+.search-layout{display:grid;gap:10px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft)}
+.search-toolbar{justify-content:space-between}
+.chip-group{display:flex;flex-wrap:wrap;gap:8px}
+#sortSearch{min-width:170px}
