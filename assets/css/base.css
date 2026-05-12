@@ -95,8 +95,18 @@
 }
     .skeleton{height:66px;border-radius:12px;background:linear-gradient(90deg,#e7eefb 25%,#f1f6ff 37%,#e7eefb 63%);background-size:400% 100%;animation:sh 1.4s ease infinite}
     @keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
-    .toast{position:fixed;right:12px;bottom:90px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(8px);transition:.2s;z-index:60}
-    .toast.show{opacity:1;transform:translateY(0)}
+    .toast{position:fixed;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;z-index:90;pointer-events:none}
+    .toast-item{display:flex;align-items:center;gap:8px;min-height:44px;max-width:320px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);box-shadow:0 8px 20px rgba(15,23,42,.10);font-size:13px;line-height:1.3;opacity:0;transform:translateX(12px);transition:opacity .2s ease,transform .2s ease;pointer-events:auto}
+    .toast-item.show{opacity:1;transform:translateX(0)}
+    .toast-icon{width:16px;height:16px;display:grid;place-items:center;flex:0 0 16px;font-size:12px}
+    .toast-message{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .toast-close{border:0;background:transparent;color:inherit;opacity:.65;cursor:pointer;line-height:1;padding:0 2px;font-size:15px}
+    .toast-close:hover{opacity:1}
+    .toast-item.success .toast-icon{color:#059669}
+    .toast-item.error .toast-icon{color:#dc2626}
+    .toast-item.warning .toast-icon{color:#d97706}
+    .toast-item.info .toast-icon{color:#2563eb}
+    body.dark .toast-item{background:#0f172a;color:#e5e7eb;border-color:#334155;box-shadow:0 10px 24px rgba(0,0,0,.35)}
     body.sidebar-open .sidebar{transform:translateX(0)}
     body.sidebar-open .sidebar-overlay{opacity:1;pointer-events:auto}
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:8px;background:var(--panel);border-top:1px solid var(--line);z-index:50}
