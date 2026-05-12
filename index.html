@@ -29,7 +29,7 @@
   <aside class="sidebar" id="sidebar">
     <div>
       <div class="brand">
-        <div class="brand-logo-placeholder" aria-label="Logo placeholder"><img src="./assets/goto.svg"</div>
+        <div class="brand-logo-placeholder" aria-label="Logo Goto Living"><img src="./assets/goto.svg" alt="Logo Goto Living" class="brand-logo"/></div>
         <div><h2>Goto Living</h2><p>Inventory Management</p></div>
         <button class="icon-btn close-side" id="closeSidebar" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
@@ -49,7 +49,7 @@
     </div>
   </aside>
   <main class="content">
-    <div class="header"><div class="header-card"><div class="header-left"><button class="icon-btn mobile-only" id="openSidebar" aria-label="Menu"><i data-lucide="menu"></i></button><div class="header-icon"><i data-lucide="package"></i></div><div class="header-text"><div class="title">Mini WMS Dashboard</div><div class="subtitle">Ringkasan stok, pergerakan barang, dan insight SKU terbaru.</div></div></div><button id="darkBtnHeader" class="theme-btn"><i data-lucide="moon-star"></i><span>Dark mode</span></button></div></div>
+    <div class="header"><div class="header-card"><button class="icon-btn mobile-only" id="openSidebar" aria-label="Menu"><i data-lucide="menu"></i></button><button id="darkBtnHeader" class="theme-btn icon-only" aria-label="Toggle dark mode" title="Toggle dark mode"><i data-lucide="moon-star"></i></button></div></div>
 
     <section id="page-dashboard" class="panel page"><h3 class="page-title">Dashboard</h3><div id="dashboardCards" class="grid dashboard"></div><div id="recentMove" class="panel"></div></section>
     <section id="page-search" class="panel page hidden"><h3 class="page-title">Cari Data</h3><div class="search-bar"><input id="searchInput" class="search-lg" placeholder="Cari SKU, 4 digit akhir, nama barang"/></div><div class="toolbar"><div id="filterRow"></div><select id="sortSearch"><option value="rank">Sort: Ranking</option><option value="sku">Sort: SKU A-Z</option><option value="name">Sort: Nama A-Z</option></select></div><div id="status" class="subtitle"></div><div id="results" style="margin-top:10px"></div></section>
