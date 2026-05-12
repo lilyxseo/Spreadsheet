@@ -27,9 +27,10 @@ function showDetail(identifier){const key=clean(identifier);const sel=[...CACHE_
 const sku=sel.sku,nama=sel.nama;const bySheet={};SHEETS.forEach(sheet=>{bySheet[sheet]=(DATA[sheet]||[]).filter(r=>clean(getVal(r,["sku"]))===clean(sku));});
 const inRows=bySheet["Barang Masuk"]||[],outRows=bySheet["Barang Keluar"]||[];
 const tIn=inRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0),tOut=outRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0);
+const tAvailable=tIn-tOut;
 const locationSet=new Set();
 for(const r of (bySheet["Kartu Stock"]||[])){for(const k of Object.keys(r||{})){const nk=clean(k);if(["lokasi","location","rak","bin","area"].some(x=>nk.includes(x))){const v=r[k];if(v)locationSet.add(String(v).trim());}}}
-const summary=[["Row Kartu Stock",bySheet["Kartu Stock"].length],["Row RPL",bySheet["RPL"].length],["Row BULKY",bySheet["BULKY"].length],["Total Qty Masuk",tIn],["Total Qty Keluar",tOut]];
+const summary=[["Row Kartu Stock",bySheet["Kartu Stock"].length],["Row RPL",bySheet["RPL"].length],["Row BULKY",bySheet["BULKY"].length],["Total Qty Masuk",tIn],["Total Qty Keluar",tOut],["Total Qty Tersedia",tAvailable]];
 const sourceList=Array.isArray(sel.sources)?sel.sources:[...sel.sources||[]];
 let html=`<div class='detail-profile'><div class='detail-hero'><div class='detail-top'><div><div class='detail-name'>${esc(nama)}</div><div class='detail-sku'>SKU: <strong>${esc(sku)}</strong> <button class='btn-ghost' onclick="copySku(decodeURIComponent('${encAttr(sku)}'))">Copy SKU</button></div></div><button class='btn-primary' onclick="showPage('search')">Kembali ke hasil pencarian</button></div><div class='source-row'>${sourceList.map(s=>`<span class='badge ${badgeClass(s)}'>${esc(s)}</span>`).join(" ")}</div></div>`;
 html+=`<div class='summary-grid'>${summary.map(([k,v])=>`<div class='summary-card'><div class='k'>${k}</div><div class='v'>${esc(v)}</div></div>`).join("")}</div>`;
