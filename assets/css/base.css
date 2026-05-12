@@ -1,17 +1,17 @@
     :root {
-      --bg: #f3f6fb;
+      --bg: #fff5f5;
       --panel: #ffffff;
-      --panel-soft: #f8fbff;
-      --line: #dbe5f5;
-      --text: #0f172a;
-      --muted: #64748b;
-      --primary: #1e3a8a;
-      --primary-2: #2563eb;
+      --panel-soft: #fff1f2;
+      --line: #fecdd3;
+      --text: #3f0b16;
+      --muted: #9f1239;
+      --primary: #b91c1c;
+      --primary-2: #dc2626;
       --success: #059669;
       --danger: #dc2626;
       --warning: #ea580c;
       --radius: 16px;
-      --shadow: 0 10px 28px rgba(30, 58, 138, 0.08);
+      --shadow: 0 10px 28px rgba(185, 28, 28, 0.12);
     }
     body.dark {
       --bg: #0b1222;
@@ -29,11 +29,11 @@
     body { margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden; }
     .app{display:block;min-height:100vh}
     .sidebar-overlay{position:fixed;inset:0;background:rgba(2,6,23,.55);opacity:0;pointer-events:none;transition:.25s;z-index:65}
-    .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(180deg,#081a3a,#0d2f67);color:#e5edff;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid rgba(148,163,184,.25);z-index:70;transform:translateX(-100%);transition:transform .28s ease}
-    .brand{display:flex;align-items:center;gap:10px}.brand-icon{width:38px;height:38px;border-radius:11px;background:#1d4ed8;display:grid;place-items:center;font-weight:800}.brand h2{margin:0;font-size:17px}.brand p{margin:2px 0 0;font-size:11px;color:#bfd3ff}
-    .status-mini{margin-top:12px;padding:8px 10px;border:1px solid rgba(191,219,254,.24);border-radius:10px;background:rgba(30,64,175,.25);font-size:12px;display:flex;gap:8px;align-items:center}.dot{width:8px;height:8px;border-radius:50%;background:#22c55e}
-    .side-link{display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;background:rgba(255,255,255,.07);border:1px solid rgba(191,219,254,.2);color:#e5edff;text-align:left;border-radius:12px;transition:.2s} .side-link:hover{background:rgba(59,130,246,.35)} .side-link.active{background:#2563eb;border-color:#60a5fa}
-    .side-footer{display:grid;gap:10px}.profile-card{padding:10px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(191,219,254,.2);display:grid}.profile-card small{color:#bfd3ff}.api-mini{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(14,116,144,.22);border:1px solid rgba(125,211,252,.3);font-size:12px}
+    .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(180deg,#7f1d1d,#b91c1c);color:#ffe4e6;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid rgba(254,202,202,.3);z-index:70;transform:translateX(-100%);transition:transform .28s ease}
+    .brand{display:flex;align-items:center;gap:10px}.brand-logo-placeholder{width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,.12);border:1px dashed rgba(255,255,255,.55);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;flex-shrink:0}.brand h2{margin:0;font-size:17px}.brand p{margin:2px 0 0;font-size:11px;color:#fecdd3}
+    .status-mini{margin-top:12px;padding:8px 10px;border:1px solid rgba(254,202,202,.35);border-radius:10px;background:rgba(127,29,29,.35);font-size:12px;display:flex;gap:8px;align-items:center}.dot{width:8px;height:8px;border-radius:50%;background:#22c55e}
+    .side-link{display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;background:rgba(255,255,255,.08);border:1px solid rgba(254,202,202,.28);color:#ffe4e6;text-align:left;border-radius:12px;transition:.2s} .side-link:hover{background:rgba(239,68,68,.35)} .side-link.active{background:#dc2626;border-color:#fca5a5}
+    .side-footer{display:grid;gap:10px}.profile-card{padding:10px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(254,202,202,.3);display:grid}.profile-card small{color:#fecdd3}.api-mini{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(153,27,27,.4);border:1px solid rgba(254,202,202,.35);font-size:12px}
     .icon-btn{display:grid;place-items:center;width:38px;height:38px;padding:0;border-radius:10px}.close-side{margin-left:auto;background:rgba(255,255,255,.08);color:#fff;border-color:rgba(191,219,254,.3)}
     .content{padding:12px 12px 30px}
     .mobile-only{display:grid}
