@@ -202,50 +202,41 @@
   padding: 7px 10px;
 }
 .sidebar-status .dot{width:7px;height:7px}
-#menuWrap{display:grid;gap:8px;margin-top:16px !important}
+#menuWrap{display:grid;gap:2px;margin-top:16px !important}
 .side-link.nav-item{
   margin-top: 0;
   min-height: 46px;
-  padding: 11px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.22);
-  background: rgba(255,255,255,.08);
+  padding: 11px 4px;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  background: transparent;
   color: rgba(255,244,246,.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  justify-content:flex-start;
+  gap:10px;
+  transition: padding-left .2s ease, color .2s ease, border-color .2s ease;
 }
-.side-link.nav-item i{width:18px;height:18px;flex-shrink:0}
-.side-link.nav-item span{font-size:14px;font-weight:600;line-height:1.15}
-.side-link.nav-item:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,.16);
-  border-color: rgba(255,255,255,.32);
-}
-.side-link.nav-item.active{
-  background: linear-gradient(135deg,#ef233c 0%,#dc2626 100%);
-  border-color: rgba(255,255,255,.55);
-  box-shadow: 0 10px 20px rgba(127,29,29,.35);
-}
+.side-link.nav-item i{width:18px;height:18px;flex-shrink:0;opacity:.92}
+.side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15}
+.side-link.nav-item:hover{padding-left:10px;color:#fff;border-bottom-color:rgba(255,255,255,.38)}
+.side-link.nav-item.active{color:#fff;border-bottom-color:rgba(255,255,255,.65)}
+
 .sidebar-footer{gap:8px}
-.sidebar-footer .profile-card,
-.sidebar-footer .api-mini{
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(17,24,39,.35);
-}
-.sidebar-footer .profile-card{padding:9px 10px}
-.sidebar-footer .profile-card strong{font-size:12px;font-weight:700}
-.sidebar-footer .profile-card small{font-size:11px;color:rgba(255,228,230,.7)}
-.sidebar-footer .api-mini{padding:7px 9px;font-size:11px}
-.sidebar-footer .icon-btn{width:32px;height:32px;border-radius:10px}
+.account-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(17,24,39,.34)}
+.account-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.9);color:#334155}
+.account-avatar i{width:16px;height:16px}
+.account-meta{display:grid;line-height:1.2;flex:1;min-width:0}
+.account-meta strong{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-meta small{font-size:11px;color:rgba(255,228,230,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-status{font-size:10px;color:rgba(255,228,230,.6)}
+.account-more.icon-btn{width:30px;height:30px;border-radius:10px;background:transparent;border-color:transparent;color:rgba(255,255,255,.8)}
 
 body.dark .sidebar{
   background: linear-gradient(165deg, #1f2937 0%, #111827 55%, #030712 100%);
   border-right-color: rgba(148,163,184,.28);
 }
-body.dark .side-link.nav-item{background: rgba(148,163,184,.12);border-color: rgba(148,163,184,.3)}
-body.dark .side-link.nav-item:hover{background: rgba(148,163,184,.2)}
+body.dark .side-link.nav-item{border-bottom-color:rgba(148,163,184,.3);color:rgba(226,232,240,.9)}
+body.dark .side-link.nav-item:hover{border-bottom-color:rgba(148,163,184,.55)}
 
 @media (max-width: 899px){
   .sidebar{width:min(86vw,300px)}

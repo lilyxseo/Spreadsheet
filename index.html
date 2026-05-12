@@ -24,18 +24,25 @@
       </div>
       <div class="status-mini sidebar-status"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
       <nav style="margin-top:16px" id="menuWrap">
-        <button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+        <button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-grid"></i><span>Overview</span></button>
         <button class="side-link nav-item" data-page="search" data-route="/search"><i data-lucide="search"></i><span>Cari Data</span></button>
-        <button class="side-link nav-item" data-page="barang-masuk" data-route="/barang-masuk"><i data-lucide="arrow-down-circle"></i><span>Barang Masuk</span></button>
-        <button class="side-link nav-item" data-page="barang-keluar" data-route="/barang-keluar"><i data-lucide="arrow-up-circle"></i><span>Barang Keluar</span></button>
-                <button class="side-link nav-item" data-page="stats" data-route="/statistics"><i data-lucide="bar-chart-3"></i><span>Statistik</span></button>
-                <button class="side-link nav-item" data-page="location" data-route="/location"><i data-lucide="map-pin"></i><span>Cek Lokasi</span></button>
-        <button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Settings</span></button>
+        <button class="side-link nav-item" data-page="barang-masuk" data-route="/barang-masuk"><i data-lucide="package-plus"></i><span>Barang Masuk</span></button>
+        <button class="side-link nav-item" data-page="barang-keluar" data-route="/barang-keluar"><i data-lucide="package-minus"></i><span>Barang Keluar</span></button>
+        <button class="side-link nav-item" data-page="stats" data-route="/statistics"><i data-lucide="chart-column"></i><span>Statistik</span></button>
+        <button class="side-link nav-item" data-page="location" data-route="/location"><i data-lucide="map-pinned"></i><span>Cek Lokasi</span></button>
+        <button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="key-round"></i><span>Pengaturan</span></button>
       </nav>
     </div>
     <div class="side-footer sidebar-footer">
-      <div class="profile-card"><strong>Inventory App</strong><small>Warehouse Team</small></div>
-      <div class="api-mini"><span id="sidebarApi">Online / Loaded</span><button class="icon-btn" onclick="loadAllData(true)" title="Refresh"><i data-lucide="refresh-cw"></i></button></div>
+      <div class="account-card">
+        <div class="account-avatar"><i data-lucide="user-round"></i></div>
+        <div class="account-meta">
+          <strong>Andi Prasetyo</strong>
+          <small>Warehouse Supervisor</small>
+          <span id="sidebarApi" class="account-status">Online / Loaded</span>
+        </div>
+        <button class="icon-btn account-more" title="Akun"><i data-lucide="ellipsis"></i></button>
+      </div>
     </div>
   </aside>
   <main class="content">
