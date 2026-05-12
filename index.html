@@ -17,23 +17,23 @@
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <aside class="sidebar" id="sidebar">
     <div>
-      <div class="brand">
+      <div class="brand sidebar-brand">
         <div class="brand-logo-placeholder" aria-label="Logo Goto Living"><img src="./assets/goto.svg" alt="Logo Goto Living" class="brand-logo"/></div>
         <div><h2>Goto Living</h2><p>Inventory Management</p></div>
         <button class="icon-btn close-side" id="closeSidebar" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
-      <div class="status-mini"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
+      <div class="status-mini sidebar-status"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
       <nav style="margin-top:16px" id="menuWrap">
-        <button class="side-link active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
-        <button class="side-link" data-page="search" data-route="/search"><i data-lucide="search"></i><span>Cari Data</span></button>
-        <button class="side-link" data-page="barang-masuk" data-route="/barang-masuk"><i data-lucide="arrow-down-circle"></i><span>Barang Masuk</span></button>
-        <button class="side-link" data-page="barang-keluar" data-route="/barang-keluar"><i data-lucide="arrow-up-circle"></i><span>Barang Keluar</span></button>
-                <button class="side-link" data-page="stats" data-route="/statistics"><i data-lucide="bar-chart-3"></i><span>Statistik</span></button>
-                <button class="side-link" data-page="location" data-route="/location"><i data-lucide="map-pin"></i><span>Cek Lokasi</span></button>
-        <button class="side-link" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Settings</span></button>
+        <button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+        <button class="side-link nav-item" data-page="search" data-route="/search"><i data-lucide="search"></i><span>Cari Data</span></button>
+        <button class="side-link nav-item" data-page="barang-masuk" data-route="/barang-masuk"><i data-lucide="arrow-down-circle"></i><span>Barang Masuk</span></button>
+        <button class="side-link nav-item" data-page="barang-keluar" data-route="/barang-keluar"><i data-lucide="arrow-up-circle"></i><span>Barang Keluar</span></button>
+                <button class="side-link nav-item" data-page="stats" data-route="/statistics"><i data-lucide="bar-chart-3"></i><span>Statistik</span></button>
+                <button class="side-link nav-item" data-page="location" data-route="/location"><i data-lucide="map-pin"></i><span>Cek Lokasi</span></button>
+        <button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Settings</span></button>
       </nav>
     </div>
-    <div class="side-footer">
+    <div class="side-footer sidebar-footer">
       <div class="profile-card"><strong>Inventory App</strong><small>Warehouse Team</small></div>
       <div class="api-mini"><span id="sidebarApi">Online / Loaded</span><button class="icon-btn" onclick="loadAllData(true)" title="Refresh"><i data-lucide="refresh-cw"></i></button></div>
     </div>
