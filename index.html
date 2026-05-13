@@ -61,6 +61,19 @@
 </div>
 
 <div id="toast" class="toast"></div>
+<div id="searchModal" class="search-modal hidden" aria-hidden="true">
+  <div class="search-modal-backdrop" data-search-close></div>
+  <div class="search-modal-card" role="dialog" aria-modal="true" aria-label="Smart Search">
+    <div class="search-modal-head">
+      <h3>Smart Search</h3>
+      <button class="icon-btn" id="searchModalClose" aria-label="Tutup"><i data-lucide="x"></i></button>
+    </div>
+    <input id="searchModalInput" class="search-xl" placeholder="Cari SKU, 4 digit akhir, nama barang..." autocomplete="off" />
+    <div id="searchHistory" class="search-history"></div>
+    <div id="searchModalResults" class="search-modal-results"></div>
+  </div>
+</div>
+
 <script type="module" src="./assets/js/main.js"></script>
 </body>
 </html>
