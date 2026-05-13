@@ -9,6 +9,7 @@ const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+const STOK_MINUS_STATE={page:1,pageSize:25,rows:[],filteredRows:[],traceSku:""};
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
 function bindEvents(){const d=debounce(()=>runSearch(),250);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
@@ -380,7 +381,6 @@ function syncSearchModalUi(_open){}
 window.loadAllData=loadAllData;window.syncData=syncData;window.loadCache=loadCache;window.saveCache=saveCache;window.isCacheFresh=isCacheFresh;window.clearCache=clearCache;window.checkLocation=checkLocation;window.renderEmptyLocations=renderEmptyLocations;window.toggleDark=toggleDark;window.toggleCompact=toggleCompact;window.setFilter=setFilter;window.copySku=copySku;window.copyText=copyText;window.showDetail=showDetail;window.navigateTo=navigateTo;window.navigateToSku=navigateToSku;window.goBackToPreviousPage=goBackToPreviousPage;window.showPage=showPage;window.resetMovementFilter=resetMovementFilter;window.renderDataTablePage=renderDataTablePage;window.applyTableFilters=applyTableFilters;window.sortTableRows=sortTableRows;window.paginateRows=paginateRows;window.exportFilteredCsv=exportFilteredCsv;window.getUniqueOptions=getUniqueOptions;window.toggleColumnVisibility=toggleColumnVisibility;
 
 const ANOMALY_STATE={page:1,pageSize:25,rows:[]};
-const STOK_MINUS_STATE={page:1,pageSize:25,rows:[],traceSku:""};
 function normalizeSku(v){return clean(String(v||'').replace(/[^A-Za-z0-9-]/g,''));}
 function getSkuName(row){return String(getVal(row,["nama barang","nama","item","description"])||"").trim();}
 function isValidSku(sku){const value=String(sku||"").trim().toLowerCase();return value&&value!=="-"&&value!=="null"&&value!=="undefined";}
@@ -419,6 +419,7 @@ function renderStokMinusPage(){
   let rows=all.filter(r=>(!q||clean(`${r.sku} ${r.nama}`).includes(q))&&(filter==="all"||(filter==="minus"&&!r.keluarTanpaMasuk)||(filter==="keluar_tanpa_masuk"&&r.keluarTanpaMasuk)));
   const sorter={minus_desc:(a,b)=>a.stokEstimate-b.stokEstimate,keluar_desc:(a,b)=>b.keluar-a.keluar,sku_asc:(a,b)=>a.sku.localeCompare(b.sku)}; rows=[...rows].sort(sorter[sort]||sorter.minus_desc);
   STOK_MINUS_STATE.pageSize=[25,50,100].includes(Number(stokMinusSize?.value))?Number(stokMinusSize.value):25;
+  STOK_MINUS_STATE.filteredRows=rows;
   const totalQtyMinus=rows.reduce((n,r)=>n+Math.abs(Math.min(r.stokEstimate,0)),0), keluarTanpa=rows.filter(r=>r.keluarTanpaMasuk).length;
   const topMinus=[...rows].sort((a,b)=>a.stokEstimate-b.stokEstimate)[0];
   stokMinusSummary.innerHTML=[["Total SKU Minus",rows.length],["Total Qty Minus",totalQtyMinus],["Keluar Tanpa Masuk",keluarTanpa],["Minus Terbesar",topMinus?`${topMinus.sku} (${topMinus.stokEstimate})`:"-"]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
@@ -438,5 +439,5 @@ function traceStokMinusSku(sku){
   stokMinusTrace.innerHTML=`<div class='detail-note'><div class='note-box'><div class='note-title'>Lacak SKU ${esc(sku)}</div><div class='note-value'>${penyebab.length?penyebab.map(p=>`• ${esc(p)}`).join("<br>"):"Belum ditemukan pola penyebab otomatis."}</div></div></div>${tl(masuk,"Timeline Barang Masuk")}${tl(keluar,"Timeline Barang Keluar")}${tl(kartu,"Data Kartu Stock")}${tl(rpl,"Data RPL")}${tl(bulky,"Data BULKY")}`;
 }
 function changeStokMinusPage(step){const max=Math.max(1,Math.ceil((STOK_MINUS_STATE.rows?.length||0)/STOK_MINUS_STATE.pageSize));STOK_MINUS_STATE.page=Math.min(max,Math.max(1,STOK_MINUS_STATE.page+step));renderStokMinusPage();}
-function exportStokMinusCsv(){const rows=STOK_MINUS_STATE.rows||[];const csv=["SKU,Nama Barang,Total Masuk,Total Keluar,Selisih,Status",...rows.map(r=>`\"${String(r.sku).replaceAll('\"','\"\"')}\",\"${String(r.nama).replaceAll('\"','\"\"')}\",${r.masuk},${r.keluar},${r.stokEstimate},\"${r.status}\"`)];const blob=new Blob([csv.join(\"\\n\")],{type:\"text/csv;charset=utf-8;\"});const a=document.createElement(\"a\");a.href=URL.createObjectURL(blob);a.download=\"stok-minus.csv\";a.click();URL.revokeObjectURL(a.href);}
+function exportStokMinusCsv(){const rows=STOK_MINUS_STATE.filteredRows||[];const csv=["SKU,Nama Barang,Total Masuk,Total Keluar,Selisih,Status",...rows.map(r=>`\"${String(r.sku).replaceAll('\"','\"\"')}\",\"${String(r.nama).replaceAll('\"','\"\"')}\",${r.masuk},${r.keluar},${r.stokEstimate},\"${r.status}\"`)];const blob=new Blob([csv.join(\"\\n\")],{type:\"text/csv;charset=utf-8;\"});const a=document.createElement(\"a\");a.href=URL.createObjectURL(blob);a.download=\"stok-minus.csv\";a.click();URL.revokeObjectURL(a.href);}
 window.renderStokMinusPage=renderStokMinusPage;window.traceStokMinusSku=traceStokMinusSku;window.changeStokMinusPage=changeStokMinusPage;window.exportStokMinusCsv=exportStokMinusCsv;
