@@ -57,6 +57,7 @@
     .grid.dashboard .metric .v{font-size:18px;margin-top:2px;line-height:1.2}
     .metric .k{font-size:12px;color:var(--muted)} .metric .v{font-size:22px;font-weight:800;margin-top:4px}
     .search-lg{width:100%;padding:14px;border-radius:14px;border:1px solid var(--line);font-size:16px;background:var(--panel)}
+    .search-xl{width:100%;padding:16px 18px;border-radius:16px;border:1px solid var(--line);font-size:20px;background:var(--panel)}
     .search-bar,.toolbar,.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     button,select{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
     .btn-primary{background:var(--primary-2);color:#fff;border-color:transparent}
@@ -112,6 +113,13 @@
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:8px;background:var(--panel);border-top:1px solid var(--line);z-index:50}
     .nav-btn{font-size:11px;padding:8px 6px}.nav-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
     mark{background:#fde68a;border-radius:3px}
+    .search-modal{position:fixed;inset:0;z-index:120}
+    .search-modal.hidden{display:none}
+    .search-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55)}
+    .search-modal-card{position:relative;max-width:860px;margin:8vh auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:12px}
+    .search-modal-head{display:flex;justify-content:space-between;align-items:center}
+    .search-modal-results{max-height:62vh;overflow:auto}
+    .search-history .history-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 
     .detail-profile{display:grid;gap:12px}
     .detail-hero{border:1px solid var(--line);background:linear-gradient(135deg,var(--panel-soft),var(--panel));border-radius:16px;padding:14px;display:grid;gap:10px}
