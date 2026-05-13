@@ -265,6 +265,61 @@ body.dark .account-more.icon-btn{color:rgba(255,255,255,.8)}
   .side-link.nav-item span{font-size:13px}
 }
 
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(78vw, 320px);
+    max-width: 320px;
+    min-width: 0;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform .28s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .sidebar.open,
+  .sidebar.is-open,
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 999;
+  }
+
+  .main-content,
+  .app-main,
+  .content {
+    margin-left: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  .sidebar-nav a,
+  .nav-item,
+  .side-link.nav-item {
+    font-size: 15px;
+    padding: 14px 16px;
+  }
+}
+
 /* Enhanced scrollbar styling */
 :root{
   --scroll-track: color-mix(in srgb, var(--panel-soft) 80%, #ffffff 20%);
