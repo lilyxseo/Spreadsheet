@@ -213,32 +213,32 @@ function normalizeDateKey(raw){
   const dt=new Date(s);if(Number.isNaN(dt.getTime()))return "";
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
 }
-function aggregateDaily(rows){
+function aggregateDailySummary(rows){
   const map=new Map();
-  rows.forEach(r=>{const key=normalizeDateKey(getVal(r,["tanggal","date","created at","waktu"]));if(!key)return;map.set(key,(map.get(key)||0)+parseNumber(getVal(r,["qty"])));});
+  rows.forEach(r=>{const key=normalizeDateKey(getVal(r,["tanggal","date","created at","waktu"]));if(!key)return;const qty=parseNumber(getVal(r,["qty"]));const sku=clean(getVal(r,["sku"]));if(!map.has(key))map.set(key,{qty:0,skuSet:new Set()});const item=map.get(key);item.qty+=qty;if(sku)item.skuSet.add(sku);});
   return map;
 }
-function renderMiniTrend(dataMap,label){
-  const entries=[...dataMap.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-  if(!entries.length)return `<div class='state'>Belum ada data ${label.toLowerCase()}.</div>`;
-  const max=Math.max(...entries.map(([,v])=>v),1);
-  return `<div class='table-wrap'><table><thead><tr><th>Tanggal</th><th>${label}</th><th>Trend</th></tr></thead><tbody>${entries.map(([date,val])=>`<tr><td>${esc(date)}</td><td>${val}</td><td><div style='background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden'><div style='width:${Math.max(2,(val/max)*100)}%;height:8px;background:linear-gradient(90deg,#2563eb,#22c55e)'></div></div></td></tr>`).join("")}</tbody></table></div>`;
+function renderMiniTrend(summaryMap,title){
+  const entries=[...summaryMap.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!entries.length)return `<div class='state'>Belum ada data ${title.toLowerCase()}.</div>`;
+  const maxQty=Math.max(...entries.map(([,v])=>v.qty),1);
+  return `<div class='table-wrap'><table><thead><tr><th>Tanggal</th><th>Jumlah SKU</th><th>Jumlah Qty</th><th>Trend Qty</th></tr></thead><tbody>${entries.map(([date,val])=>`<tr><td>${esc(date)}</td><td>${val.skuSet.size}</td><td>${val.qty}</td><td><div style='background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden'><div style='width:${Math.max(2,(val.qty/maxQty)*100)}%;height:8px;background:linear-gradient(90deg,#2563eb,#22c55e)'></div></div></td></tr>`).join("")}</tbody></table></div>`;
 }
 function renderFinanceStatistics(){
-  const inDaily=aggregateDaily(DATA["Barang Masuk"]||[]);
-  const outDaily=aggregateDaily(DATA["Barang Keluar"]||[]);
-  const keys=[...new Set([...inDaily.keys(),...outDaily.keys()])].sort((a,b)=>a.localeCompare(b));
-  if(!keys.length){financeSummary.innerHTML="<div class='state'>Belum ada data transaksi harian.</div>";financeTrendChart.innerHTML="";return;}
-  const recent7=keys.slice(-7), recent30=keys.slice(-30);
-  const sum=(k,list)=>list.reduce((n,d)=>n+(k.get(d)||0),0);
-  const masukHarian=sum(inDaily,[keys[keys.length-1]]), keluarHarian=sum(outDaily,[keys[keys.length-1]]);
-  const masukMingguan=sum(inDaily,recent7), keluarMingguan=sum(outDaily,recent7);
-  const masukBulanan=sum(inDaily,recent30), keluarBulanan=sum(outDaily,recent30);
-  financeSummary.innerHTML=[["Pemasukan Hari Ini",masukHarian],["Pengeluaran Hari Ini",keluarHarian],["Pemasukan 7 Hari",masukMingguan],["Pengeluaran 7 Hari",keluarMingguan],["Pemasukan 30 Hari",masukBulanan],["Pengeluaran 30 Hari",keluarBulanan]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
-  financeTrendChart.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Trend Harian</div><div class='v'>${keys.length} hari tercatat</div></div><div class='summary-card'><div class='k'>Trend Mingguan</div><div class='v'>7 hari terakhir</div></div><div class='summary-card'><div class='k'>Trend Bulanan</div><div class='v'>30 hari terakhir</div></div></div>
-  <h4>Harian (gabungan pemasukan + pengeluaran)</h4>${renderMiniTrend(new Map(keys.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)])),"Qty")}
-  <h4>Mingguan (7 hari terakhir)</h4>${renderMiniTrend(new Map(recent7.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)])),"Qty")}
-  <h4>Bulanan (30 hari terakhir)</h4>${renderMiniTrend(new Map(recent30.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)])),"Qty")}`;
+  const inDaily=aggregateDailySummary(DATA["Barang Masuk"]||[]);
+  const outDaily=aggregateDailySummary(DATA["Barang Keluar"]||[]);
+  const todayKey=normalizeDateKey(new Date().toISOString().slice(0,10));
+  const inToday=inDaily.get(todayKey)||{qty:0,skuSet:new Set()};
+  const outToday=outDaily.get(todayKey)||{qty:0,skuSet:new Set()};
+  financeSummary.innerHTML=[
+    ["SKU Masuk Hari Ini",inToday.skuSet.size],
+    ["Qty Masuk Hari Ini",inToday.qty],
+    ["SKU Keluar Hari Ini",outToday.skuSet.size],
+    ["Qty Keluar Hari Ini",outToday.qty]
+  ].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
+  financeTrendChart.innerHTML=`
+  <h4>Harian Pemasukan</h4>${renderMiniTrend(inDaily,"pemasukan")}
+  <h4>Harian Pengeluaran</h4>${renderMiniTrend(outDaily,"pengeluaran")}`;
 }
 function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");}
 function renderFilters(){const searchFilters=FILTERS.filter(f=>!["Barang Masuk","Barang Keluar"].includes(f));filterRow.innerHTML=searchFilters.map(f=>`<button class='chip ${f===currentFilter?"active":""}' onclick="setFilter(decodeURIComponent('${encAttr(f)}'))">${esc(f)}</button>`).join("");if(!searchFilters.includes(currentFilter)){currentFilter="Semua";}}
