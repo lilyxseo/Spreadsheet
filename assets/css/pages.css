@@ -7,6 +7,7 @@
 .mv-columns{display:none;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;padding:10px;border:1px dashed var(--line);border-radius:10px}
 .mv-columns.open{display:grid}
 .mv-columns label{font-size:12px;display:flex;gap:6px;align-items:center}
+.movement-results{display:grid;gap:10px;min-width:0}
 .table-wrap-full{max-height:62vh;max-width:100%;overflow:auto}
 .table-wrap-full table{min-width:1100px}
 .table-wrap-full th,.table-wrap-full td{padding:7px 10px;font-size:12px;line-height:1.3}
