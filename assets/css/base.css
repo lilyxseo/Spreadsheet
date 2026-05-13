@@ -166,7 +166,6 @@
 }
 
 .brand-logo-placeholder .brand-logo {
-  filter: brightness(0) saturate(100%) invert(24%) sepia(92%) saturate(2702%) hue-rotate(346deg) brightness(97%) contrast(94%);
   width: 72%;
   height: 72%;
   display: block;
