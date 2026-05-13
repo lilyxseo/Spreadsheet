@@ -236,8 +236,8 @@ function renderFinanceStatistics(){
   const masukBulanan=sum(inDaily,recent30), keluarBulanan=sum(outDaily,recent30);
   financeSummary.innerHTML=[["Pemasukan Hari Ini",masukHarian],["Pengeluaran Hari Ini",keluarHarian],["Pemasukan 7 Hari",masukMingguan],["Pengeluaran 7 Hari",keluarMingguan],["Pemasukan 30 Hari",masukBulanan],["Pengeluaran 30 Hari",keluarBulanan]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
   financeTrendChart.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Trend Harian</div><div class='v'>${keys.length} hari tercatat</div></div><div class='summary-card'><div class='k'>Trend Mingguan</div><div class='v'>7 hari terakhir</div></div><div class='summary-card'><div class='k'>Trend Bulanan</div><div class='v'>30 hari terakhir</div></div></div>
-  <h4>Harian (gabungan pemasukan + pengeluaran)</h4>${renderMiniTrend(new Map(keys.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)]),"Qty")}
-  <h4>Mingguan (7 hari terakhir)</h4>${renderMiniTrend(new Map(recent7.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)]),"Qty")}
+  <h4>Harian (gabungan pemasukan + pengeluaran)</h4>${renderMiniTrend(new Map(keys.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)])),"Qty")}
+  <h4>Mingguan (7 hari terakhir)</h4>${renderMiniTrend(new Map(recent7.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)])),"Qty")}
   <h4>Bulanan (30 hari terakhir)</h4>${renderMiniTrend(new Map(recent30.map(k=>[k,(inDaily.get(k)||0)+(outDaily.get(k)||0)]),"Qty")}`;
 }
 function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");}
