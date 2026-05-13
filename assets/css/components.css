@@ -16,3 +16,8 @@
   animation:spin-mini .7s linear infinite;
 }
 @keyframes spin-mini{to{transform:translateY(-50%) rotate(360deg);}}
+.metric.ok .v{color:#16a34a}
+.metric.err .v{color:#dc2626}
+.metric.warn .v{color:#ca8a04}
+.txt-danger{color:#dc2626;font-weight:700}
+.row-mismatch td{background:rgba(220,38,38,.08)}
