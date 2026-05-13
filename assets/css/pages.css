@@ -98,3 +98,16 @@
 }
 
 .stats-toolbar + .table-wrap.table-wrap-full{margin-top:14px}
+
+#page-statistics{display:flex;flex-direction:column;gap:14px}
+.stats-filter-box{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.stats-toggle{display:flex;gap:8px;flex-wrap:wrap}
+.stats-toggle .btn-ghost.active{background:var(--bg-soft);border-color:var(--line-strong)}
+.st-bars{display:flex;flex-direction:column;gap:4px;min-width:140px}
+.st-bar{height:8px;border-radius:999px;min-width:2px}
+.st-bar.in{background:#16a34a}
+.st-bar.out{background:#f97316}
+.stats-rank-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.stats-rank-grid .card{padding:12px;border-radius:12px}
+.stats-rank-grid ol{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
+.stats-rank-grid li{display:flex;justify-content:space-between;gap:10px}
