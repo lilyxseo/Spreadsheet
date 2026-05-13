@@ -1,0 +1,18 @@
+.btn-primary.is-syncing{
+  position:relative;
+  padding-left:34px;
+}
+.btn-primary.is-syncing::before{
+  content:"";
+  position:absolute;
+  left:12px;
+  top:50%;
+  width:12px;
+  height:12px;
+  border:2px solid currentColor;
+  border-right-color:transparent;
+  border-radius:50%;
+  transform:translateY(-50%);
+  animation:spin-mini .7s linear infinite;
+}
+@keyframes spin-mini{to{transform:translateY(-50%) rotate(360deg);}}
