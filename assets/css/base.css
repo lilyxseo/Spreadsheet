@@ -112,6 +112,7 @@
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:8px;background:var(--panel);border-top:1px solid var(--line);z-index:50}
     .nav-btn{font-size:11px;padding:8px 6px}.nav-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
     mark{background:#fde68a;border-radius:3px}
+    .search-history .history-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 
     .detail-profile{display:grid;gap:12px}
     .detail-hero{border:1px solid var(--line);background:linear-gradient(135deg,var(--panel-soft),var(--panel));border-radius:16px;padding:14px;display:grid;gap:10px}
