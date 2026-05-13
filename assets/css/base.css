@@ -236,7 +236,7 @@
 .side-link.nav-item:hover{padding-left:10px;color:#fff;border-bottom-color:rgba(255,255,255,.38)}
 .side-link.nav-item.active{color:#fff;border-bottom-color:rgba(255,255,255,.65)}
 
-.sidebar-footer{gap:8px}
+.sidebar-footer{gap:8px;position:sticky;bottom:0;padding-top:10px;margin-top:12px;background:linear-gradient(to top, rgba(17,24,39,.55), rgba(17,24,39,0));backdrop-filter:blur(2px)}
 .account-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(17,24,39,.34)}
 .account-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.9);color:#334155}
 .account-avatar i{width:16px;height:16px}
