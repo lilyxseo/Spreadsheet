@@ -2,6 +2,7 @@ import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 const ids=["searchInput","sortSearch","statsFilter","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locInput","locationResult","emptyLocationResult","inSearch","inDate","inSummary","inResults","outSearch","outDate","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
+console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const CACHE_VERSION="1";
 const CACHE_TTL_MS=5*60*1000;
@@ -39,6 +40,10 @@ function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync
 function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);}
 function applyData(newData,{fromCache=false,deferRender=true}={}){
 for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
+console.log("STATE DATA", DATA);
+const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
+window.__isDataReady = hasAnyData;
+console.log("IS READY", window.__isDataReady);
 rebuildSkuCache();
 apiConnected=true;
 updateApiState();
@@ -81,7 +86,8 @@ try{
 for(const sheet of SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
-freshData[sheet]=parseSheet(raw);
+freshData[sheet]=parseSheet(raw, sheet);
+console.log("PARSED DATA", sheet, freshData[sheet].length);
 }
 applyData(freshData,{deferRender:true});
 saveCache(freshData);
@@ -92,7 +98,7 @@ return true;
 apiConnected=false;updateApiState();
 const hasCache=!!loadCache();
 if(hasCache){setStatus("error","Gagal sync, memakai cache");return false;}
-setStatus("error","Gagal memuat data: "+err.message);renderError("results","Tidak bisa memuat data.");throw err;
+setStatus("error","Gagal memuat data: "+err.message);renderError("results","Data belum berhasil dimuat");renderState("dashboardCards","Data belum berhasil dimuat");throw err;
 }finally{
 isSyncing=false;
 updateSyncUI();
@@ -104,9 +110,12 @@ const cached=loadCache();
 if(cached){
 applyData(cached,{fromCache:true});
 hideInitialLoader();
-return;
 }
-await syncData();
+const hasCacheData = cached && SHEETS.some(sheet => Array.isArray(cached[sheet]) && cached[sheet].length);
+if(!hasCacheData){
+await syncData({force:true,silent:false});
+}
+rerenderCurrentPage({fromCache:!!hasCacheData});
 }
 async function loadAllData(manual=false,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
