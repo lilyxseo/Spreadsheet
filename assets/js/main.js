@@ -1,4 +1,4 @@
-import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
+import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, FETCH_SHEETS } from "./config.js";
 const ids=["searchInput","sortSearch","statsFilter","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locInput","locationResult","emptyLocationResult","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
@@ -42,6 +42,9 @@ function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync
 function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);}
 function applyData(newData,{fromCache=false,deferRender=true}={}){
 for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
+const derivedStorageRows = buildDerivedStorageRows();
+DATA["RPL"] = derivedStorageRows.rpl;
+DATA["BULKY"] = derivedStorageRows.bulky;
 console.log("STATE DATA", DATA);
 const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
 window.__isDataReady = hasAnyData;
@@ -85,7 +88,7 @@ if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat da
 if(silent)setStatus("loading","Sinkronisasi...");
 const freshData={};
 try{
-for(const sheet of SHEETS){
+for(const sheet of FETCH_SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=parseSheet(raw, sheet);
@@ -121,6 +124,38 @@ rerenderCurrentPage({fromCache:!!hasCacheData});
 }
 async function loadAllData(manual=false,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
+function buildDerivedStorageRows(){
+const baseRows=[...(DATA["Barang Masuk"]||[]),...(DATA["Barang Keluar"]||[])];
+const aggregate=new Map();
+baseRows.forEach((row,idx)=>{
+const sku=String(getVal(row,["sku"])||"").trim();
+const lokasi=String(getVal(row,["lokasi","location","rak","bin","area"])||"").trim().toUpperCase();
+if(!sku||!lokasi)return;
+const qty=parseNumber(getVal(row,["qty"]));
+const isOut=(DATA["Barang Keluar"]||[]).includes(row);
+const key=`${sku}__${lokasi}`;
+if(!aggregate.has(key)){
+aggregate.set(key,{sku,lokasi,nama:getVal(row,["nama barang","nama","item","description"])||"-",qty:0,urutan:idx+1});
+}
+const item=aggregate.get(key);
+item.qty+=isOut?-Math.abs(qty):Math.abs(qty);
+});
+const bulky=[],rpl=[];
+aggregate.forEach(item=>{
+const normalized=item.lokasi.replace(/\s+/g,"");
+const target=normalized.length===5?bulky:rpl;
+target.push({
+urutan:item.urutan,
+tanggal:"",
+sku:item.sku,
+nama:item.nama,
+qty:item.qty,
+lokasi:item.lokasi
+});
+});
+const sortFn=(a,b)=>clean(a.sku).localeCompare(clean(b.sku))||clean(a.lokasi).localeCompare(clean(b.lokasi));
+return {bulky:bulky.sort(sortFn),rpl:rpl.sort(sortFn)};
+}
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
 function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
 function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of SHEETS){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[]});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}}
