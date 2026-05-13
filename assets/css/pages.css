@@ -18,3 +18,15 @@
   .mv-filters{display:none}
   .mv-filters.open{display:grid}
 }
+
+.search-modal-open #page-search.search-modal{
+  position:fixed;
+  inset:0;
+  z-index:80;
+  margin:0;
+  border-radius:0;
+  overflow:auto;
+}
+.search-modal-open #page-search .search-layout{max-width:980px;margin:18px auto;}
+.search-modal-open #searchInput.search-lg{font-size:22px;padding:18px;}
+.recent-searches{margin-top:4px}
