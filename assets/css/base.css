@@ -29,7 +29,7 @@
     body { margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden; }
     .app{display:block;min-height:100vh}
     .sidebar-overlay{position:fixed;inset:0;background:rgba(2,6,23,.55);opacity:0;pointer-events:none;transition:.25s;z-index:65}
-    .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(165deg,#7f1d1d 0%,#991b1b 52%,#111827 100%);color:#ffe4e6;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid rgba(255,255,255,.14);z-index:70;transform:translateX(-100%);transition:transform .28s ease;overflow-x:hidden;overflow-y:auto;padding-bottom:20px}
+    .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(165deg,#7f1d1d 0%,#991b1b 52%,#111827 100%);color:#ffe4e6;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid rgba(255,255,255,.14);z-index:70;transform:translateX(-100%);transition:transform .28s ease;overflow:hidden;padding-bottom:20px;gap:12px}
     .brand{display:flex;align-items:center;gap:10px}.brand-logo-placeholder{width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.96);border:1px solid rgba(255,255,255,.42);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;flex-shrink:0}.brand h2{margin:0;font-size:16px;color:#fff}.brand p{margin:2px 0 0;font-size:11px;color:rgba(255,228,230,.82)}
     .status-mini{margin-top:12px;padding:6px 10px;border:1px solid rgba(255,255,255,.2);border-radius:20px;background:rgba(255,255,255,.06);font-size:11px;display:inline-flex;gap:7px;align-items:center;max-width:max-content}.dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
     .side-link{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#ffe4e6;text-align:left;border-radius:20px;transition:all .22s ease;backdrop-filter:blur(4px);font-size:14px}.side-link i{width:18px;height:18px;flex-shrink:0}.side-link:hover{background:rgba(255,255,255,.16);transform:translateY(-1px)} .side-link.active{background:linear-gradient(135deg,#ef233c,#dc2626);border-color:rgba(255,255,255,.35);box-shadow:0 10px 20px rgba(220,38,38,.32)}
@@ -217,7 +217,8 @@
   padding: 7px 10px;
 }
 .sidebar-status .dot{width:7px;height:7px}
-#menuWrap{display:grid;gap:2px;margin-top:16px !important}
+.sidebar > div:first-child{display:flex;flex-direction:column;min-height:0;flex:1}
+#menuWrap{display:grid;gap:2px;margin-top:16px !important;overflow-y:auto;min-height:0;padding-right:2px}
 .side-link.nav-item{
   margin-top: 0;
   min-height: 46px;
@@ -236,7 +237,7 @@
 .side-link.nav-item:hover{padding-left:10px;color:#fff;border-bottom-color:rgba(255,255,255,.38)}
 .side-link.nav-item.active{color:#fff;border-bottom-color:rgba(255,255,255,.65)}
 
-.sidebar-footer{gap:8px;position:sticky;bottom:0;padding-top:10px;margin-top:12px;background:linear-gradient(to top, rgba(17,24,39,.55), rgba(17,24,39,0));backdrop-filter:blur(2px)}
+.sidebar-footer{gap:8px;flex-shrink:0;padding-top:10px;margin-top:12px;background:linear-gradient(to top, rgba(17,24,39,.55), rgba(17,24,39,0));backdrop-filter:blur(2px)}
 .account-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(17,24,39,.34)}
 .account-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.9);color:#334155}
 .account-avatar i{width:16px;height:16px}
