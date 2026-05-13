@@ -224,9 +224,38 @@ function renderMiniTrend(summaryMap,title){
   const maxQty=Math.max(...entries.map(([,v])=>v.qty),1);
   return `<div class='table-wrap'><table><thead><tr><th>Tanggal</th><th>Jumlah SKU</th><th>Jumlah Qty</th><th>Trend Qty</th></tr></thead><tbody>${entries.map(([date,val])=>`<tr><td>${esc(date)}</td><td>${val.skuSet.size}</td><td>${val.qty}</td><td><div style='background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden'><div style='width:${Math.max(2,(val.qty/maxQty)*100)}%;height:8px;background:linear-gradient(90deg,#2563eb,#22c55e)'></div></div></td></tr>`).join("")}</tbody></table></div>`;
 }
+function mergeFinancePeriods(inMap,outMap,label){
+  const keys=[...new Set([...inMap.keys(),...outMap.keys()])].sort((a,b)=>a.localeCompare(b));
+  return keys.map(key=>{
+    const income=inMap.get(key)||{qty:0,skuSet:new Set()};
+    const expense=outMap.get(key)||{qty:0,skuSet:new Set()};
+    const skuTotal=new Set([...income.skuSet,...expense.skuSet]).size;
+    return {period:key,label,sku:skuTotal,incomeQty:income.qty,expenseQty:expense.qty,netQty:income.qty-expense.qty};
+  });
+}
+function aggregateMonthlySummary(summaryMap){
+  const monthMap=new Map();
+  summaryMap.forEach((val,date)=>{
+    const monthKey=String(date||"").slice(0,7);
+    if(!monthKey)return;
+    if(!monthMap.has(monthKey))monthMap.set(monthKey,{qty:0,skuSet:new Set()});
+    const bucket=monthMap.get(monthKey);
+    bucket.qty+=val.qty;
+    val.skuSet.forEach(sku=>bucket.skuSet.add(sku));
+  });
+  return monthMap;
+}
+function renderFinanceTable(rows,periodLabel){
+  if(!rows.length)return `<div class='state'>Belum ada data ${periodLabel.toLowerCase()}.</div>`;
+  return `<div class='table-wrap table-wrap-full'><table><thead><tr><th>${periodLabel}</th><th>SKU</th><th>Pemasukan (Qty)</th><th>Pengeluaran (Qty)</th><th>Net Qty</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.sku}</td><td>${r.incomeQty}</td><td>${r.expenseQty}</td><td class='${r.netQty<0?"txt-danger":""}'>${r.netQty}</td></tr>`).join("")}</tbody></table></div>`;
+}
 function renderFinanceStatistics(){
   const inDaily=aggregateDailySummary(DATA["Barang Masuk"]||[]);
   const outDaily=aggregateDailySummary(DATA["Barang Keluar"]||[]);
+  const inMonthly=aggregateMonthlySummary(inDaily);
+  const outMonthly=aggregateMonthlySummary(outDaily);
+  const dailyRows=mergeFinancePeriods(inDaily,outDaily,"Harian");
+  const monthlyRows=mergeFinancePeriods(inMonthly,outMonthly,"Bulanan");
   const todayKey=normalizeDateKey(new Date().toISOString().slice(0,10));
   const inToday=inDaily.get(todayKey)||{qty:0,skuSet:new Set()};
   const outToday=outDaily.get(todayKey)||{qty:0,skuSet:new Set()};
@@ -237,8 +266,10 @@ function renderFinanceStatistics(){
     ["Qty Keluar Hari Ini",outToday.qty]
   ].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
   financeTrendChart.innerHTML=`
-  <h4>Harian Pemasukan</h4>${renderMiniTrend(inDaily,"pemasukan")}
-  <h4>Harian Pengeluaran</h4>${renderMiniTrend(outDaily,"pengeluaran")}`;
+  <h4>Tabel Gabungan Harian (Pemasukan & Pengeluaran)</h4>${renderFinanceTable(dailyRows,"Tanggal")}
+  <h4>Tabel Gabungan Bulanan</h4>${renderFinanceTable(monthlyRows,"Bulan")}
+  <h4>Trend Harian Pemasukan</h4>${renderMiniTrend(inDaily,"pemasukan")}
+  <h4>Trend Harian Pengeluaran</h4>${renderMiniTrend(outDaily,"pengeluaran")}`;
 }
 function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");}
 function renderFilters(){const searchFilters=FILTERS.filter(f=>!["Barang Masuk","Barang Keluar"].includes(f));filterRow.innerHTML=searchFilters.map(f=>`<button class='chip ${f===currentFilter?"active":""}' onclick="setFilter(decodeURIComponent('${encAttr(f)}'))">${esc(f)}</button>`).join("");if(!searchFilters.includes(currentFilter)){currentFilter="Semua";}}
