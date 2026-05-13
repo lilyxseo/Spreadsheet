@@ -6,7 +6,7 @@ const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"
 const CACHE_VERSION="1";
 const CACHE_TTL_MS=5*60*1000;
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false;
-window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();routeFromPath(location.pathname);setInterval(()=>syncData({silent:true}),60000);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
 function bindEvents(){const d=debounce(()=>runSearch(),220);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),220),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),220);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);inDate?.addEventListener("change",()=>renderDataTablePage("in","Barang Masuk"));outDate?.addEventListener("change",()=>renderDataTablePage("out","Barang Keluar"));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}});document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(!btn)return;const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}});}
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();}
@@ -77,7 +77,7 @@ freshData[sheet]=parseSheet(raw);
 applyData(freshData,{deferRender:true});
 saveCache(freshData);
 setStatus("ok","Data terbaru");
-toast("Data diperbarui");
+toast("Data diperbarui","success");
 return true;
 }catch(err){
 apiConnected=false;updateApiState();
@@ -95,7 +95,6 @@ const cached=loadCache();
 if(cached){
 applyData(cached,{fromCache:true});
 hideInitialLoader();
-if(!isCacheFresh())await syncData({silent:true});
 return;
 }
 await syncData();
