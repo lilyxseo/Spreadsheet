@@ -5,8 +5,9 @@ const statusEl=document.getElementById("status");
 const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const CACHE_VERSION="1";
 const CACHE_TTL_MS=5*60*1000;
-const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
-window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+const state={DATA:{},isDataReady:false,isLoading:false};
+const DATA = state.DATA; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);initAppData();if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
 function bindEvents(){const d=debounce(()=>runSearch(),250);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),220),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),220);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);inDate?.addEventListener("change",()=>renderDataTablePage("in","Barang Masuk"));outDate?.addEventListener("change",()=>renderDataTablePage("out","Barang Keluar"));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
 searchInput.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
@@ -18,7 +19,11 @@ anomalyType?.addEventListener("change",()=>renderAnomalyPage());anomalySearch?.a
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(!btn)return;const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}});}
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search"){showPage("search");if(searchModalOpen)syncSearchModalUi(true);return;}if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/statistics")return showPage("stats");if(path==="/location")return showPage("location");if(path==="/settings")return showPage("settings");if(path==="/anomaly")return showPage("anomaly");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function showRouteLoading(){setStatus("loading","Memuat data...");}
+function ensureDataReady(){return !!state.isDataReady;}
+function renderCurrentRoute(){routeFromPath(location.pathname,true);}
+function setDataReady(data,{fromCache=false}={}){for(const k of Object.keys(DATA))delete DATA[k];for(const sheet of SHEETS)DATA[sheet]=Array.isArray(data?.[sheet])?data[sheet]:[];state.isDataReady=true;state.isLoading=false;rebuildSkuCache();apiConnected=true;updateApiState();updateSyncTime();updateSettings();scheduleUIWork(()=>{renderCurrentRoute();if(fromCache)setStatus("loading","Data dari cache");});}
+function routeFromPath(path,skipReadyCheck=false){if(!skipReadyCheck&&!ensureDataReady()){showRouteLoading();return;}if(path==="/")return showPage("dashboard");if(path==="/search"){showPage("search");if(searchModalOpen)syncSearchModalUi(true);return;}if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/statistics")return showPage("stats");if(path==="/location")return showPage("location");if(path==="/settings")return showPage("settings");if(path==="/anomaly")return showPage("anomaly");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
@@ -37,16 +42,7 @@ try{localStorage.setItem(CACHE_KEYS.data,JSON.stringify(data));localStorage.setI
 }
 function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts&&(Date.now()-ts)<CACHE_TTL_MS;}
 function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);}
-function applyData(newData,{fromCache=false,deferRender=true}={}){
-for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
-rebuildSkuCache();
-apiConnected=true;
-updateApiState();
-updateSyncTime();
-updateSettings();
-if(deferRender){scheduleUIWork(()=>rerenderCurrentPage({fromCache}));return;}
-rerenderCurrentPage({fromCache});
-}
+function applyData(newData,{fromCache=false}={}){setDataReady(newData,{fromCache});}
 
 function scheduleUIWork(cb){
 const runner=()=>setTimeout(cb,16);
@@ -74,7 +70,8 @@ async function syncData({force=false,silent=true}={}){
 if(isSyncing)return false;
 isSyncing=true;
 updateSyncUI();
-if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat data dari Google Sheets...");showSkeleton();}
+if(!force&&!silent&&!state.isDataReady){setStatus("loading","Memuat data dari Google Sheets...");showSkeleton();}
+state.isLoading=true;
 if(silent)setStatus("loading","Sinkronisasi...");
 const freshData={};
 try{
@@ -83,7 +80,7 @@ const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=parseSheet(raw);
 }
-applyData(freshData,{deferRender:true});
+setDataReady(freshData);
 saveCache(freshData);
 setStatus("ok","Data terbaru");
 toast("Data diperbarui","success");
@@ -102,10 +99,11 @@ hideInitialLoader();
 async function initAppData(){
 const cached=loadCache();
 if(cached){
-applyData(cached,{fromCache:true});
+setDataReady(cached,{fromCache:true});
 hideInitialLoader();
 return;
 }
+showRouteLoading();
 await syncData();
 }
 async function loadAllData(manual=false,silent=false){return syncData({force:!!manual,silent:!!silent});}
