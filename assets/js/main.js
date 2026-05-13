@@ -3,9 +3,11 @@ const ids=["searchInput","sortSearch","statsFilter","darkBtnHeader","openSidebar
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
-const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
-const CACHE_VERSION="1";
-const CACHE_TTL_MS=5*60*1000;
+const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
+const CACHE_VERSION="2";
+const IDB_NAME="inventory_cache_db";
+const IDB_VERSION=1;
+const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
@@ -25,21 +27,36 @@ function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path=
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
-function loadCache(){
+async function openCacheDb(){
+return await new Promise((resolve,reject)=>{
+const req=indexedDB.open(IDB_NAME,IDB_VERSION);
+req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE,{keyPath:"sheet"});};
+req.onsuccess=()=>resolve(req.result);
+req.onerror=()=>reject(req.error||new Error("Gagal membuka IndexedDB"));
+});
+}
+async function loadCache(){
 try{
-if(localStorage.getItem(CACHE_KEYS.version)!==CACHE_VERSION)return null;
-const raw=localStorage.getItem(CACHE_KEYS.data);
-if(!raw)return null;
-const parsed=JSON.parse(raw);
-if(!parsed||typeof parsed!=="object")return null;
+const db=await openCacheDb();
+const rows=await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readonly");const rq=tx.objectStore(IDB_STORE).getAll();rq.onsuccess=()=>resolve(rq.result||[]);rq.onerror=()=>reject(rq.error);});
+const parsed={};
+for(const sheet of SHEETS){const hit=rows.find(r=>r.sheet===sheet);parsed[sheet]=Array.isArray(hit?.rows)?hit.rows:[];}
 return parsed;
 }catch(_){return null;}
 }
-function saveCache(data){
-try{localStorage.setItem(CACHE_KEYS.data,JSON.stringify(data));localStorage.setItem(CACHE_KEYS.lastSync,String(Date.now()));localStorage.setItem(CACHE_KEYS.version,CACHE_VERSION);}catch(_){}
+async function saveCache(data){
+try{
+const db=await openCacheDb();
+await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of SHEETS){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
+localStorage.setItem(CACHE_KEYS.lastSync,String(Date.now()));
+localStorage.setItem(CACHE_KEYS.version,CACHE_VERSION);
+}catch(_){ }
 }
-function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts&&(Date.now()-ts)<CACHE_TTL_MS;}
-function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);}
+function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts;}
+async function clearCache(){
+try{const db=await openCacheDb();await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const rq=tx.objectStore(IDB_STORE).clear();rq.onsuccess=()=>resolve(true);rq.onerror=()=>reject(rq.error);});}catch(_){}
+localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);
+}
 function applyData(newData,{fromCache=false,deferRender=true}={}){
 for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
 console.log("STATE DATA", DATA);
@@ -76,7 +93,6 @@ if(page==="barang-masuk")renderDataTablePage("in","Barang Masuk",true);
 if(page==="barang-keluar")renderDataTablePage("out","Barang Keluar",true);
 if(page==="anomaly")renderAnomalyPage();
 if(fromCache)setStatus("loading","Data dari cache");
-if(page==="anomaly")renderAnomalyPage();
 }
 async function syncData({force=false,silent=true}={}){
 if(isSyncing)return false;
@@ -93,13 +109,13 @@ freshData[sheet]=parseSheet(raw, sheet);
 console.log("PARSED DATA", sheet, freshData[sheet].length);
 }
 applyData(freshData,{deferRender:true});
-saveCache(freshData);
+await saveCache(freshData);
 setStatus("ok","");
 toast("Data diperbarui","success");
 return true;
 }catch(err){
 apiConnected=false;updateApiState();
-const hasCache=!!loadCache();
+const hasCache=!!(await loadCache());
 if(hasCache){setStatus("error","Gagal sync, memakai cache");return false;}
 setStatus("error","Gagal memuat data: "+err.message);renderError("results","Data belum berhasil dimuat");renderState("dashboardCards","Data belum berhasil dimuat");throw err;
 }finally{
@@ -109,7 +125,7 @@ hideInitialLoader();
 }
 }
 async function initAppData(){
-const cached=loadCache();
+const cached=await loadCache();
 if(cached){
 applyData(cached,{fromCache:true});
 hideInitialLoader();
@@ -120,7 +136,7 @@ await syncData({force:true,silent:false});
 }
 rerenderCurrentPage({fromCache:!!hasCacheData});
 }
-async function loadAllData(manual=false,silent=false){return syncData({force:!!manual,silent:!!silent});}
+async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
 function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
@@ -142,7 +158,7 @@ html+=`<div class='summary-grid'>${summary.map(([k,v])=>`<div class='summary-car
 html+=`<div class='detail-note'><div class='note-box'><div class='note-title'>Lokasi</div><div class='note-value'>${locationSet.size?[...locationSet].slice(0,12).map(esc).join(", "):"-"}</div></div></div>`;
 for(const sheet of SHEETS){const rows=bySheet[sheet];html+=`<details class='source-card' ${rows.length?'open':''}><summary><span><span class='badge ${badgeClass(sheet)}'>${sheet}</span></span><span>${rows.length} baris</span></summary><div class='source-body'>${renderTable(rows)}</div></details>`;}
 html+="</div>";detail.innerHTML=html;}
-function renderTable(rows){if(!rows.length) return `<div class='empty-card'><strong>Data kosong</strong><div>Tidak ada baris untuk sumber ini.</div></div>`;const headers=Object.keys(rows[0]);let h=`<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${esc(String(x).toUpperCase())}</th>`).join("")}</tr></thead><tbody>`;rows.forEach(r=>h+=`<tr>${headers.map(k=>`<td>${esc(r[k])}</td>`).join("")}</tr>`);return h+"</tbody></table></div>";}
+function renderTable(rows,page=1,pageSize=25){if(!rows.length) return `<div class='empty-card'><strong>Data kosong</strong><div>Tidak ada baris untuk sumber ini.</div></div>`;const headers=Object.keys(rows[0]);const safeSize=[25,50,100].includes(Number(pageSize))?Number(pageSize):25;const maxPage=Math.max(1,Math.ceil(rows.length/safeSize));const safePage=Math.min(maxPage,Math.max(1,Number(page)||1));const pageRows=rows.slice((safePage-1)*safeSize,safePage*safeSize);let h=`<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${esc(String(x).toUpperCase())}</th>`).join("")}</tr></thead><tbody>`;pageRows.forEach(r=>h+=`<tr>${headers.map(k=>`<td>${esc(r[k])}</td>`).join("")}</tr>`);h+=`</tbody></table></div><div class='mv-pagination'><span>Menampilkan ${rows.length?((safePage-1)*safeSize+1):0}–${Math.min(safePage*safeSize,rows.length)} dari ${rows.length} data</span></div>`;return h;}
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
