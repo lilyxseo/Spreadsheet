@@ -6,8 +6,8 @@ console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const CACHE_VERSION="1";
 const CACHE_TTL_MS=5*60*1000;
-const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
-window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/", pendingRoutePath="/";
+window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;pendingRoutePath=location.pathname||"/";initAppData();renderRecentHistory();if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
 function bindEvents(){const d=debounce(()=>runSearch(),250);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
 searchInput.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
@@ -20,7 +20,20 @@ document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-actio
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/statistics")return showPage("stats");if(path==="/location")return showPage("location");if(path==="/settings")return showPage("settings");if(path==="/anomaly")return showPage("anomaly");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){
+pendingRoutePath=path||"/";
+if(!window.__isDataReady){setStatus("loading","Memuat data aplikasi...");return;}
+if(path==="/")return showPage("dashboard");
+if(path==="/search")return showPage("search");
+if(path==="/barang-masuk")return showPage("barang-masuk");
+if(path==="/barang-keluar")return showPage("barang-keluar");
+if(path==="/statistics")return showPage("stats");
+if(path==="/location")return showPage("location");
+if(path==="/settings")return showPage("settings");
+if(path==="/anomaly")return showPage("anomaly");
+if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}
+showPage("dashboard");
+}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
@@ -42,8 +55,7 @@ function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.remo
 function applyData(newData,{fromCache=false,deferRender=true}={}){
 for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
 console.log("STATE DATA", DATA);
-const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
-window.__isDataReady = hasAnyData;
+window.__isDataReady = true;
 console.log("IS READY", window.__isDataReady);
 rebuildSkuCache();
 apiConnected=true;
@@ -107,16 +119,17 @@ hideInitialLoader();
 }
 }
 async function initAppData(){
-const cached=loadCache();
-if(cached){
-applyData(cached,{fromCache:true});
-hideInitialLoader();
-}
-const hasCacheData = cached && SHEETS.some(sheet => Array.isArray(cached[sheet]) && cached[sheet].length);
-if(!hasCacheData){
+window.__isDataReady=false;
+setStatus("loading","Memuat data dari Google Sheets...");
+try{
 await syncData({force:true,silent:false});
+}catch(_){
+const cached=loadCache();
+if(cached)applyData(cached,{fromCache:true,deferRender:false});
 }
-rerenderCurrentPage({fromCache:!!hasCacheData});
+window.__isDataReady=true;
+routeFromPath(pendingRoutePath||location.pathname||"/");
+rerenderCurrentPage({fromCache:false});
 }
 async function loadAllData(manual=false,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
