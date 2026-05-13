@@ -190,9 +190,9 @@
 
 /* Sidebar redesign: clean, modern, premium */
 .sidebar{
-  background: linear-gradient(165deg, #7f1d1d 0%, #991b1b 46%, #111827 100%);
-  border-right: 1px solid rgba(255,255,255,.18);
-  color: #ffe4e6;
+  background: #fff7f7;
+  border-right: 1px solid rgba(239,68,68,.18);
+  color: #7f1d1d;
   padding: 20px 14px 14px;
 }
 .sidebar-brand{
@@ -225,17 +225,17 @@
   padding: 11px 4px;
   border-radius: 0;
   border: 0;
-  border-bottom: 1px solid rgba(255,255,255,.18);
+  border-bottom: 1px solid rgba(239,68,68,.18);
   background: transparent;
-  color: rgba(255,244,246,.92);
+  color: rgba(127,29,29,.88);
   justify-content:flex-start;
   gap:10px;
   transition: padding-left .2s ease, color .2s ease, border-color .2s ease;
 }
 .side-link.nav-item i{width:18px;height:18px;flex-shrink:0;opacity:.92}
 .side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15}
-.side-link.nav-item:hover{padding-left:10px;color:#fff;border-bottom-color:rgba(255,255,255,.38)}
-.side-link.nav-item.active{color:#fff;border-bottom-color:rgba(255,255,255,.65)}
+.side-link.nav-item:hover{padding-left:10px;color:#991b1b;border-bottom-color:rgba(239,68,68,.38)}
+.side-link.nav-item.active{color:#7f1d1d;border-bottom-color:rgba(239,68,68,.6)}
 
 .sidebar-footer{gap:8px;flex-shrink:0;padding-top:10px;margin-top:12px;background:linear-gradient(to top, rgba(17,24,39,.55), rgba(17,24,39,0));backdrop-filter:blur(2px)}
 .account-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(17,24,39,.34)}
