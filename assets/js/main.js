@@ -5,14 +5,17 @@ const statusEl=document.getElementById("status");
 const CACHE_KEYS={data:"inventory_data",lastSync:"inventory_last_sync",version:"inventory_cache_version"};
 const CACHE_VERSION="1";
 const CACHE_TTL_MS=5*60*1000;
-const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false;
-window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+const state={DATA:{},isDataReady:false,isLoading:false};
+const DATA = state.DATA; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false;
+window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;routeFromPath(location.pathname);initApp();if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
 function bindEvents(){const d=debounce(()=>runSearch(),220);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),220),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),220);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);inDate?.addEventListener("change",()=>renderDataTablePage("in","Barang Masuk"));outDate?.addEventListener("change",()=>renderDataTablePage("out","Barang Keluar"));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());anomalyType?.addEventListener("change",()=>renderAnomalyPage());anomalySearch?.addEventListener("input",debounce(()=>renderAnomalyPage(),180));
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(!btn)return;const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}});}
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/statistics")return showPage("stats");if(path==="/location")return showPage("location");if(path==="/settings")return showPage("settings");if(path==="/anomaly")return showPage("anomaly");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function getRoutePage(path){if(path==="/")return "dashboard";if(path==="/search")return "search";if(path==="/barang-masuk")return "barang-masuk";if(path==="/barang-keluar")return "barang-keluar";if(path==="/statistics")return "stats";if(path==="/location")return "location";if(path==="/settings")return "settings";if(path==="/anomaly")return "anomaly";if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");return "detail";}return "dashboard";}
+function showRouteLoading(page){showPage(page);const targets={search:"results",detail:"detail","barang-masuk":"inResults","barang-keluar":"outResults",stats:"statsChart",location:"locationResult",anomaly:"anomalyTable"};const id=targets[page];if(id&&document.getElementById(id))document.getElementById(id).innerHTML="<div class="state">Memuat data...</div>";}
+function routeFromPath(path){const page=getRoutePage(path);if(!state.isDataReady)return showRouteLoading(page);showPage(page);if(page==="detail"&&currentSku)showDetail(currentSku);rerenderCurrentPage();}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
@@ -31,9 +34,26 @@ try{localStorage.setItem(CACHE_KEYS.data,JSON.stringify(data));localStorage.setI
 }
 function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts&&(Date.now()-ts)<CACHE_TTL_MS;}
 function clearCache(){localStorage.removeItem(CACHE_KEYS.data);localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);}
-function applyData(newData,{fromCache=false,deferRender=true}={}){
-for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
+function setDataReady(data){
+for(const key of Object.keys(state.DATA))delete state.DATA[key];
+for(const sheet of SHEETS)state.DATA[sheet]=Array.isArray(data?.[sheet])?data[sheet]:[];
+state.isDataReady=true;
+state.isLoading=false;
 rebuildSkuCache();
+}
+function renderCurrentRoute(){routeFromPath(location.pathname);}
+async function ensureDataReady(){
+if(state.isDataReady)return true;
+if(state.isLoading)return false;
+state.isLoading=true;
+const cached=loadCache();
+if(cached){setDataReady(cached);setStatus("loading","Data dari cache");hideInitialLoader();renderCurrentRoute();return true;}
+setStatus("loading","Memuat data dari Google Sheets...");showSkeleton();
+await syncData({silent:false});
+return state.isDataReady;
+}
+function applyData(newData,{fromCache=false,deferRender=true}={}){
+setDataReady(newData);
 apiConnected=true;
 updateApiState();
 updateSyncTime();
@@ -93,16 +113,8 @@ updateSyncUI();
 hideInitialLoader();
 }
 }
-async function initAppData(){
-const cached=loadCache();
-if(cached){
-applyData(cached,{fromCache:true});
-hideInitialLoader();
-return;
-}
-await syncData();
-}
-async function loadAllData(manual=false,silent=false){return syncData({force:!!manual,silent:!!silent});}
+async function initApp(){await ensureDataReady();}
+async function loadAllData(manual=false,silent=false){state.isLoading=true;state.isDataReady=false;return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
 function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
