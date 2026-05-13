@@ -19,7 +19,7 @@ clearHistoryBtn?.addEventListener("click",clearSearchHistory);
 document.getElementById("recentSearch")?.addEventListener("click",e=>{const btn=e.target.closest("[data-history]");if(!btn)return;searchInput.value=decodeURIComponent(btn.dataset.history||"");runSearch();});
 anomalyType?.addEventListener("change",()=>renderAnomalyPage());anomalySearch?.addEventListener("input",debounce(()=>renderAnomalyPage(),180));
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(!btn)return;const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}});}
-function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();if(window.__isDataReady)rerenderCurrentPage();}
+function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
@@ -42,7 +42,7 @@ const rows=await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STOR
 const parsed={};
 for(const sheet of SHEETS){const hit=rows.find(r=>r.sheet===sheet);parsed[sheet]=Array.isArray(hit?.rows)?hit.rows:[];}
 return parsed;
-}catch(_){return null;}
+}catch(err){console.warn("IndexedDB load failed, fallback ke fetch API langsung", err);return null;}
 }
 async function saveCache(data){
 try{
@@ -50,9 +50,12 @@ const db=await openCacheDb();
 await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of SHEETS){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
 localStorage.setItem(CACHE_KEYS.lastSync,String(Date.now()));
 localStorage.setItem(CACHE_KEYS.version,CACHE_VERSION);
-}catch(_){ }
+}catch(err){console.warn("IndexedDB save failed", err); }
 }
 function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts;}
+function hasValidData(data){
+return data && typeof data==="object" && Object.keys(data).some(key=>Array.isArray(data[key])&&data[key].length>0);
+}
 async function clearCache(){
 try{const db=await openCacheDb();await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const rq=tx.objectStore(IDB_STORE).clear();rq.onsuccess=()=>resolve(true);rq.onerror=()=>reject(rq.error);});}catch(_){}
 localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);
@@ -62,7 +65,7 @@ for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sh
 console.log("STATE DATA", DATA);
 const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
 window.__isDataReady = hasAnyData;
-console.log("IS READY", window.__isDataReady);
+console.log("DATA READY", window.__isDataReady);
 rebuildSkuCache();
 apiConnected=true;
 updateApiState();
@@ -106,6 +109,7 @@ for(const sheet of SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=parseSheet(raw, sheet);
+console.log("FETCH RESULT", sheet, raw);
 console.log("PARSED DATA", sheet, freshData[sheet].length);
 }
 applyData(freshData,{deferRender:true});
@@ -125,16 +129,24 @@ hideInitialLoader();
 }
 }
 async function initAppData(){
-const cached=await loadCache();
-if(cached){
-applyData(cached,{fromCache:true});
+console.log("INIT APP START");
+console.log("CURRENT ROUTE", location.pathname);
+const cachedData=await loadCache();
+console.log("CACHE DATA", cachedData);
+if(hasValidData(cachedData)){
+applyData(cachedData,{fromCache:true});
 hideInitialLoader();
+rerenderCurrentPage({fromCache:true});
+return;
 }
-const hasCacheData = cached && SHEETS.some(sheet => Array.isArray(cached[sheet]) && cached[sheet].length);
-if(!hasCacheData){
+try{
 await syncData({force:true,silent:false});
+}catch(err){
+console.warn("Fallback fetch gagal", err);
 }
-rerenderCurrentPage({fromCache:!!hasCacheData});
+if(!window.__isDataReady){
+setStatus("error","Data belum siap dimuat");
+}
 }
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
