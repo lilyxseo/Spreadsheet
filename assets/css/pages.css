@@ -14,6 +14,21 @@
 .mv-pagination{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .mv-mobile-only{display:none}
 
+#page-barang-masuk .mv-filters select,
+#page-barang-keluar .mv-filters select{
+  min-height:44px;
+  border-radius:14px;
+  background:linear-gradient(180deg,#0c1f44 0%,#0a1835 100%);
+  border:1px solid #2f4f86;
+  color:#f8fbff;
+}
+#page-barang-masuk .mv-filters select:focus,
+#page-barang-keluar .mv-filters select:focus{
+  outline:none;
+  border-color:#7b61ff;
+  box-shadow:0 0 0 2px rgba(123,97,255,.25);
+}
+
 @media (max-width: 899px){
   .mv-mobile-only{display:inline-flex}
   .mv-filters{display:none}
