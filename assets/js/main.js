@@ -96,7 +96,7 @@ if(page==="search"&&String(lastQuery||"").trim())runSearch();
 if(page==="barang-masuk")renderDataTablePage("in","Barang Masuk",true);
 if(page==="barang-keluar")renderDataTablePage("out","Barang Keluar",true);
 if(page==="anomaly")renderAnomalyPage();
-if(fromCache)setStatus("loading","Data dari cache");
+if(fromCache)setStatus("ready","");
 }
 async function syncData({force=false,silent=true}={}){
 if(isSyncing)return false;
