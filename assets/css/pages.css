@@ -141,4 +141,6 @@
 }
 .stokminus-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .stokminus-toolbar .search-lg{min-width:220px;flex:1}
-.stokminus-trace{margin-top:10px}
+.stokminus-trace{margin-top:14px}
+#stokMinusPanel{margin-top:14px}
+.stokminus-trace .source-card{margin-top:12px}
