@@ -169,3 +169,11 @@
   #locationsTable .mv-pagination{flex-direction:column;align-items:flex-start}
 }
 
+.cc-head{display:flex;justify-content:space-between;align-items:flex-start;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.cc-summary{margin-top:10px}
+.cc-stepper{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.cc-stepper .btn-ghost.active{background:var(--bg-soft);border-color:var(--line-strong)}
+.cc-body{border-radius:18px;padding:16px}
+.cc-diff{background:rgba(249,115,22,.08)}
+.cc-diff .badge.b-out{background:#fee2e2}
+.cc-qty{max-width:84px;padding:6px 8px;border:1px solid var(--line);border-radius:10px}
