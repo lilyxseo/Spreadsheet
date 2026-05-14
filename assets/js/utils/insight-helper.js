@@ -1,46 +1,29 @@
 export function buildAutoInsight(data,{movementRows=[],accuracyRows=[],anomalyRows=[]}={}){
-  const masuk=data?.["Barang Masuk"]||[];
-  const keluar=data?.["Barang Keluar"]||[];
+  const masuk=(data?.["Barang Masuk"]||[]).filter(r=>isMovementType(r,"receipt"));
+  const keluar=(data?.["Barang Keluar"]||[]).filter(r=>isMovementType(r,"pengeluaran"));
   const kartu=data?.["Kartu Stock"]||[];
   if(!masuk.length&&!keluar.length&&!kartu.length&&!accuracyRows.length&&!anomalyRows.length)return {empty:true,categories:[]};
 
-  const agg={inQty:0,outQty:0,day:new Map(),inSku:new Map(),outSku:new Map(),lastMove:new Map()};
-  const rows=movementRows.length?movementRows:[...toRows(masuk,"Masuk"),...toRows(keluar,"Keluar")];
+  const currentMonth=getCurrentMonthKey();
+  const agg={inQty:0,outQty:0,inSku:new Set(),outSku:new Set(),inSkuQty:new Map(),outSkuQty:new Map()};
+  const rows=(movementRows.length?movementRows:[...toRows(masuk,"Masuk"),...toRows(keluar,"Keluar")]).filter(r=>r?.dateKey&&r.monthKey===currentMonth);
   rows.forEach(r=>{
-    if(!r?.dateKey)return;
     const qty=Number(r.qty)||0;
     if(r.type==="Masuk")agg.inQty+=qty; else agg.outQty+=qty;
-    if(r.type==="Masuk")agg.inSku.set(r.sku,(agg.inSku.get(r.sku)||0)+1); else agg.outSku.set(r.sku,(agg.outSku.get(r.sku)||0)+1);
-    const d=agg.day.get(r.dateKey)||0; agg.day.set(r.dateKey,d+1);
-    if(r.sku){const prev=agg.lastMove.get(r.sku)||""; if(!prev||r.dateKey>prev)agg.lastMove.set(r.sku,r.dateKey);}    
+    if(r.type==="Masuk"){agg.inSku.add(r.sku);agg.inSkuQty.set(r.sku,(agg.inSkuQty.get(r.sku)||0)+qty);}
+    else{agg.outSku.add(r.sku);agg.outSkuQty.set(r.sku,(agg.outSkuQty.get(r.sku)||0)+qty);}
   });
 
-  const topOut=getTopSku(agg.outSku); const peak=getDailyPeak(agg.day);
-  const minusSummary=getStockMinusSummary(accuracyRows,anomalyRows);
-  const locSummary=getLocationSummary(accuracyRows);
-  const moveSummary=getMovementSummary(agg.inQty,agg.outQty);
-
-  const inactiveSummary=getInactiveSummary(agg.lastMove);
-  const stats=[
-    moveSummary,
-    peak.date?`Hari paling aktif adalah <strong>${fmtDate(peak.date)}</strong> dengan <strong>${peak.count}</strong> transaksi`:"",
-    topOut.sku?`SKU paling sering keluar adalah <strong>${safe(topOut.sku)}</strong> (<strong>${topOut.count}</strong>x)`:"",
-    inactiveSummary
-  ].filter(Boolean);
-
-  const masalah=[
-    minusSummary.minusSku>0?`Terdapat <strong>${minusSummary.minusSku}</strong> SKU stok minus`:"",
-    minusSummary.anomalyTotal>0?`Ditemukan <strong>${minusSummary.anomalyTotal}</strong> anomaly pada data`:""
-  ].filter(Boolean);
-
-  const lokasi=[locSummary.text].filter(Boolean);
-
-  return {empty:false,categories:[
-    {title:"📦 Movement",items:stats.slice(0,3)},
-    {title:"⚠️ Masalah",items:masalah.slice(0,2)},
-    {title:"📊 Statistik",items:stats.slice(3)},
-    {title:"📍 Lokasi",items:lokasi}
-  ].filter(c=>c.items.length)};
+  const topOut=getTopSkuByQty(agg.outSkuQty);
+  const topIn=getTopSkuByQty(agg.inSkuQty);
+  const monthLabel=new Date().toLocaleDateString("id-ID",{month:"long",year:"numeric"});
+  const items=[
+    `Barang Masuk bulan ini (${monthLabel}) total <strong>${agg.inSku.size}</strong> SKU / <strong>${agg.inQty}</strong> qty`,
+    `Barang Keluar bulan ini (${monthLabel}) total <strong>${agg.outSku.size}</strong> SKU / <strong>${agg.outQty}</strong> qty`,
+    topOut.sku?`SKU paling sering keluar bulan ini adalah ${toSkuDetailLink(topOut.sku)} dengan total <strong>${topOut.count}</strong> pcs`:"Belum ada data barang keluar bulan ini",
+    topIn.sku?`SKU paling sering masuk bulan ini adalah ${toSkuDetailLink(topIn.sku)} dengan total <strong>${topIn.count}</strong> pcs`:"Belum ada data barang masuk bulan ini"
+  ];
+  return {empty:false,categories:[{title:"📦 Auto Insight Bulanan",items}]};
 }
 
 export function getMovementSummary(totalMasuk,totalKeluar){
@@ -53,8 +36,7 @@ export function getMovementSummary(totalMasuk,totalKeluar){
     ?`Barang keluar lebih tinggi <strong>${pct}%</strong> dibanding barang masuk`
     :`Barang masuk lebih tinggi <strong>${pct}%</strong> dibanding barang keluar`;
 }
-export function getTopSku(map){let sku="",count=0;for(const [k,v] of map.entries()){if(v>count){sku=k;count=v;}}return {sku,count};}
-export function getDailyPeak(dayMap){let date="",count=0;for(const [d,c] of dayMap.entries()){if(c>count){date=d;count=c;}}return {date,count};}
+export function getTopSkuByQty(map){let sku="",count=0;for(const [k,v] of map.entries()){if(v>count){sku=k;count=v;}}return {sku,count};}
 export function getStockMinusSummary(accuracyRows=[],anomalyRows=[]){
   const minusSku=new Set();
   accuracyRows.forEach(r=>{if((Number(r.stokBulky)||0)<0||(Number(r.stokRetail)||0)<0||(Number(r.stokGlobal)||0)<0||String(r.status||"").toLowerCase().includes("minus"))minusSku.add(String(r.sku||""));});
@@ -68,15 +50,12 @@ export function getLocationSummary(accuracyRows=[]){
   return {text:loc?`<strong>${safe(loc)}</strong> memiliki selisih terbesar (<strong>${val}</strong>)`:""};
 }
 
-function getInactiveSummary(lastMoveMap){
-  const today=new Date(); let stale=0,total=0;
-  for(const d of lastMoveMap.values()){total++; const dt=new Date(`${d}T00:00:00`); if(!Number.isNaN(dt.getTime())){const days=(today-dt)/86400000; if(days>=7)stale++;}}
-  if(!total||!stale)return "";
-  return `<strong>${Math.round((stale/total)*100)}%</strong> SKU tidak bergerak dalam <strong>7 hari</strong> terakhir`;
-}
-function toRows(rows,type){return rows.map(r=>({type,sku:getField(r,["sku"]),qty:num(getField(r,["qty"])),dateKey:normDate(getField(r,["tanggal","date","created at","waktu"]))})).filter(r=>r.dateKey&&r.sku);}
+function toRows(rows,type){return rows.map(r=>({type,sku:getField(r,["sku"]),qty:num(getField(r,["qty"])),dateKey:normDate(getField(r,["tanggal","date","created at","waktu"]))})).filter(r=>r.dateKey&&r.sku).map(r=>({...r,monthKey:r.dateKey.slice(0,7)}));}
+function isMovementType(row,expected){return clean(getField(row,["keterangan","description","tipe"]))===clean(expected);}
+function getCurrentMonthKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;}
 const getField=(r,keys)=>{const cols=Object.keys(r||{});for(const k of keys){const f=cols.find(c=>String(c||"").toLowerCase().includes(String(k).toLowerCase()));if(f&&r[f]!=null)return String(r[f]);}return "";};
 const num=v=>{const n=parseFloat(String(v||"").replace(/[^0-9.-]/g,""));return Number.isFinite(n)?n:0;};
 const normDate=s=>{const t=String(s||"").trim();if(!t)return "";const m=t.replace(/\./g,"/").replace(/-/g,"/").match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);if(m){let y=Number(m[3]);if(y<100)y+=2000;return `${y}-${String(Number(m[2])).padStart(2,"0")}-${String(Number(m[1])).padStart(2,"0")}`;}const d=new Date(t);return Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
-const fmtDate=d=>{const dt=new Date(`${d}T00:00:00`);return Number.isNaN(dt.getTime())?d:dt.toLocaleDateString("id-ID",{day:"numeric",month:"long"});};
 const safe=v=>String(v||"").replace(/[&<>"]/g,"");
+const clean=v=>String(v||"").toLowerCase().trim();
+const toSkuDetailLink=sku=>{const val=String(sku||"").trim();if(!val)return "-";const encoded=encodeURIComponent(val);const attr=encodeURIComponent(val);return `<button class='btn-link' onclick=\"showDetail(decodeURIComponent('${attr}'));navigateTo('/sku/'+encodeURIComponent(decodeURIComponent('${attr}')))\" style='padding:0;border:none;background:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit'><strong>${safe(val)}</strong></button>`;};
