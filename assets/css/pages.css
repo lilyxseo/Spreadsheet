@@ -136,6 +136,9 @@
 #page-locations #locationsTable th,#page-locations #locationsTable td,#page-locations #locationsEmpty th,#page-locations #locationsEmpty td{padding:6px 8px;font-size:11.5px;line-height:1.25}
 #page-locations .table-wrap-full table{min-width:760px}
 #locationsFilters{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+#locationDetail .table-wrap{overflow:auto;-webkit-overflow-scrolling:touch}
+#locationDetail .table-wrap table{min-width:980px}
+#locationDetail th,#locationDetail td{white-space:nowrap}
 
 #locationsEmpty .table-wrap{max-height:360px}
 #locationsEmpty th,#locationsEmpty td{padding:5px 7px;font-size:11px}
@@ -160,6 +163,7 @@
   #page-locations .mv-toolbar{grid-template-columns:1fr}
   #locationsTable .table-wrap table{min-width:640px}
   #locationsEmpty .table-wrap table{min-width:360px}
+  #locationDetail .table-wrap table{min-width:900px}
   #locationsTable .mv-pagination{flex-direction:column;align-items:flex-start}
 }
 
