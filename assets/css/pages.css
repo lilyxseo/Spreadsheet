@@ -139,3 +139,8 @@
 @media (max-width: 899px){
   .mv-toolbar{grid-template-columns:1fr}
 }
+.stokminus-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.stokminus-toolbar .search-lg{min-width:220px;flex:1}
+.stokminus-trace{margin-top:14px}
+#stokMinusPanel{margin-top:14px}
+.stokminus-trace .source-card{margin-top:12px}
