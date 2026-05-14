@@ -184,7 +184,7 @@
 .movement-grid{display:grid;grid-template-columns:1fr;gap:10px}
 .movement-card{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel-soft);display:grid;gap:8px}
 .movement-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
-@media (min-width:700px){.movement-toolbar{grid-template-columns:1fr auto auto}.movement-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (min-width:700px){.movement-toolbar{grid-template-columns:1fr}.movement-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (min-width:1200px){.movement-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 
 /* Sidebar redesign: clean, modern, premium */
