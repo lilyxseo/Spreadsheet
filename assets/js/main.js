@@ -184,14 +184,26 @@ return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='ins
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
-const cards=[["Total SKU",skuSet.size],["Baris Kartu Stock",totals["Kartu Stock"]],["Baris RPL",totals["RPL"]],["Baris BULKY",totals["BULKY"]],["Barang Masuk",totals["Barang Masuk"]],["Barang Keluar",totals["Barang Keluar"]],["Lokasi terpakai",lokasiTerpakai],["Lokasi tersisa",lokasiTersisa]];
-dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
+const dailyGrowth=getDashboardDailyGrowth();
+const cards=[["Total SKU",skuSet.size,dailyGrowth.sku],["Barang Masuk",totals["Barang Masuk"],dailyGrowth.masuk],["Barang Keluar",totals["Barang Keluar"],dailyGrowth.keluar],["Lokasi terpakai",lokasiTerpakai,dailyGrowth.lokasi],["Baris Kartu Stock",totals["Kartu Stock"],null],["Baris RPL",totals["RPL"],null],["Baris BULKY",totals["BULKY"],null],["Lokasi tersisa",lokasiTersisa,null]];
+dashboardCards.innerHTML=cards.map(c=>`<div class='metric'> <div class='k'>${c[0]}</div><div class='v'>${c[1]}</div>${c[2]==null?"":`<div class='dashboard-growth ${c[2]>0?"pos":"zero"}'>+${c[2]} hari ini</div>`}</div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
 const dashInsight=buildAutoInsight(DATA,{accuracyRows:[]});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
 ${renderDashboardTableSection("Barang Masuk","Data terbaru dari sheet Barang Masuk",inRows,"b-in")}
 ${renderDashboardTableSection("Barang Keluar","Data terbaru dari sheet Barang Keluar",outRows,"b-out")}
 </div>`;}
+function getDashboardDailyGrowth(){
+const today=getDateOffsetKey(0),yesterday=getDateOffsetKey(1);
+const calc=(sheet,mapper)=>{const rows=DATA[sheet]||[];return rows.filter(r=>{const d=parseDateKey(getVal(r,["tanggal","date","created at","waktu"]));return d===today||d===yesterday;}).reduce((n,r)=>n+(mapper?mapper(r):1),0);};
+const inToday=calc("Barang Masuk",r=>clean(getVal(r,["sku"]))?1:0);
+const outToday=calc("Barang Keluar");
+const skuToday=new Set((DATA["Barang Masuk"]||[]).filter(r=>parseDateKey(getVal(r,["tanggal","date","created at","waktu"]))===today).map(r=>clean(getVal(r,["sku"]))).filter(Boolean)).size;
+const lokasiToday=new Set((DATA["Kartu Stock"]||[]).filter(r=>parseDateKey(getVal(r,["tanggal","date","created at","waktu"]))===today).map(r=>{const raw=getVal(r,["lokasi","location","rak","bin","area"]);const parsed=parseLocationCode(raw);return parsed.valid&&!parsed.blocked?parsed.raw:"";}).filter(Boolean)).size;
+return {masuk:inToday||0,keluar:outToday||0,sku:skuToday||0,lokasi:lokasiToday||0};
+}
+function getDateOffsetKey(offset){const d=new Date();d.setDate(d.getDate()-offset);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function parseDateKey(value){const t=String(value||"").trim();if(!t)return "";const m=t.replace(/\./g,"/").replace(/-/g,"/").match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);if(m){let y=Number(m[3]);if(y<100)y+=2000;return `${y}-${String(Number(m[2])).padStart(2,"0")}-${String(Number(m[1])).padStart(2,"0")}`;}const d=new Date(t);return Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function getLatestRows(sheetName,limit=50,requireSku=false){let rows=(DATA[sheetName]||[]).slice();if(requireSku)rows=rows.filter(r=>clean(getVal(r,["sku"])));return rows.reverse().slice(0,limit);}
 function renderDashboardTableSection(title,subtitle,rows,badgeClassName){const badgeText=`${rows.length} terbaru`;return `<section class='dashboard-section'><div class='card'><div class='section-header'><div><h4>${esc(title)}</h4><small class='section-subtitle'>${esc(subtitle)}</small></div><span class='badge ${badgeClassName}'>${esc(badgeText)}</span></div>${renderDashboardSheetTable(rows,title)}</div></section>`;}
 function renderDashboardSheetTable(rows,title){if(!rows.length)return `<div class='empty-card'><strong>Data kosong</strong><div>Belum ada data pada section ${esc(title)}.</div></div>`;const headers=[];rows.forEach(row=>Object.keys(row||{}).forEach(k=>{if(!headers.includes(k))headers.push(k);}));const th=headers.map(h=>`<th>${esc(String(h).toUpperCase())}</th>`).join("");const tr=rows.map(row=>`<tr>${headers.map(k=>`<td>${esc(row[k]??"")}</td>`).join("")}</tr>`).join("");return `<div class='table-scroll'><table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;}

@@ -134,6 +134,9 @@
 .insight-group li{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4}
 .insight-dot{color:#64748b;font-weight:700}
 .insight-card strong{color:#0f766e}
+.dashboard-growth{font-size:11px;margin-top:4px;color:#94a3b8;font-weight:600}
+.dashboard-growth.pos{color:#16a34a}
+.dashboard-growth.zero{color:#94a3b8}
 @media (max-width:768px){.insight-card{padding:10px}.insight-group li{font-size:12px}}
 
 @media (max-width: 899px){
