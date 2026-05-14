@@ -4,42 +4,27 @@ export function buildAutoInsight(data,{movementRows=[],accuracyRows=[],anomalyRo
   const kartu=data?.["Kartu Stock"]||[];
   if(!masuk.length&&!keluar.length&&!kartu.length&&!accuracyRows.length&&!anomalyRows.length)return {empty:true,categories:[]};
 
-  const agg={inQty:0,outQty:0,day:new Map(),inSku:new Map(),outSku:new Map(),lastMove:new Map()};
+  const agg={inToday:0,outToday:0,inSkuToday:new Map(),outSkuToday:new Map(),locToday:new Map()};
   const rows=movementRows.length?movementRows:[...toRows(masuk,"Masuk"),...toRows(keluar,"Keluar")];
+  const todayKey=getTodayKey();
+  const last7Set=new Set(getRelativeDateKeys(7));
   rows.forEach(r=>{
-    if(!r?.dateKey)return;
-    const qty=Number(r.qty)||0;
-    if(r.type==="Masuk")agg.inQty+=qty; else agg.outQty+=qty;
-    if(r.type==="Masuk")agg.inSku.set(r.sku,(agg.inSku.get(r.sku)||0)+1); else agg.outSku.set(r.sku,(agg.outSku.get(r.sku)||0)+1);
-    const d=agg.day.get(r.dateKey)||0; agg.day.set(r.dateKey,d+1);
-    if(r.sku){const prev=agg.lastMove.get(r.sku)||""; if(!prev||r.dateKey>prev)agg.lastMove.set(r.sku,r.dateKey);}    
+    if(!r?.dateKey||!last7Set.has(r.dateKey))return;
+    if(r.type==="Masuk"&&r.dateKey===todayKey){agg.inToday++;agg.inSkuToday.set(r.sku,(agg.inSkuToday.get(r.sku)||0)+1);}
+    if(r.type==="Keluar"&&r.dateKey===todayKey){agg.outToday++;agg.outSkuToday.set(r.sku,(agg.outSkuToday.get(r.sku)||0)+1);}
+    if(r.dateKey===todayKey&&r.location)agg.locToday.set(r.location,(agg.locToday.get(r.location)||0)+1);
   });
-
-  const topOut=getTopSku(agg.outSku); const peak=getDailyPeak(agg.day);
-  const minusSummary=getStockMinusSummary(accuracyRows,anomalyRows);
-  const locSummary=getLocationSummary(accuracyRows);
-  const moveSummary=getMovementSummary(agg.inQty,agg.outQty);
-
-  const inactiveSummary=getInactiveSummary(agg.lastMove);
+  const topOut=getTopSku(agg.outSkuToday);
+  const topLoc=getTopSku(agg.locToday);
   const stats=[
-    moveSummary,
-    peak.date?`Hari paling aktif adalah <strong>${fmtDate(peak.date)}</strong> dengan <strong>${peak.count}</strong> transaksi`:"",
-    topOut.sku?`SKU paling sering keluar adalah <strong>${safe(topOut.sku)}</strong> (<strong>${topOut.count}</strong>x)`:"",
-    inactiveSummary
-  ].filter(Boolean);
-
-  const masalah=[
-    minusSummary.minusSku>0?`Terdapat <strong>${minusSummary.minusSku}</strong> SKU stok minus`:"",
-    minusSummary.anomalyTotal>0?`Ditemukan <strong>${minusSummary.anomalyTotal}</strong> anomaly pada data`:""
-  ].filter(Boolean);
-
-  const lokasi=[locSummary.text].filter(Boolean);
+    `Hari ini ada <strong>${agg.inToday}</strong> barang masuk`,
+    `Hari ini ada <strong>${agg.outToday}</strong> barang keluar`,
+    topOut.sku?`SKU paling sering keluar hari ini adalah <strong>${safe(topOut.sku)}</strong>`:"SKU paling sering keluar hari ini belum tersedia",
+    topLoc.sku?`Lokasi paling aktif hari ini adalah <strong>${safe(topLoc.sku)}</strong>`:"Lokasi paling aktif hari ini belum tersedia"
+  ];
 
   return {empty:false,categories:[
-    {title:"📦 Movement",items:stats.slice(0,3)},
-    {title:"⚠️ Masalah",items:masalah.slice(0,2)},
-    {title:"📊 Statistik",items:stats.slice(3)},
-    {title:"📍 Lokasi",items:lokasi}
+    {title:"📦 Insight Terbaru",items:stats}
   ].filter(c=>c.items.length)};
 }
 
@@ -68,13 +53,9 @@ export function getLocationSummary(accuracyRows=[]){
   return {text:loc?`<strong>${safe(loc)}</strong> memiliki selisih terbesar (<strong>${val}</strong>)`:""};
 }
 
-function getInactiveSummary(lastMoveMap){
-  const today=new Date(); let stale=0,total=0;
-  for(const d of lastMoveMap.values()){total++; const dt=new Date(`${d}T00:00:00`); if(!Number.isNaN(dt.getTime())){const days=(today-dt)/86400000; if(days>=7)stale++;}}
-  if(!total||!stale)return "";
-  return `<strong>${Math.round((stale/total)*100)}%</strong> SKU tidak bergerak dalam <strong>7 hari</strong> terakhir`;
-}
-function toRows(rows,type){return rows.map(r=>({type,sku:getField(r,["sku"]),qty:num(getField(r,["qty"])),dateKey:normDate(getField(r,["tanggal","date","created at","waktu"]))})).filter(r=>r.dateKey&&r.sku);}
+function toRows(rows,type){return rows.map(r=>({type,sku:getField(r,["sku"]),qty:num(getField(r,["qty"])),dateKey:normDate(getField(r,["tanggal","date","created at","waktu"])),location:getField(r,["lokasi","location","rak","bin","area"])})).filter(r=>r.dateKey&&r.sku);}
+function getTodayKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function getRelativeDateKeys(days){const out=[];for(let i=0;i<days;i++){const d=new Date();d.setDate(d.getDate()-i);out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`);}return out;}
 const getField=(r,keys)=>{const cols=Object.keys(r||{});for(const k of keys){const f=cols.find(c=>String(c||"").toLowerCase().includes(String(k).toLowerCase()));if(f&&r[f]!=null)return String(r[f]);}return "";};
 const num=v=>{const n=parseFloat(String(v||"").replace(/[^0-9.-]/g,""));return Number.isFinite(n)?n:0;};
 const normDate=s=>{const t=String(s||"").trim();if(!t)return "";const m=t.replace(/\./g,"/").replace(/-/g,"/").match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);if(m){let y=Number(m[3]);if(y<100)y+=2000;return `${y}-${String(Number(m[2])).padStart(2,"0")}-${String(Number(m[1])).padStart(2,"0")}`;}const d=new Date(t);return Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
