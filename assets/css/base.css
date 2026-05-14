@@ -127,6 +127,7 @@
     .note-title{font-size:11px;color:var(--muted);margin-bottom:4px}
     .note-value{font-size:13px;font-weight:700;line-height:1.35;word-break:break-word}
     .source-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+    .source-card + .source-card{margin-top:10px}
     .source-card summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--panel-soft);cursor:pointer;font-weight:800}
     .source-card summary::-webkit-details-marker{display:none}
     .source-body{padding:10px}
