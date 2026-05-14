@@ -182,10 +182,20 @@ if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>
 return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
+const todayKey=normalizeDateKey(new Date());
+const isReceipt=row=>clean(getVal(row,["keterangan"]))==="receipt";
+const isPengeluaran=row=>clean(getVal(row,["keterangan"]))==="pengeluaran";
+const isToday=row=>normalizeDateKey(getVal(row,["tanggal","date","created at","waktu"]))===todayKey;
+const masukRows=DATA["Barang Masuk"]||[];
+const keluarRows=DATA["Barang Keluar"]||[];
+const masukTotal=masukRows.filter(isReceipt).length;
+const keluarTotal=keluarRows.filter(isPengeluaran).length;
+const masukToday=masukRows.filter(r=>isReceipt(r)&&isToday(r)).length;
+const keluarToday=keluarRows.filter(r=>isPengeluaran(r)&&isToday(r)).length;
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
-const cards=[["Total SKU",skuSet.size],["Baris Kartu Stock",totals["Kartu Stock"]],["Baris RPL",totals["RPL"]],["Baris BULKY",totals["BULKY"]],["Barang Masuk",totals["Barang Masuk"]],["Barang Keluar",totals["Barang Keluar"]],["Lokasi terpakai",lokasiTerpakai],["Lokasi tersisa",lokasiTersisa]];
-dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div></div>`).join("");
+const cards=[["Total SKU",skuSet.size,""],["Baris Kartu Stock",totals["Kartu Stock"],""],["Baris RPL",totals["RPL"],""],["Baris BULKY",totals["BULKY"],""],["Barang Masuk",masukTotal,`+${masukToday} hari ini`],["Barang Keluar",keluarTotal,`+${keluarToday} hari ini`],["Lokasi terpakai",lokasiTerpakai,""],["Lokasi tersisa",lokasiTersisa,""]];
+dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${c[1]}</div>${c[2]?`<div class='sub'>${c[2]}</div>`:""}</div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
 const dashInsight=buildAutoInsight(DATA,{accuracyRows:[]});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
