@@ -111,3 +111,8 @@
 .stats-rank-grid .card{padding:12px;border-radius:12px}
 .stats-rank-grid ol{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
 .stats-rank-grid li{display:flex;justify-content:space-between;gap:10px}
+
+
+#page-locations{display:flex;flex-direction:column;gap:12px}
+#page-locations .table-wrap-full table{min-width:900px}
+#locationsFilters{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
