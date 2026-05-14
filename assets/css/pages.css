@@ -124,14 +124,18 @@
 .stats-rank-grid li{display:flex;justify-content:space-between;gap:10px}
 
 
-#page-locations{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;align-items:start}
+#page-locations{display:grid;grid-template-columns:1.7fr .9fr;gap:12px;align-items:start}
 #page-locations > .page-title,#locationsSummary,#page-locations > .mv-toolbar,#locationDetail{grid-column:1/-1}
 #locationsTable,#locationsEmpty{min-width:0}
 #page-locations .table-wrap{max-height:360px;overflow:auto}
-#page-locations table th{position:sticky;top:0;z-index:3;background:var(--bg-soft)}
+#page-locations table th{position:sticky;top:0;z-index:3;background:#f3e2e5;color:#b31217;border-bottom:1px solid #d9b8bf}
 #page-locations #locationsTable th,#page-locations #locationsTable td,#page-locations #locationsEmpty th,#page-locations #locationsEmpty td{padding:6px 8px;font-size:11.5px;line-height:1.25}
 #page-locations .table-wrap-full table{min-width:760px}
 #locationsFilters{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+#locationsEmpty .table-wrap{max-height:300px}
+#locationsEmpty th,#locationsEmpty td{padding:5px 7px;font-size:11px}
+#locationsTable th,#locationsTable td{font-size:12px}
 @media (max-width:1100px){#page-locations{grid-template-columns:1fr}}
 .insight-card{background:linear-gradient(180deg,#f7fafc,#fff);border:1px solid #e8edf4;border-radius:14px;padding:12px 14px;margin-bottom:12px}
 .insight-group h4{margin:6px 0;font-size:13px}
