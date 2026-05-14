@@ -169,3 +169,6 @@
   #locationsTable .mv-pagination{flex-direction:column;align-items:flex-start}
 }
 
+
+/* Cycle Count */
+.cc-wrap{display:grid;gap:14px}.cc-stepper{display:flex;gap:8px;overflow:auto;padding-bottom:4px}.cc-step{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 12px;white-space:nowrap}.cc-step.active{background:var(--bg-soft);border-color:var(--primary);color:var(--primary)}.cc-card{border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:16px}.cc-grid{display:grid;gap:10px}.cc-grid input,.cc-grid textarea{border:1px solid var(--line);border-radius:12px;padding:10px 12px}.cc-grid textarea{min-height:84px}.cc-session-head{display:grid;gap:8px;margin-bottom:12px}.cc-row-cocok{background:rgba(22,163,74,.08)}.cc-row-minus{background:rgba(239,68,68,.08)}.cc-row-plus{background:rgba(249,115,22,.10)}.cc-qty{max-width:88px}
