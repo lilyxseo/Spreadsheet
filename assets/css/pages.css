@@ -116,3 +116,11 @@
 #page-locations{display:flex;flex-direction:column;gap:12px}
 #page-locations .table-wrap-full table{min-width:900px}
 #locationsFilters{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+.insight-card{background:linear-gradient(180deg,#f7fafc,#fff);border:1px solid #e8edf4;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.insight-group h4{margin:6px 0;font-size:13px}
+.insight-group ul{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.insight-group li{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4}
+.insight-dot{color:#64748b;font-weight:700}
+.insight-card strong{color:#0f766e}
+@media (max-width:768px){.insight-card{padding:10px}.insight-group li{font-size:12px}}
