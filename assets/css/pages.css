@@ -152,3 +152,14 @@
 @media (max-width: 899px){
   .mv-toolbar{grid-template-columns:1fr}
 }
+
+@media (max-width:768px){
+  #page-locations{gap:10px}
+  #locationsSummary{grid-template-columns:1fr}
+  #locationsFilters{grid-template-columns:1fr}
+  #page-locations .mv-toolbar{grid-template-columns:1fr}
+  #locationsTable .table-wrap table{min-width:640px}
+  #locationsEmpty .table-wrap table{min-width:360px}
+  #locationsTable .mv-pagination{flex-direction:column;align-items:flex-start}
+}
+
