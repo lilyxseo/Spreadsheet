@@ -169,3 +169,9 @@
   #locationsTable .mv-pagination{flex-direction:column;align-items:flex-start}
 }
 
+
+.cycle-shell{display:grid;gap:14px}.cycle-header{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(20,25,40,.06)}
+.cycle-summary .metric{border-radius:16px}.cycle-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cycle-step{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:10px 12px;text-align:left}.cycle-step.active{border-color:var(--acc);box-shadow:0 4px 16px rgba(40,140,90,.15)}
+.cycle-card{border-radius:18px;border:1px solid var(--line);box-shadow:0 8px 20px rgba(20,25,40,.05)}.cycle-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cycle-form textarea{min-height:74px;grid-column:1/-1}
+.cc-qty{max-width:80px;padding:6px 8px;border:1px solid var(--line);border-radius:10px}.cycle-row-diff{background:rgba(255,176,59,.12)}
+@media (max-width:900px){.cycle-steps{grid-template-columns:1fr 1fr}.cycle-form{grid-template-columns:1fr}}
