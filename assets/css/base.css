@@ -393,3 +393,8 @@ body::-webkit-scrollbar-corner {
 .detail-mini-btn{height:24px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);font-size:11px;line-height:1;cursor:pointer;white-space:nowrap}
 .detail-mini-btn:hover{background:color-mix(in srgb,var(--text) 8%,var(--card))}
 .detail-mini-btn:focus-visible{outline:1px solid var(--pri);outline-offset:1px}
+.metric-delta{font-size:11px;font-weight:700;line-height:1.2}
+.metric-delta--in{color:#16a34a}
+.metric-delta--out{color:#dc2626}
+body.dark .metric-delta--in{color:#4ade80}
+body.dark .metric-delta--out{color:#f87171}

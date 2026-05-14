@@ -186,8 +186,17 @@ const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lo
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
 const inSummary=getDailyMovementSummary(DATA["Barang Masuk"]||[],"receipt");
 const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[],"pengeluaran");
-const cards=[["Total SKU",skuSet.size],["Baris Kartu Stock",totals["Kartu Stock"]],["Baris RPL",totals["RPL"]],["Baris BULKY",totals["BULKY"]],["Barang Masuk",inSummary.totalCount,`+${inSummary.todayCount} hari ini`],["Barang Keluar",outSummary.totalCount,`+${outSummary.todayCount} hari ini`],["Lokasi terpakai",lokasiTerpakai],["Lokasi tersisa",lokasiTersisa]];
-dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c[1]}</div>${c[2]?`<div class='muted'>${c[2]}</div>`:""}</div></div>`).join("");
+const cards=[
+{name:"Total SKU",value:skuSet.size},
+{name:"Baris Kartu Stock",value:totals["Kartu Stock"]},
+{name:"Baris RPL",value:totals["RPL"]},
+{name:"Baris BULKY",value:totals["BULKY"]},
+{name:"Barang Masuk",value:inSummary.totalCount,delta:`+${inSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--in"},
+{name:"Barang Keluar",value:outSummary.totalCount,delta:`+${outSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--out"},
+{name:"Lokasi terpakai",value:lokasiTerpakai},
+{name:"Lokasi tersisa",value:lokasiTersisa}
+];
+dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
 const dashInsight=buildAutoInsight(DATA,{accuracyRows:[]});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
