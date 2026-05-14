@@ -21,7 +21,7 @@ document.getElementById("recentSearch")?.addEventListener("click",e=>{const btn=
 anomalyType?.addEventListener("change",()=>renderAnomalyPage());anomalySearch?.addEventListener("input",debounce(()=>renderAnomalyPage(),180));
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(btn){const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){document.getElementById(`mv-cols-${mode}`)?.classList.toggle("open");}return;}
 const toggle=e.target.closest("[data-col-filter-toggle]");if(toggle){const mode=toggle.dataset.mode,col=toggle.dataset.col;document.querySelectorAll(`[data-col-filter-menu][data-mode="${mode}"]`).forEach(menu=>menu.hidden=true);const menu=document.querySelector(`[data-col-filter-menu][data-mode="${mode}"][data-col="${col}"]`);if(menu){menu.hidden=!menu.hidden;if(!menu.hidden)positionColumnFilterMenu(menu);}return;}
-if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const st=TABLE_STATE[mode];ensureColumnFilterState(mode);if(e.target.matches("[data-col-filter-clear]")){st.columnFilters[col]=[];st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}if(e.target.matches("[data-col-filter-all]")){st.columnFilters[col]=getUniqueOptions(st.rows,col);st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}return;}
+if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const st=TABLE_STATE[mode];ensureColumnFilterState(mode);if(e.target.matches("[data-col-filter-clear]")){st.columnFilters[col]=[];st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}if(e.target.matches("[data-col-filter-all]")){st.columnFilters[col]=getUniqueOptions(applyTableFilters(st.rows,mode,col),col);st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}return;}
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);});}
 function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
@@ -363,10 +363,26 @@ function ensureColumnFilterState(mode){const st=TABLE_STATE[mode];if(!st.columnF
 function applyTableFilters(rows,mode,omitCol=""){const q=clean((mode==="in"?inSearch:outSearch)?.value||"");const columnFilters=ensureColumnFilterState(mode);return rows.filter(r=>{if(FILTERABLE_COLUMNS.some(col=>{if(col===omitCol)return false;const selected=columnFilters[col]||[];if(!selected.length)return false;return !selected.includes(sanitizeFilterValue(r[col]));}))return false;if(q&&!clean(`${r.sku} ${r.nama} ${r.from} ${r.to} ${r.status} ${r.pic} ${r.keterangan}`).includes(q))return false;return true;});}
 function positionColumnFilterMenu(menu){
   if(!menu)return;
-  menu.style.left="auto";menu.style.right="0";menu.style.top="calc(100% + 6px)";menu.style.bottom="auto";
-  const r=menu.getBoundingClientRect();
-  if(r.right>window.innerWidth-8){menu.style.right="auto";menu.style.left="0";}
-  if(r.bottom>window.innerHeight-8){menu.style.top="auto";menu.style.bottom="calc(100% + 6px)";}
+  const anchor=menu.closest(".th-filter-wrap")?.querySelector("[data-col-filter-toggle]");
+  if(!anchor)return;
+  menu.style.right="auto";menu.style.bottom="auto";
+  const margin=8,gap=6;
+  const a=anchor.getBoundingClientRect();
+  const prevHidden=menu.hidden;
+  if(prevHidden){menu.hidden=false;}
+  const m=menu.getBoundingClientRect();
+  const width=Math.min(m.width,window.innerWidth-(margin*2));
+  const height=m.height;
+  let left=Math.min(a.right-width,window.innerWidth-width-margin);
+  left=Math.max(margin,left);
+  const spaceBelow=window.innerHeight-a.bottom-gap;
+  const spaceAbove=a.top-gap;
+  const openUp=spaceBelow<height&&spaceAbove>spaceBelow;
+  let top=openUp?Math.max(margin,a.top-height-gap):Math.min(a.bottom+gap,window.innerHeight-height-margin);
+  top=Math.max(margin,top);
+  menu.style.left=`${left}px`;
+  menu.style.top=`${top}px`;
+  if(prevHidden){menu.hidden=true;}
 }
 function sortTableRows(rows,sort){const m={latest:(a,b)=>(b._sheetOrder??0)-(a._sheetOrder??0),oldest:(a,b)=>(a._sheetOrder??0)-(b._sheetOrder??0),sku:(a,b)=>a.sku.localeCompare(b.sku),name:(a,b)=>a.nama.localeCompare(b.nama),qtyDesc:(a,b)=>b.qty-a.qty,qtyAsc:(a,b)=>a.qty-b.qty};return [...rows].sort(m[sort]||m.latest);}
 function paginateRows(mode,action){const st=TABLE_STATE[mode];const max=Math.max(1,Math.ceil(st.filtered.length/st.pageSize));if(action==="prev")st.page=Math.max(1,st.page-1);if(action==="next")st.page=Math.min(max,st.page+1);renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}

@@ -11,7 +11,7 @@
 .th-filter-btn{border:0;background:transparent;color:var(--muted);font-size:11px;cursor:pointer;padding:0 2px;display:inline-flex;align-items:center;gap:3px}
 .th-filter-btn.active{color:var(--primary);font-weight:700}
 .th-filter-count{font-size:10px;background:var(--primary);color:#fff;border-radius:999px;padding:1px 5px;line-height:1.2}
-.th-filter-dropdown{position:absolute;top:calc(100% + 6px);right:0;z-index:120;width:220px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 12px 24px rgba(0,0,0,.18)}
+.th-filter-dropdown{position:fixed;top:0;left:0;z-index:120;width:min(220px,calc(100vw - 16px));max-height:min(320px,calc(100vh - 16px));background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 12px 24px rgba(0,0,0,.18)}
 .th-filter-search{width:100%;margin-bottom:7px;font-size:12px;padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg)}
 .th-filter-actions{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
 .th-filter-actions button{border:0;background:transparent;color:var(--primary);font-size:11px;cursor:pointer;padding:2px 0}
