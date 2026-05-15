@@ -234,8 +234,9 @@ textarea{resize:vertical;min-height:96px}
   color: #6b1b1b;
   padding: 20px 14px 14px;
   height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
 }
 .sidebar-brand{
   background: #ffffff;
@@ -259,7 +260,15 @@ textarea{resize:vertical;min-height:96px}
   padding: 7px 10px;
 }
 .sidebar-status .dot{width:7px;height:7px}
-.sidebar > div:first-child{display:flex;flex-direction:column;min-height:0;flex:1}
+.sidebar-main{display:flex;flex-direction:column;min-height:0;flex:1}
+.sidebar-menu-scroll{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:2px;
+}
+
 #menuWrap,
 .sidebar-nav{
   display:flex;
@@ -268,6 +277,7 @@ textarea{resize:vertical;min-height:96px}
   margin-top:16px !important;
   min-height:0;
   padding-right:4px;
+  padding-bottom:12px;
 }
 .menu-group{display:grid;gap:6px;padding-bottom:8px;border-bottom:1px solid rgba(239,68,68,.12)}
 .menu-group:last-of-type{border-bottom:0}
@@ -316,7 +326,7 @@ textarea{resize:vertical;min-height:96px}
   transform:none !important;
 }
 
-.sidebar-footer{gap:8px;flex-shrink:0;padding-top:10px;margin-top:12px;background:transparent;backdrop-filter:none}
+.sidebar-footer{gap:8px;flex-shrink:0;padding-top:12px;margin-top:8px;background:transparent;backdrop-filter:none}
 .account-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid rgba(239,68,68,.14);background:rgba(239,68,68,.05)}
 .account-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.9);color:#334155}
 .account-avatar i{width:16px;height:16px}
@@ -426,6 +436,7 @@ body.dark .account-more.icon-btn{color:rgba(226,232,240,.86)}
 .table-wrap,
 .table-wrap-full,
 .sidebar,
+.sidebar-menu-scroll,
 body {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) var(--scroll-track);
@@ -435,6 +446,7 @@ body {
 .table-wrap::-webkit-scrollbar,
 .table-wrap-full::-webkit-scrollbar,
 .sidebar::-webkit-scrollbar,
+.sidebar-menu-scroll::-webkit-scrollbar,
 body::-webkit-scrollbar {
   width: 11px;
   height: 11px;
@@ -444,6 +456,7 @@ body::-webkit-scrollbar {
 .table-wrap::-webkit-scrollbar-track,
 .table-wrap-full::-webkit-scrollbar-track,
 .sidebar::-webkit-scrollbar-track,
+.sidebar-menu-scroll::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track {
   background: var(--scroll-track);
   border-radius: 999px;
@@ -453,6 +466,7 @@ body::-webkit-scrollbar-track {
 .table-wrap::-webkit-scrollbar-thumb,
 .table-wrap-full::-webkit-scrollbar-thumb,
 .sidebar::-webkit-scrollbar-thumb,
+.sidebar-menu-scroll::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--scroll-thumb), var(--scroll-thumb-hover));
   border-radius: 999px;
@@ -463,6 +477,7 @@ body::-webkit-scrollbar-thumb {
 .table-wrap::-webkit-scrollbar-thumb:hover,
 .table-wrap-full::-webkit-scrollbar-thumb:hover,
 .sidebar::-webkit-scrollbar-thumb:hover,
+.sidebar-menu-scroll::-webkit-scrollbar-thumb:hover,
 body::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, var(--scroll-thumb-hover), var(--primary-2));
 }

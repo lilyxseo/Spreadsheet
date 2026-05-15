@@ -16,13 +16,14 @@
 <div class="app">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <aside class="sidebar" id="sidebar">
-    <div>
+    <div class="sidebar-main">
       <div class="brand sidebar-brand">
         <div class="brand-logo-placeholder" aria-label="Logo Goto Living"><img src="./assets/goto.png" alt="Logo Goto Living" class="brand-logo"/></div>
         <div><h2>Warehouse KS Tubun</h2><p>Inventory Management</p></div>
         <button class="icon-btn close-side" id="closeSidebar" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
       <div class="status-mini sidebar-status"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
+      <div class="sidebar-menu-scroll">
       <nav style="margin-top:16px" id="menuWrap">
         <button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Overview</span></button>
         <div class="menu-group has-submenu" data-parent-key="data">
@@ -56,6 +57,7 @@
         </div>
         <button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Pengaturan</span></button>
       </nav>
+      </div>
     </div>
     <div class="side-footer sidebar-footer">
       <div class="account-card">
