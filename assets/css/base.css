@@ -396,6 +396,14 @@ body::-webkit-scrollbar-corner {
 .detail-mini-btn:focus-visible{outline:1px solid var(--pri);outline-offset:1px}
 .metric-delta{font-size:11px;font-weight:700;line-height:1.2}
 .metric-sub{margin-top:6px;font-size:11px;color:var(--muted);font-weight:600}
+.metric-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.metric-mini{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px}
+.metric-mini .mini-k{font-size:10px;color:var(--muted);margin-bottom:3px}
+.metric-mini .mini-v{font-size:13px;font-weight:700;line-height:1.2}
+.metric-mini .mini-meta{font-size:10px;color:var(--muted);margin-top:2px}
+.metric-mini.is-good{border-color:color-mix(in srgb,#16a34a 35%,var(--line));background:color-mix(in srgb,#16a34a 8%,var(--card))}
+.metric-mini.is-info{border-color:color-mix(in srgb,var(--pri) 35%,var(--line));background:color-mix(in srgb,var(--pri) 8%,var(--card))}
+.metric-mini.is-muted{opacity:.9}
 .metric-delta--in{color:#16a34a}
 .metric-delta--out{color:#dc2626}
 body.dark .metric-delta--in{color:#4ade80}

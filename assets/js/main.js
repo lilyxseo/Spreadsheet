@@ -192,12 +192,12 @@ const cards=[
 {name:"Baris Kartu Stock",value:totals["Kartu Stock"]},
 {name:"Baris RPL",value:totals["RPL"]},
 {name:"Baris BULKY",value:totals["BULKY"]},
-{name:"Barang Masuk",value:`${inSummary.totalCount} trx`,subValue:`Total movement: ${formatNumber(inSummary.totalQty)}`,delta:`+${inSummary.todayCount} hari ini • ${formatNumber(inSummary.todayQty)} qty`,deltaClass:"metric-delta metric-delta--in"},
+{name:"Barang Masuk",value:`${inSummary.totalCount} trx`,detailCards:[{label:"Status Barang Masuk",value:inSummary.todayCount>0?"Aktif hari ini":"Belum ada hari ini",tone:inSummary.todayCount>0?"is-good":"is-muted",meta:`${inSummary.todayCount} trx hari ini`},{label:"Movement",value:formatNumber(inSummary.totalQty),tone:"is-info",meta:`${formatNumber(inSummary.todayQty)} qty hari ini`}],delta:`+${inSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--in"},
 {name:"Barang Keluar",value:outSummary.totalCount,delta:`+${outSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--out"},
 {name:"Lokasi terpakai",value:lokasiTerpakai},
 {name:"Lokasi tersisa",value:lokasiTersisa}
 ];
-dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div>${c.subValue?`<div class='metric-sub'>${c.subValue}</div>`:""}</div>`).join("");
+dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div>${Array.isArray(c.detailCards)&&c.detailCards.length?`<div class='metric-split'>${c.detailCards.map(item=>`<div class='metric-mini ${item.tone||""}'><div class='mini-k'>${esc(item.label||"")}</div><div class='mini-v'>${esc(item.value||"-")}</div><div class='mini-meta'>${esc(item.meta||"")}</div></div>`).join("")}</div>`:""}${c.subValue?`<div class='metric-sub'>${c.subValue}</div>`:""}</div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
 const dashInsight=buildAutoInsight(DATA,{accuracyRows:[]});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
