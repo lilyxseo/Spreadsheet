@@ -70,7 +70,6 @@
       line-height:1;
       border-radius:12px;
       transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .16s ease,opacity .18s ease;
-      box-shadow:0 6px 14px rgba(15,23,42,.06);
     }
     button:hover{filter:saturate(1.02)}
     button:active{transform:scale(.985);box-shadow:0 2px 8px rgba(15,23,42,.08)}
