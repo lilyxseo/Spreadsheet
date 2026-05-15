@@ -216,10 +216,20 @@ function renderInsightCard(insight){
 if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
 return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
+function normalizeStatus(value){return String(value??"").trim().toLowerCase();}
+function isBarangMasukRow(row){return normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))==="barang masuk";}
+function debugBarangMasukRows(rows,label="Barang Masuk"){
+const normalizedRows=Array.isArray(rows)?rows:[];
+const included=normalizedRows.filter(isBarangMasukRow);
+const uniqueStatuses=[...new Set(normalizedRows.map(row=>normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))).filter(Boolean))].slice(0,20);
+console.table([{source:label,totalRawRows:normalizedRows.length,totalStatusBarangMasuk:included.length,totalExcludedRows:normalizedRows.length-included.length,uniqueStatusSamples:uniqueStatuses.join(", ")}]);
+return included;
+}
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
-const inSummary=getDailyMovementSummary(DATA["Barang Masuk"]||[],"receipt");
+const barangMasukRows=debugBarangMasukRows(DATA["Barang Masuk"]||[],"Dashboard");
+const inSummary=getDailyMovementSummary(barangMasukRows,"all");
 const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[],"pengeluaran");
 const movementSummary=getDailyStatusSummary(DATA["Barang Masuk"]||[],"movement");
 const cards=[
@@ -258,7 +268,7 @@ const todayKey=getTodayDateKey();
 let totalQty=0,todayQty=0;
 let totalCount=0,todayCount=0;
 for(const row of rows){
-if(clean(getVal(row,["keterangan","description","tipe"]))!==clean(expectedType))continue;
+if(expectedType!=="all"&&clean(getVal(row,["keterangan","description","tipe"]))!==clean(expectedType))continue;
 const qty=Math.abs(parseNumber(getVal(row,["qty"])));
 const dateKey=parseDateKey(getVal(row,["tanggal","date","created at","waktu"]));
 if(!dateKey)continue;
