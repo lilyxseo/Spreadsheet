@@ -39,7 +39,7 @@
     .mobile-only{display:grid}
 
     body.compact .panel{padding:10px} body.compact .metric{padding:10px}
-    .header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(6px);padding:8px 0}
+    .header{position:sticky;top:0;z-index:90;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(6px);padding:8px 0}
     .header-card{display:flex;gap:12px;justify-content:space-between;align-items:center;background: var(--panel);border:1px solid var(--line);padding:14px;border-radius:var(--radius)}
     .header-left{display:flex;align-items:flex-start;gap:10px;min-width:0}
     .header-icon{width:42px;height:42px;border-radius:12px;background:color-mix(in srgb,var(--primary) 85%, #fff);color:#fff;display:grid;place-items:center;flex-shrink:0}
@@ -398,3 +398,5 @@ body::-webkit-scrollbar-corner {
 .metric-delta--out{color:#dc2626}
 body.dark .metric-delta--in{color:#4ade80}
 body.dark .metric-delta--out{color:#f87171}
+
+.cell-lokasi{display:inline-block;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
