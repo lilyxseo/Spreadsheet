@@ -185,8 +185,8 @@ return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='ins
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
-const inSummary=getDailyMovementSummary(DATA["Barang Masuk"]||[],"receipt");
-const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[],"pengeluaran");
+const inSummary=getDailyMovementSummary(DATA["Barang Masuk"]||[]);
+const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[]);
 const cards=[
 {name:"Total SKU",value:skuSet.size},
 {name:"Baris Kartu Stock",value:totals["Kartu Stock"]},
@@ -205,17 +205,17 @@ ${renderDashboardTableSection("Barang Masuk","Data terbaru dari sheet Barang Mas
 ${renderDashboardTableSection("Barang Keluar","Data terbaru dari sheet Barang Keluar",outRows,"b-out")}
 </div>`;}
 function getLatestRows(sheetName,limit=50,requireSku=false){let rows=(DATA[sheetName]||[]).slice();if(requireSku)rows=rows.filter(r=>clean(getVal(r,["sku"])));return rows.reverse().slice(0,limit);}
-function getDailyMovementSummary(rows,expectedType){
+function getDailyMovementSummary(rows,expectedType=""){
 const todayKey=getTodayDateKey();
 let totalQty=0,todayQty=0;
 let totalCount=0,todayCount=0;
 for(const row of rows){
-if(clean(getVal(row,["keterangan","description","tipe"]))!==clean(expectedType))continue;
+const movementType=clean(getVal(row,["keterangan","description","tipe"]));
+if(expectedType&&movementType!==clean(expectedType))continue;
 const qty=Math.abs(parseNumber(getVal(row,["qty"])));
-const dateKey=parseDateKey(getVal(row,["tanggal","date","created at","waktu"]));
-if(!dateKey)continue;
 totalCount++;
 totalQty+=qty;
+const dateKey=parseDateKey(getVal(row,["tanggal","date","created at","waktu"]));
 if(dateKey===todayKey){todayQty+=qty;todayCount++;}
 }
 return{totalQty,todayQty,totalCount,todayCount};
