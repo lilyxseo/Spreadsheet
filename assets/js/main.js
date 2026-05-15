@@ -358,7 +358,8 @@ function showSkeleton(){dashboardCards.innerHTML="<div class='skeleton'></div><d
 function setStatus(type,text){statusEl.textContent=type==="loading"?`⏳ ${text}`:(type==="error"?`❌ ${text}`:text)}
 function updateSyncUI(){
 const refreshBtn=document.querySelector("[data-refresh-btn]");
-if(refreshBtn){refreshBtn.classList.toggle("is-syncing",isSyncing);refreshBtn.disabled=false;}
+if(refreshBtn){refreshBtn.classList.toggle("is-syncing",isSyncing);refreshBtn.disabled=!!isSyncing;}
+if(refreshToggleHeader){refreshToggleHeader.classList.toggle("is-syncing",isSyncing);refreshToggleHeader.disabled=!!isSyncing;}
 }
 function renderState(id,text){document.getElementById(id).innerHTML=`<div class='state'>${esc(text)}</div>`;} function renderError(id,text){document.getElementById(id).innerHTML=`<div class='state error'>${esc(text)}</div>`;}
 function updateSyncTime(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||Date.now());lastSync.textContent="Sync: "+new Date(ts).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});}
@@ -369,7 +370,7 @@ function applyTheme(){const saved=localStorage.getItem("theme");if(saved==="dark
 function toggleDark(){document.body.classList.toggle("dark");localStorage.setItem("theme",document.body.classList.contains("dark")?"dark":"light");syncThemeButton();toast("Mode tema diubah");}
 function syncThemeButton(){const dark=document.body.classList.contains("dark");darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i>`;if(window.lucide)lucide.createIcons();}
 
-function triggerManualRefresh(){loadAllData(true);toast("Manual refresh dijalankan");}
+async function triggerManualRefresh(){if(isSyncing)return;await loadAllData(true);}
 function syncRefreshButton(){if(!refreshToggleHeader)return;refreshToggleHeader.innerHTML=`<i data-lucide="refresh-cw"></i>`;refreshToggleHeader.title="Refresh data manual";refreshToggleHeader.setAttribute("aria-label","Refresh data manual");if(window.lucide)lucide.createIcons();}
 function hideInitialLoader(){const ld=document.getElementById("initialLoader");if(ld)ld.remove();}
 function toggleCompact(){document.body.classList.toggle("compact");toast("Compact mode diubah");}
