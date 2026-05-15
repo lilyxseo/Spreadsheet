@@ -166,7 +166,8 @@ function showDetail(identifier){const key=clean(identifier);const sel=[...CACHE_
 const sku=sel.sku,nama=sel.nama;const bySheet={};SHEETS.forEach(sheet=>{bySheet[sheet]=(DATA[sheet]||[]).filter(r=>clean(getVal(r,["sku"]))===clean(sku));});
 const inRows=bySheet["Barang Masuk"]||[],outRows=bySheet["Barang Keluar"]||[];
 const tIn=inRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0),tOut=outRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0);
-const tAvailable=tIn-tOut;
+const kartuRows=bySheet["Kartu Stock"]||[];
+const tAvailable=kartuRows.reduce((n,r)=>{const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(stokAkhir===0)return n;const replenishmentKey=Object.keys(r||{}).find(k=>clean(k).includes("replenishment")||clean(k).includes("replenish"));if(!replenishmentKey)return n+stokAkhir;const replenishmentVal=String(r[replenishmentKey]??"").trim();const replenishmentNum=parseNumber(replenishmentVal);const isReplenishment=replenishmentNum>0||["y","yes","true","ya","1","replenishment"].includes(clean(replenishmentVal));return isReplenishment?n:n+stokAkhir;},0);
 const locationSet=new Set();
 for(const r of (bySheet["Kartu Stock"]||[])){const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(stokAkhir<=0)continue;for(const k of Object.keys(r||{})){const nk=clean(k);if(["lokasi","location","rak","bin","area"].some(x=>nk.includes(x))){const v=r[k];if(v)locationSet.add(String(v).trim());}}}
 const summary=[["Baris Kartu Stock",bySheet["Kartu Stock"].length],["Baris RPL",bySheet["RPL"].length],["Baris BULKY",bySheet["BULKY"].length],["Total Qty Masuk",tIn],["Total Qty Keluar",tOut],["Total Qty Tersedia",tAvailable]];
