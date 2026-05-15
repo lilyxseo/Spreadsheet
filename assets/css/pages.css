@@ -220,6 +220,35 @@ body.dark .insight-card strong{color:#5eead4}
   #locationsTable .mv-pagination{flex-direction:column;align-items:flex-start}
 }
 
+/* Stok Minus layout tuning */
+#page-stok-minus{display:flex;flex-direction:column;gap:12px;min-height:calc(100dvh - 110px)}
+#stokMinusTable{display:flex;flex-direction:column;flex:1;min-height:0}
+#stokMinusTable .stokminus-card{display:flex;flex-direction:column;flex:1;min-height:0;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px;gap:12px}
+#stokMinusTable .stokminus-toolbar{grid-template-columns:minmax(260px,1.7fr) repeat(3,minmax(140px,1fr)) auto;gap:12px;align-items:end}
+#stokMinusTable .stokminus-toolbar input,#stokMinusTable .stokminus-toolbar select,#stokMinusTable .stokminus-toolbar button{height:42px}
+#stokMinusTable .stokminus-export{padding:0 14px;white-space:nowrap}
+#stokMinusTable .stokminus-table-wrap{flex:1;min-height:calc(100dvh - 380px);max-height:calc(100dvh - 380px);overflow:auto;-webkit-overflow-scrolling:touch}
+#stokMinusTable .stokminus-table-wrap table{min-width:1120px}
+#stokMinusTable .stokminus-table-wrap thead th{position:sticky;top:0;z-index:3;background:#f3e2e5;color:#b31217;border-bottom:1px solid #d9b8bf}
+#stokMinusTable .stokminus-table-wrap th,#stokMinusTable .stokminus-table-wrap td{padding:11px 12px;font-size:13px;line-height:1.45;vertical-align:middle;white-space:nowrap}
+#stokMinusTable .stokminus-table-wrap .col-nama{min-width:290px}
+#stokMinusTable .stokminus-table-wrap .cell-nama{max-width:460px;overflow:hidden;text-overflow:ellipsis}
+#stokMinusTable .stokminus-badge{padding:5px 10px;font-size:12px;font-weight:700}
+#stokMinusTable .stokminus-track-btn{padding:7px 12px}
+#stokMinusTable .stokminus-pagination{margin-top:auto;padding-top:4px}
+
+@media (max-width: 899px){
+  #page-stok-minus{min-height:calc(100dvh - 100px)}
+  #stokMinusTable .stokminus-card{padding:12px;gap:10px}
+  #stokMinusTable .stokminus-toolbar{grid-template-columns:1fr;gap:10px}
+  #stokMinusTable .stokminus-toolbar > *{width:100%}
+  #stokMinusTable .stokminus-table-wrap{min-height:calc(100dvh - 500px);max-height:calc(100dvh - 500px)}
+  #stokMinusTable .stokminus-table-wrap th,#stokMinusTable .stokminus-table-wrap td{padding:10px;font-size:12px}
+  #stokMinusTable .stokminus-table-wrap .col-nama{min-width:240px}
+  #stokMinusTable .stokminus-badge{font-size:11px}
+  #stokMinusTable .stokminus-pagination{flex-direction:column;align-items:flex-start;gap:10px}
+}
+
 
 /* Cycle Count */
 #page-cycle-count{min-width:0}
