@@ -544,30 +544,3 @@ body::-webkit-scrollbar-corner {
 .metric-delta--neutral{color:var(--muted)}
 body.dark .metric-delta--in{color:#4ade80}
 body.dark .metric-delta--out{color:#f87171}
-
-
-/* Global Scrollbar Theme */
-*{
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary) transparent;
-}
-
-*::-webkit-scrollbar{
-  width: 8px;
-  height: 8px;
-}
-
-*::-webkit-scrollbar-track{
-  background: transparent;
-}
-
-*::-webkit-scrollbar-thumb{
-  background: color-mix(in srgb,var(--primary) 90%, #7f1d1d);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-*::-webkit-scrollbar-thumb:hover{
-  background: color-mix(in srgb,var(--primary-2) 86%, #f87171);
-}
