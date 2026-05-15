@@ -36,7 +36,7 @@
         <div class="menu-group has-submenu" data-parent-key="monitoring">
           <button class="side-link nav-item nav-parent" data-parent="monitoring"><span class="parent-left"><i data-lucide="shield-alert"></i><span>Monitoring Stok</span></span><i data-lucide="chevron-right" class="chev"></i></button>
           <div class="submenu" data-submenu="monitoring">
-            <button class="side-link nav-item sub-link" data-page="stats" data-route="/accuracy-dashboard"><span>Akurasi Stok</span></button>
+            <button class="side-link nav-item sub-link" data-page="stats" data-route="/accuracy"><span>Akurasi Stok</span></button>
             <button class="side-link nav-item sub-link" data-page="stok-minus" data-route="/stok-minus"><span>Stok Minus</span></button>
             <button class="side-link nav-item sub-link" data-page="anomaly" data-route="/anomaly"><span>Anomaly</span></button>
           </div>
@@ -78,7 +78,7 @@
 
     <section id="page-barang-masuk" class="panel page hidden"><section class="dashboard-section"><div class="card"><div class="section-header"><div><h3 class="page-title">Barang Masuk</h3><small class="section-subtitle">Semua data dari sheet Barang Masuk</small></div><span class="badge b-in">IN</span></div><div class="movement-layout"><div class="movement-toolbar"><input id="inSearch" class="search-lg" placeholder="Cari SKU, nama barang, lokasi asal"/></div><div id="inSummary" class="subtitle"></div><div id="inResults" class="movement-results"></div></div></div></section></section>
     <section id="page-barang-keluar" class="panel page hidden"><section class="dashboard-section"><div class="card"><div class="section-header"><div><h3 class="page-title">Barang Keluar</h3><small class="section-subtitle">Semua data dari sheet Barang Keluar</small></div><span class="badge b-out">OUT</span></div><div class="movement-layout"><div class="movement-toolbar"><input id="outSearch" class="search-lg" placeholder="Cari SKU, nama barang, lokasi tujuan"/></div><div id="outSummary" class="subtitle"></div><div id="outResults" class="movement-results"></div></div></div></section></section>
-    <section id="page-stats" class="panel page hidden"><h3 class="page-title">Dashboard Akurasi Stok</h3><div id="statsCards" class="grid stats"></div><div class="row"><select id="statsFilter"><option value="">Semua Status</option></select></div><div id="statsChart"></div></section>
+    <section id="page-stats" class="panel page hidden"><h3 class="page-title">Dashboard Akurasi Stok</h3><div id="statsCards" class="grid stats"></div><div id="statsChart"></div></section>
     <section id="page-statistics" class="panel page hidden">
       <h3 class="page-title">Statistik Movement</h3>
       <div id="financeSummary" class="grid dashboard"></div>
