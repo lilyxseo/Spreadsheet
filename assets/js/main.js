@@ -217,10 +217,11 @@ if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>
 return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
 function normalizeStatus(value){return String(value??"").trim().toLowerCase();}
-function isBarangMasukRow(row){return normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))==="barang masuk";}
-function debugBarangMasukRows(rows,label="Barang Masuk"){
+function isBarangMasukCountRow(row){return normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))==="barang masuk";}
+function isBarangMasukTableRow(row){const status=normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]));return status==="barang masuk"||status==="movement";}
+function debugBarangMasukRows(rows,label="Barang Masuk",predicate=isBarangMasukCountRow){
 const normalizedRows=Array.isArray(rows)?rows:[];
-const included=normalizedRows.filter(isBarangMasukRow);
+const included=normalizedRows.filter(predicate);
 const uniqueStatuses=[...new Set(normalizedRows.map(row=>normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))).filter(Boolean))].slice(0,20);
 console.table([{source:label,totalRawRows:normalizedRows.length,totalStatusBarangMasuk:included.length,totalExcludedRows:normalizedRows.length-included.length,uniqueStatusSamples:uniqueStatuses.join(", ")}]);
 return included;
@@ -228,7 +229,7 @@ return included;
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
-const barangMasukRows=debugBarangMasukRows(DATA["Barang Masuk"]||[],"Dashboard");
+const barangMasukRows=debugBarangMasukRows(DATA["Barang Masuk"]||[],"Dashboard",isBarangMasukCountRow);
 const inSummary=getDailyMovementSummary(barangMasukRows,"all");
 const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[],"pengeluaran");
 const movementSummary=getDailyStatusSummary(DATA["Barang Masuk"]||[],"movement");
@@ -495,7 +496,7 @@ function encAttr(v){return encodeURIComponent(String(v??""));} function badgeCla
 function debounce(fn,wait){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait)}}
 
 
-function normalizeMovementRows(sheet,type){const baseRows=(DATA[sheet]||[]);const scopedRows=(sheet==="Barang Masuk")?debugBarangMasukRows(baseRows,"Halaman Barang Masuk"):baseRows;return scopedRows.map((r,sourceIndex)=>({r,sourceIndex})).filter(({r})=>clean(getVal(r,["sku"]))).map(({r,sourceIndex})=>{const sku=getVal(r,["sku"]);const nama=getVal(r,["nama barang","nama","item","description"])||"-";const qty=parseNumber(getVal(r,["qty"]));const tanggal=getVal(r,["tanggal","date","created at","waktu"])||"";const from=getVal(r,["from"])||"-";const to=getVal(r,["to"])||"-";const status=getVal(r,["status"])||"-";const pic=getVal(r,["pic","user","operator"])||"-";const lokasi=getVal(r,["lokasi","location","rak","bin","area"])||"-";const ket=getVal(r,["keterangan","notes","remark"])||"-";return {...r,_type:type,_sheetOrder:sourceIndex,_sku:sku,_nama:nama,_qty:qty,_tanggal:tanggal,_from:from,_to:to,_status:status,_pic:pic,_lokasi:lokasi,_keterangan:ket};});}
+function normalizeMovementRows(sheet,type){const baseRows=(DATA[sheet]||[]);const scopedRows=(sheet==="Barang Masuk")?debugBarangMasukRows(baseRows,"Halaman Barang Masuk",isBarangMasukTableRow):baseRows;return scopedRows.map((r,sourceIndex)=>({r,sourceIndex})).filter(({r})=>clean(getVal(r,["sku"]))).map(({r,sourceIndex})=>{const sku=getVal(r,["sku"]);const nama=getVal(r,["nama barang","nama","item","description"])||"-";const qty=parseNumber(getVal(r,["qty"]));const tanggal=getVal(r,["tanggal","date","created at","waktu"])||"";const from=getVal(r,["from"])||"-";const to=getVal(r,["to"])||"-";const status=getVal(r,["status"])||"-";const pic=getVal(r,["pic","user","operator"])||"-";const lokasi=getVal(r,["lokasi","location","rak","bin","area"])||"-";const ket=getVal(r,["keterangan","notes","remark"])||"-";return {...r,_type:type,_sheetOrder:sourceIndex,_sku:sku,_nama:nama,_qty:qty,_tanggal:tanggal,_from:from,_to:to,_status:status,_pic:pic,_lokasi:lokasi,_keterangan:ket};});}
 const DEBOUNCED_RENDER={in:debounce(()=>renderDataTablePage("in","Barang Masuk",true),250),out:debounce(()=>renderDataTablePage("out","Barang Keluar",true),250)};
 function debouncedTableRender(mode){return (DEBOUNCED_RENDER[mode]||(()=>{}))();}
 const TABLE_STATE={in:{page:1,pageSize:25,rows:[],filtered:[]},out:{page:1,pageSize:25,rows:[],filtered:[]}};
