@@ -106,7 +106,8 @@
 
 @media (min-width: 900px){
   .anomaly-table-wrap{
-    max-height:calc(100dvh - 360px);
+    height:calc(100dvh - 300px);
+    max-height:calc(100dvh - 300px);
     overflow:auto;
   }
 }
