@@ -92,6 +92,12 @@
 #page-stats .metric .k{font-size:12px}
 #page-stats .metric .v{font-size:clamp(18px,3vw,28px);line-height:1.15}
 #page-stats .summary-card .v{font-size:clamp(14px,2.4vw,22px)}
+
+#page-stats{position:relative}
+.stats-sticky-wrap{position:sticky;top:0;z-index:15;background:var(--bg);padding-top:8px;padding-bottom:8px}
+#statsToolbarSlot .stats-toolbar{margin-top:0;margin-bottom:0}
+#page-stats .table-wrap.table-wrap-full{overflow-x:auto;max-width:100%}
+#page-stats .location-cell{max-width:220px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 .stats-breakdown-grid{margin-top:16px}
 .stats-breakdown-grid .summary-card{padding:12px;border-radius:12px}
 .stats-breakdown-grid .summary-card .k{font-size:12px}
@@ -220,4 +226,9 @@
   #page-cycle-count .cc-chip span{max-width:100%;word-break:break-word}
   #page-cycle-count .table-wrap table{min-width:620px}
   #page-cycle-count .row button{flex:1 1 auto}
+}
+
+@media (max-width: 899px){
+  #page-stats .table-wrap-full table{min-width:680px}
+  .stats-sticky-wrap{padding-top:6px}
 }
