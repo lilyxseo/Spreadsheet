@@ -188,7 +188,7 @@ const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lo
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
 const inSummary=getDailyMovementSummary(DATA["Barang Masuk"]||[],"receipt");
 const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[],"pengeluaran");
-const totalMovement=(DATA["Barang Masuk"]||[]).filter(r=>clean(getVal(r,["status movement","status_movement","movement status"]))).length;
+const totalMovement=(DATA["Barang Masuk"]||[]).filter(r=>clean(getVal(r,["status","status movement","status_movement","movement status"])).includes("movement")).length;
 const cards=[
 {name:"Total SKU",value:skuSet.size},
 {name:"Baris Kartu Stock",value:totals["Kartu Stock"]},
