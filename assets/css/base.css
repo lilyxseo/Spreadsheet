@@ -40,7 +40,7 @@
 
     body.compact .panel{padding:10px} body.compact .metric{padding:10px}
     .header{position:sticky;top:0;z-index:60;background:var(--bg);border-bottom:1px solid var(--line);padding:0;margin:0 -12px 12px}
-    .header-card{display:flex;gap:12px;justify-content:space-between;align-items:center;min-height:var(--header-height);padding:0 12px;background:var(--panel)}
+    .header-card{display:flex;gap:12px;justify-content:space-between;align-items:center;min-height:var(--header-height);padding:16px;background:var(--panel)}
 .header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;justify-content:flex-end;min-width:0}
     .header-left{display:flex;align-items:center;gap:10px;min-width:0}
     .header-title{margin:0;font-size:16px;line-height:1.2;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
