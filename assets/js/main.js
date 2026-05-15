@@ -6,10 +6,11 @@ const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const CACHE_VERSION="2";
+const AUTO_SYNC_INTERVAL_MS=5*60*1000;
 const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
-const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/", autoSyncTimer=null;
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
 function bindEvents(){const d=debounce(()=>runSearch(),250);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu)));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);ensureColumnFilterState(mode);TABLE_STATE[mode].columnFilters[col]=selected;TABLE_STATE[mode].page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
@@ -153,6 +154,20 @@ console.warn("Fallback fetch gagal", err);
 if(!window.__isDataReady){
 setStatus("error","Data belum siap dimuat");
 }
+startAutoSync();
+}
+function startAutoSync(){
+if(autoSyncTimer)clearTimeout(autoSyncTimer);
+const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);
+const elapsed=Date.now()-ts;
+const waitMs=ts>0?Math.max(0,AUTO_SYNC_INTERVAL_MS-elapsed):0;
+autoSyncTimer=setTimeout(async ()=>{
+try{
+await syncData({force:true,silent:true});
+}finally{
+startAutoSync();
+}
+},waitMs);
 }
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
