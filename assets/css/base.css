@@ -373,7 +373,7 @@ textarea{resize:vertical;min-height:96px}
 }
 
 .sidebar-footer{gap:6px;flex-shrink:0;/* padding-top:10px; */background:transparent;backdrop-filter:none;border-top: .6px solid rgba(239,68,68,.2);}
-.account-card{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:13px;border:1px solid rgba(239,68,68,.12);background:rgba(239,68,68,.04);margin-top: 10px;}
+.account-card{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:13px;border:1px solid rgba(239,68,68,.12);background:rgba(239,68,68,.04);margin-top: 20px;margin-bottom: 10px;}
 .account-avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.94);color:#334155}
 .account-avatar i{width:16px;height:16px}
 .account-meta{display:grid;line-height:1.2;flex:1;min-width:0}
