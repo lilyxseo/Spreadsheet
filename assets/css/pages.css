@@ -248,3 +248,26 @@ body.dark .insight-card strong{color:#5eead4}
   #page-cycle-count .table-wrap table{min-width:620px}
   #page-cycle-count .row button{flex:1 1 auto}
 }
+
+#locationsFilters .location-search-input{
+  border:1px solid color-mix(in srgb,var(--primary) 20%, var(--line));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 86%, #fff 14%),var(--panel));
+  box-shadow:0 4px 14px rgba(127,29,29,.08);
+  transition:border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+#locationsFilters .location-search-input:focus{
+  outline:none;
+  border-color:color-mix(in srgb,var(--primary) 42%, var(--line));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 20%, transparent),0 8px 18px rgba(127,29,29,.12);
+  background:var(--panel);
+}
+#locationsTable th:nth-child(2),
+#locationsTable td:nth-child(2){
+  width:26%;
+  max-width:220px;
+}
+#locationsTable td.loc-cell{
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
