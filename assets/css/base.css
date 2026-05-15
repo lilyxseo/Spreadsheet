@@ -62,7 +62,46 @@
     button,select{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
     .btn-primary{background:var(--primary-2);color:#fff;border-color:transparent}
     .btn-ghost{background:transparent}
-    .chip{border-radius:999px;font-size:12px;padding:7px 11px}.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip{border-radius:999px;font-size:12px;padding:7px 11px}.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.panel :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger),
+:where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger){
+  border:1px solid color-mix(in srgb,var(--line) 78%, #fbcfe8);
+  border-radius:12px;
+  background:var(--panel);
+  color:var(--text);
+  transition:border-color .2s ease,box-shadow .2s ease,background-color .2s ease;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+.panel :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):hover,
+:where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):hover{
+  border-color:color-mix(in srgb,var(--primary) 30%, #f9a8d4);
+}
+
+.panel :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):focus,
+.panel :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):focus-visible,
+:where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):focus,
+:where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):focus-visible{
+  outline:none;
+  border-color:color-mix(in srgb,var(--primary-2) 74%, #f472b6);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--primary-2) 22%, transparent),0 0 0 1px color-mix(in srgb,#fda4af 75%, transparent);
+  background:var(--panel);
+}
+
+.panel :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):disabled,
+:where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger):disabled{
+  opacity:.65;
+  cursor:not-allowed;
+}
+
+textarea{resize:vertical;min-height:96px}
+
+@media (max-width: 899px){
+  :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger){
+    min-height:42px;
+  }
+}
     .state{border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted)}
     .state.error{border-color:#fecaca;background:#fff7f7;color:var(--danger)}
     .result-list{display:grid;gap:10px}.result-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel-soft)}
