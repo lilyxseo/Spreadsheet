@@ -398,3 +398,6 @@ body::-webkit-scrollbar-corner {
 .metric-delta--out{color:#dc2626}
 body.dark .metric-delta--in{color:#4ade80}
 body.dark .metric-delta--out{color:#f87171}
+
+.stats-toolbar-sticky{position:sticky;top:64px;z-index:5;background:var(--panel);padding:8px;border:1px solid var(--line);border-radius:12px}
+.stats-lokasi-cell{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
