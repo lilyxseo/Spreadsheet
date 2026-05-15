@@ -58,6 +58,24 @@
     .grid.dashboard .metric .v{font-size:18px;margin-top:2px;line-height:1.2}
     .metric .k{font-size:12px;color:var(--muted)} .metric .v{font-size:22px;font-weight:800;margin-top:4px}
     .search-lg{width:100%;padding:14px;border-radius:14px;border:1px solid var(--line);font-size:16px;background:var(--panel)}
+
+.stats-search-input{
+  border:1px solid color-mix(in srgb,var(--primary) 32%,var(--line) 68%);
+  background:color-mix(in srgb,var(--panel) 82%, #fff 18%);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 12%, transparent 88%);
+}
+.stats-search-input:focus{
+  outline:none;
+  border-color:color-mix(in srgb,var(--primary) 62%,var(--line) 38%);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 20%, transparent 80%);
+}
+.stats-lokasi-cell{
+  white-space:normal !important;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  max-width:30ch;
+  line-height:1.45;
+}
     .search-bar,.toolbar,.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     button,select{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
     .btn-primary{background:var(--primary-2);color:#fff;border-color:transparent}
