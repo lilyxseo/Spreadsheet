@@ -214,7 +214,7 @@ function renderTable(rows){if(!rows.length) return `<div class='empty-card'><str
 
 function renderInsightCard(insight){
 if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
-return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
+return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.filter(Boolean).map(it=>`<li class='insight-item'><span class='insight-dot' aria-hidden='true'></span><span class='insight-text'>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
