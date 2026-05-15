@@ -255,20 +255,18 @@ body.dark .stats-table-wrap tbody td{background:var(--panel)}
 #locationsEmpty th,#locationsEmpty td{padding:5px 7px;font-size:11px}
 #locationsTable th,#locationsTable td{font-size:12px}
 @media (max-width:1100px){#page-locations{grid-template-columns:1fr}#locationsTable .table-wrap table{min-width:760px}#locationsEmpty .table-wrap table{min-width:480px}}
-.insight-card{background:linear-gradient(180deg,#f7fafc,#fff);border:1px solid #e8edf4;border-radius:14px;padding:14px 16px;margin-bottom:12px}
-.insight-group h4{margin:4px 0 10px;font-size:13px}
-.insight-group ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.insight-item{display:grid;grid-template-columns:12px 1fr;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;font-size:13px;line-height:1.45}
-.insight-dot{width:6px;height:6px;border-radius:999px;background:#64748b;display:block;margin-top:7px;flex:none}
-.insight-text{min-width:0;word-break:break-word;overflow-wrap:anywhere}
-.insight-card strong{color:#0f766e;font-weight:700}
+.insight-card{background:linear-gradient(180deg,#f7fafc,#fff);border:1px solid #e8edf4;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.insight-group h4{margin:6px 0;font-size:13px}
+.insight-group ul{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.insight-group li{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4}
+.insight-dot{color:#64748b;font-weight:700}
+.insight-card strong{color:#0f766e}
 body.dark .insight-card{background:linear-gradient(180deg,#0f172a,#111827);border-color:#334155;color:#e2e8f0}
 body.dark .insight-group h4{color:#f8fafc}
-body.dark .insight-item{background:#0b1220;border-color:#334155;color:#cbd5e1}
-body.dark .insight-dot{background:#94a3b8}
+body.dark .insight-group li{color:#cbd5e1}
+body.dark .insight-dot{color:#94a3b8}
 body.dark .insight-card strong{color:#5eead4}
-@media (max-width:768px){.insight-card{padding:12px}.insight-group ul{gap:7px}.insight-item{font-size:13px;line-height:1.4;padding:8px 9px;grid-template-columns:10px 1fr}.insight-dot{margin-top:6px}}
-@media (min-width:1024px){.insight-group ul{gap:10px}.insight-item{padding:9px 11px}}
+@media (max-width:768px){.insight-card{padding:10px}.insight-group li{font-size:12px}}
 
 @media (max-width: 899px){
   .mv-toolbar{grid-template-columns:1fr}

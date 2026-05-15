@@ -16,12 +16,13 @@ export function buildAutoInsight(data,{movementRows=[],accuracyRows=[],anomalyRo
 
   const topOut=getTopSkuByQty(agg.outSkuQty);
   const topIn=getTopSkuByQty(agg.inSkuQty);
+  const monthLabel=new Date().toLocaleDateString("id-ID",{month:"long",year:"numeric"});
   const items=[
-    `Barang Masuk bulan ini: <strong>${fmt(agg.inSku.size)}</strong> SKU / <strong>${fmt(agg.inQty)}</strong> qty`,
-    `Barang Keluar bulan ini: <strong>${fmt(agg.outSku.size)}</strong> SKU / <strong>${fmt(agg.outQty)}</strong> qty`,
-    topOut.sku?`SKU paling sering keluar: ${toSkuDetailLink(topOut.sku)} — <strong>${fmt(topOut.count)}</strong> pcs`:"Belum ada data barang keluar bulan ini",
-    topIn.sku?`SKU paling sering masuk: ${toSkuDetailLink(topIn.sku)} — <strong>${fmt(topIn.count)}</strong> pcs`:"Belum ada data barang masuk bulan ini"
-  ].filter(Boolean);
+    `Barang Masuk bulan ini (${monthLabel}) total <strong>${agg.inSku.size}</strong> SKU / <strong>${agg.inQty}</strong> qty`,
+    `Barang Keluar bulan ini (${monthLabel}) total <strong>${agg.outSku.size}</strong> SKU / <strong>${agg.outQty}</strong> qty`,
+    topOut.sku?`SKU paling sering keluar bulan ini adalah ${toSkuDetailLink(topOut.sku)} dengan total <strong>${topOut.count}</strong> pcs`:"Belum ada data barang keluar bulan ini",
+    topIn.sku?`SKU paling sering masuk bulan ini adalah ${toSkuDetailLink(topIn.sku)} dengan total <strong>${topIn.count}</strong> pcs`:"Belum ada data barang masuk bulan ini"
+  ];
   return {empty:false,categories:[{title:"📦 Auto Insight Bulanan",items}]};
 }
 
@@ -58,4 +59,3 @@ const normDate=s=>{const t=String(s||"").trim();if(!t)return "";const m=t.replac
 const safe=v=>String(v||"").replace(/[&<>"]/g,"");
 const clean=v=>String(v||"").toLowerCase().trim();
 const toSkuDetailLink=sku=>{const val=String(sku||"").trim();if(!val)return "-";const encoded=encodeURIComponent(val);const attr=encodeURIComponent(val);return `<button class='btn-link' onclick=\"showDetail(decodeURIComponent('${attr}'));navigateTo('/sku/'+encodeURIComponent(decodeURIComponent('${attr}')))\" style='padding:0;border:none;background:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit'><strong>${safe(val)}</strong></button>`;};
-const fmt=v=>Number(v||0).toLocaleString("id-ID");
