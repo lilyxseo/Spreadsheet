@@ -241,7 +241,7 @@ const cards=[
 {name:"Baris BULKY",value:totals["BULKY"]},
 {name:"Barang Masuk",value:inSummary.totalCount,delta:`+${inSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--in"},
 {name:"Barang Keluar",value:outSummary.totalCount,delta:`+${outSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--out"},
-{name:"Total Movement",value:movementSummary.totalCount,delta:`+${movementSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--in"},
+{name:"Total Movement",value:movementSummary.totalCount,delta:`+${movementSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--neutral"},
 {name:"Lokasi tersisa",value:lokasiTersisa}
 ];
 dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
