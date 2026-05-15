@@ -51,8 +51,7 @@
 }
 .anomaly-table-wrap{
   border-radius:12px;
-  max-height:calc(100dvh - 360px);
-  overflow:auto;
+  overflow:visible;
 }
 .anomaly-table-wrap thead th{
   position:sticky;
@@ -102,6 +101,14 @@
     top:0;
     z-index:3;
     background:#fff5f5;
+  }
+}
+
+@media (min-width: 900px){
+  .anomaly-table-wrap{
+    height:calc(100dvh - 300px);
+    max-height:calc(100dvh - 300px);
+    overflow:auto;
   }
 }
 
