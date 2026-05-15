@@ -470,8 +470,24 @@ body.dark .account-more.icon-btn{color:rgba(226,232,240,.86)}
   padding:6px 8px;
 }
 
-/* Global dark-theme scrollbar styling */
+/* Global scrollbar styling with explicit light/dark theme separation */
 :root{
+  --scroll-track: transparent;
+  --scroll-thumb: color-mix(in srgb, var(--primary) 48%, #ffffff 52%);
+  --scroll-thumb-hover: color-mix(in srgb, var(--primary-2) 58%, #ffffff 42%);
+}
+
+body.light,
+.light-mode,
+[data-theme="light"]{
+  --scroll-track: transparent;
+  --scroll-thumb: color-mix(in srgb, var(--primary) 48%, #ffffff 52%);
+  --scroll-thumb-hover: color-mix(in srgb, var(--primary-2) 58%, #ffffff 42%);
+}
+
+body.dark,
+.dark-mode,
+[data-theme="dark"]{
   --scroll-track: color-mix(in srgb, #0f172a 82%, transparent);
   --scroll-thumb: color-mix(in srgb, var(--primary) 64%, #111827 36%);
   --scroll-thumb-hover: color-mix(in srgb, var(--primary-2) 72%, #1f2937 28%);
