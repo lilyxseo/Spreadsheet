@@ -5,6 +5,7 @@ ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
+const SIDEBAR_OPEN_KEY="inventory_sidebar_open_submenus";
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
 const AUTO_SYNC_CHECK_INTERVAL_MS=30*1000;
@@ -13,7 +14,11 @@ const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
 window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
-function bindNav(){document.querySelectorAll(".side-link").forEach(btn=>btn.addEventListener("click",()=>navigateTo(btn.dataset.route)));}
+function bindNav(){
+document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{navigateTo(btn.dataset.route);closeSidebarMobile();}));
+document.querySelectorAll(".nav-parent").forEach(btn=>btn.addEventListener("click",()=>toggleParentMenu(btn.dataset.parent)));
+hydrateSidebarState();
+}
 function bindEvents(){const d=debounce(()=>runSearch(),250);searchInput.addEventListener("input",d);sortSearch.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter.addEventListener("change",updateStats);darkBtnHeader.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu)));document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);ensureColumnFilterState(mode);TABLE_STATE[mode].columnFilters[col]=selected;TABLE_STATE[mode].page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
 searchInput.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
 window.addEventListener("keydown",handleSearchShortcuts);
@@ -25,14 +30,41 @@ document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-actio
 const toggle=e.target.closest("[data-col-filter-toggle]");if(toggle){const mode=toggle.dataset.mode,col=toggle.dataset.col;document.querySelectorAll(`[data-col-filter-menu][data-mode="${mode}"]`).forEach(menu=>menu.hidden=true);const menu=document.querySelector(`[data-col-filter-menu][data-mode="${mode}"][data-col="${col}"]`);if(menu){menu.hidden=!menu.hidden;if(!menu.hidden)positionColumnFilterMenu(menu);}return;}
 if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const st=TABLE_STATE[mode];ensureColumnFilterState(mode);if(e.target.matches("[data-col-filter-clear]")){st.columnFilters[col]=[];st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}if(e.target.matches("[data-col-filter-all]")){st.columnFilters[col]=getUniqueOptions(applyTableFilters(st.rows,mode,col),col);st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}return;}
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);});}
-function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));closeSidebarMobile();if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
+function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));syncOpenParentWithRoute();if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard")return showPage("stats");if(path==="/statistics")return showPage("statistics");if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics")return showPage("statistics");if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
+function readOpenParents(){try{return JSON.parse(localStorage.getItem(SIDEBAR_OPEN_KEY)||"[]");}catch(_){return [];}}
+function writeOpenParents(keys){localStorage.setItem(SIDEBAR_OPEN_KEY,JSON.stringify([...new Set(keys)]));}
+function setParentOpen(key,isOpen){
+const group=document.querySelector(`[data-parent-key="${key}"]`);if(!group)return;
+group.classList.toggle("open",!!isOpen);
+}
+function getParentOfActiveRoute(){
+const active=document.querySelector(".side-link.active.sub-link");
+return active?.closest("[data-parent-key]")?.dataset.parentKey||"";
+}
+function syncOpenParentWithRoute(){
+const mustOpen=getParentOfActiveRoute();
+if(mustOpen)setParentOpen(mustOpen,true);
+}
+function hydrateSidebarState(){
+const saved=readOpenParents();
+document.querySelectorAll("[data-parent-key]").forEach(group=>setParentOpen(group.dataset.parentKey,saved.includes(group.dataset.parentKey)));
+syncOpenParentWithRoute();
+}
+function toggleParentMenu(key){
+const group=document.querySelector(`[data-parent-key="${key}"]`);if(!group)return;
+const willOpen=!group.classList.contains("open");
+setParentOpen(key,willOpen);
+const saved=readOpenParents().filter(k=>k!==key);
+if(willOpen)saved.push(key);
+writeOpenParents(saved);
+}
 async function openCacheDb(){
 return await new Promise((resolve,reject)=>{
 const req=indexedDB.open(IDB_NAME,IDB_VERSION);
