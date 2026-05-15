@@ -11,7 +11,7 @@ export function routeFromPath(path,showDetail,setCurrentSku,state){
   }
   if(path==='/')return showPage('dashboard');
   if(path==='/search')return showPage('search');
-  if(path==='/statistics')return showPage('stats');
+  if(path==='/statistics')return showPage('dashboard');
   if(path==='/movement')return showPage('movement');
   if(path==='/settings')return showPage('settings');
   if(path.startsWith('/sku/')){
