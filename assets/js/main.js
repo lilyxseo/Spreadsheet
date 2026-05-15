@@ -192,12 +192,12 @@ const cards=[
 {name:"Baris Kartu Stock",value:totals["Kartu Stock"]},
 {name:"Baris RPL",value:totals["RPL"]},
 {name:"Baris BULKY",value:totals["BULKY"]},
-{name:"Barang Masuk",value:inSummary.totalCount,delta:`+${inSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--in"},
+{name:"Barang Masuk",value:`${inSummary.totalCount} trx`,subValue:`Total movement: ${formatNumber(inSummary.totalQty)}`,delta:`+${inSummary.todayCount} hari ini • ${formatNumber(inSummary.todayQty)} qty`,deltaClass:"metric-delta metric-delta--in"},
 {name:"Barang Keluar",value:outSummary.totalCount,delta:`+${outSummary.todayCount} hari ini`,deltaClass:"metric-delta metric-delta--out"},
 {name:"Lokasi terpakai",value:lokasiTerpakai},
 {name:"Lokasi tersisa",value:lokasiTersisa}
 ];
-dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
+dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div>${c.subValue?`<div class='metric-sub'>${c.subValue}</div>`:""}</div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
 const dashInsight=buildAutoInsight(DATA,{accuracyRows:[]});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
@@ -378,7 +378,9 @@ function toast(msg,type="info",showClose=true){const t=document.getElementById("
 function getVal(row,keys){const cols=Object.keys(row||{});for(const key of keys){const f=cols.find(c=>clean(c).includes(clean(key)));if(f&&row[f]!=null)return String(row[f]);}return "";}
 function highlight(text,query){const raw=String(text||"");const q=String(query||"").trim();if(!q) return esc(raw);const words=clean(q).split(" ").filter(Boolean).slice(0,6);let out=esc(raw);words.forEach(w=>{const e=w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");out=out.replace(new RegExp(`(${e})`,"ig"),"<mark>$1</mark>")});return out;}
 function normalizeHeader(v){return clean(v).replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();} function clean(v){return String(v||"").toLowerCase().trim().replace(/[_-]+/g," ").replace(/\s+/g," ");}
-function parseNumber(v){const n=parseFloat(String(v||"").replace(/[^0-9.-]/g,""));return Number.isFinite(n)?n:0;} function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+function parseNumber(v){const n=parseFloat(String(v||"").replace(/[^0-9.-]/g,""));return Number.isFinite(n)?n:0;}
+function formatNumber(v){const n=Number(v)||0;return n.toLocaleString("id-ID");}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
 function encAttr(v){return encodeURIComponent(String(v??""));} function badgeClass(s){return s==="Kartu Stock"?"b-kartu":s==="RPL"?"b-rpl":s==="BULKY"?"b-bulky":s==="Barang Masuk"?"b-in":"b-out";}
 function debounce(fn,wait){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait)}}
 
