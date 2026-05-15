@@ -194,6 +194,9 @@
   border-right: 0;
   color: #6b1b1b;
   padding: 20px 14px 14px;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .sidebar-brand{
   background: #ffffff;
@@ -218,25 +221,61 @@
 }
 .sidebar-status .dot{width:7px;height:7px}
 .sidebar > div:first-child{display:flex;flex-direction:column;min-height:0;flex:1}
-#menuWrap{display:grid;gap:2px;margin-top:16px !important;overflow-y:auto;min-height:0;padding-right:2px}
-.side-link.nav-item{
-  margin-top: 0;
-  min-height: 46px;
-  padding: 11px 4px;
-  border-radius: 0;
-  border: 0;
-  border-bottom: 1px solid rgba(239,68,68,.18);
-  background: transparent;
-  color: rgba(127,29,29,.88);
-  justify-content:flex-start;
-  gap:10px;
-  transition: padding-left .2s ease, color .2s ease, border-color .2s ease;
+#menuWrap,
+.sidebar-nav{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:16px !important;
+  min-height:0;
+  padding-right:4px;
 }
-.side-link.nav-item i{width:18px;height:18px;flex-shrink:0;opacity:.92}
-.side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15}
-.side-link.nav-item:hover{padding-left:10px;color:#991b1b;border-bottom-color:rgba(239,68,68,.38)}
-.side-link.nav-item.active{color:#dc2626;border-bottom-color:#fca5a5;background:rgba(239,68,68,.08);box-shadow:none}
+.menu-group{display:grid;gap:6px;padding-bottom:8px;border-bottom:1px solid rgba(239,68,68,.12)}
+.menu-group:last-of-type{border-bottom:0}
+.side-link.nav-item,
+.sidebar-item,
+.sidebar-parent,
+.submenu-item{
+  width:100%;
+  box-sizing:border-box;
+  min-width:0;
+  overflow:visible;
+}
+.side-link.nav-item{
+  margin-top:0;min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid transparent;background:transparent;
+  color: rgba(127,29,29,.88);
+  justify-content:flex-start;gap:10px;
+  transition: all .18s ease;
+}
+.side-link.nav-item i{width:19px;height:19px;flex-shrink:0;opacity:.92}
+.side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-link.nav-item:hover{color:#991b1b;background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.14);box-shadow:0 2px 8px rgba(220,38,38,.08);transform:none !important}
+.side-link.nav-item.active{color:#be123c;background:rgba(244,63,94,.12);border-color:rgba(244,63,94,.26);font-weight:700;box-shadow:none}
 .side-link.nav-item.active i{color:#dc2626}
+.nav-parent,
+.sidebar-parent{display:flex;justify-content:space-between;align-items:center;padding:12px 14px}
+.parent-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.menu-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chev,
+.chevron{width:18px;height:18px;transition:transform .18s ease;color:rgba(127,29,29,.7);margin-left:auto;flex-shrink:0}
+.menu-group.open .chev{transform:rotate(90deg)}
+.submenu{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-left:0;max-height:0;overflow:hidden;opacity:0;transform:translateY(-4px);transition:max-height .2s ease,opacity .18s ease,transform .18s ease}
+.menu-group.open .submenu{max-height:320px;opacity:1;transform:translateY(0)}
+.sub-link,
+.submenu-item{padding:11px 14px 11px 42px;border-radius:12px}
+.sub-link span{font-size:13px;display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub-link.active{font-weight:700}
+.submenu-item:hover{
+  background:rgba(220,38,38,.08);
+  border-color:rgba(220,38,38,.2);
+  box-shadow:0 2px 8px rgba(220,38,38,.08);
+}
+
+.sidebar-item:hover,
+.sidebar-parent:hover,
+.submenu-item:hover{
+  transform:none !important;
+}
 
 .sidebar-footer{gap:8px;flex-shrink:0;padding-top:10px;margin-top:12px;background:transparent;backdrop-filter:none}
 .account-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid rgba(239,68,68,.14);background:rgba(239,68,68,.05)}
@@ -259,10 +298,12 @@ body.dark .sidebar-brand p{color:rgba(203,213,225,.85)}
 body.dark .close-side{color:#f87171}
 body.dark .brand-logo-placeholder .brand-logo{filter:none}
 body.dark .sidebar-status{background:rgba(239,68,68,.12);color:rgba(248,113,113,.95);border:0}
-body.dark .side-link.nav-item{border-bottom-color:rgba(148,163,184,.28);color:rgba(226,232,240,.92)}
-body.dark .side-link.nav-item:hover{color:#f8fafc;border-bottom-color:rgba(248,250,252,.4)}
-body.dark .side-link.nav-item.active{color:#fca5a5;background:rgba(220,38,38,.14);border-bottom-color:rgba(252,165,165,.65);box-shadow:none}
+body.dark .menu-group{border-bottom-color:rgba(148,163,184,.16)}
+body.dark .side-link.nav-item{color:rgba(226,232,240,.92)}
+body.dark .side-link.nav-item:hover{color:#f8fafc;background:rgba(148,163,184,.16);border-color:rgba(148,163,184,.24)}
+body.dark .side-link.nav-item.active{color:#fda4af;background:rgba(244,63,94,.2);border-color:rgba(252,165,165,.35);box-shadow:none}
 body.dark .side-link.nav-item.active i{color:#fca5a5}
+body.dark .chev,body.dark .chevron{color:rgba(226,232,240,.7)}
 body.dark .sidebar-footer{background:transparent;backdrop-filter:none}
 body.dark .account-card{border:1px solid rgba(148,163,184,.34);background:rgba(15,23,42,.42)}
 body.dark .account-meta strong{color:#f87171}
@@ -272,8 +313,10 @@ body.dark .account-more.icon-btn{color:rgba(226,232,240,.86)}
 
 @media (max-width: 899px){
   .sidebar{width:min(86vw,300px)}
-  .side-link.nav-item{min-height:44px;padding:10px 11px}
+  .side-link.nav-item{min-height:44px;padding:10px 12px}
   .side-link.nav-item span{font-size:13px}
+  .nav-parent,.sidebar-parent{padding:12px 14px}
+  .sub-link,.submenu-item{padding:11px 14px 11px 42px}
 }
 
 
@@ -325,10 +368,12 @@ body.dark .account-more.icon-btn{color:rgba(226,232,240,.86)}
 
   .sidebar-nav a,
   .nav-item,
-  .side-link.nav-item {
-    font-size: 15px;
-    padding: 14px 16px;
-  }
+  .side-link.nav-item {font-size:15px}
+}
+
+.sidebar-nav{
+  overflow:visible;
+  padding:6px 8px;
 }
 
 /* Enhanced scrollbar styling */
