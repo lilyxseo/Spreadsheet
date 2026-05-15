@@ -21,3 +21,9 @@
 .metric.warn .v{color:#ca8a04}
 .txt-danger{color:#dc2626;font-weight:700}
 .row-mismatch td{background:rgba(220,38,38,.08)}
+
+.theme-btn.is-syncing i,.theme-btn.is-syncing svg{animation:spin-theme .7s linear infinite;transform-origin:center;}
+#refreshToggleHeader.is-syncing{cursor:progress;}
+#refreshToggleHeader.is-syncing i,#refreshToggleHeader.is-syncing svg{animation:spin-refresh .65s linear infinite;transform-origin:center;}
+@keyframes spin-theme{to{transform:rotate(360deg);}}
+@keyframes spin-refresh{to{transform:rotate(360deg);}}
