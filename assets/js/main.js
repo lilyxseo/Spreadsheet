@@ -1,6 +1,6 @@
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
-const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","financeSummary","financeTrendChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp"];
+const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","financeSummary","financeTrendChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
@@ -447,7 +447,35 @@ function renderFinanceStatistics(){
   <div class='table-wrap table-wrap-full'><table><thead><tr><th>Tanggal</th><th>Total Barang Masuk</th><th>Qty Masuk</th><th>Total Barang Keluar</th><th>Qty Keluar</th><th>Selisih Qty</th><th>Status</th></tr></thead><tbody>${pageRows.map(d=>{const diff=d.inQty-d.outQty;const st=diff>0?"Masuk lebih besar":(diff<0?"Keluar lebih besar":"Seimbang");return `<tr><td>${d.date}</td><td>${d.inCount}</td><td>${d.inQty}</td><td>${d.outCount}</td><td>${d.outQty}</td><td>${diff}</td><td>${st}</td></tr>`;}).join("")||"<tr><td colspan='7'><div class='state'>Tidak ada ringkasan tanggal.</div></td></tr>"}</tbody></table></div>
   <div class='mv-pagination'><span>Menampilkan ${stats.daily.length?start+1:0}-${Math.min(start+STATISTICS_STATE.pageSize,stats.daily.length)} dari ${stats.daily.length}</span><div class='row'><button class='btn-ghost' data-stats-action='prev'>Prev</button><button class='btn-ghost' data-stats-action='next'>Next</button></div></div>`;
 }
-function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");}
+function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");updateSettingsDashboard();}
+function formatSyncDate(ts){if(!ts)return "-";return new Date(ts).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"});}
+function getSystemStatusMeta(){
+  if(isSyncing)return {label:"Loading",dot:"loading"};
+  if(!apiConnected)return {label:"Error",dot:"error"};
+  return {label:"Normal",dot:"ok"};
+}
+function updateSettingsDashboard(){
+  if(!settingsDataSources)return;
+  const sheetMap={"Barang Masuk":"Barang Masuk","Barang Keluar":"Barang Keluar","Kartu Stock":"Kartu Stock","RPL":"RPL","BULKY":"BULKY","Dashboard Akurasi":"Kartu Stock"};
+  const icons={"Barang Masuk":"arrow-down-to-line","Barang Keluar":"arrow-up-from-line","Kartu Stock":"package-search","RPL":"clipboard-list","BULKY":"boxes","Dashboard Akurasi":"shield-check"};
+  const totalRows=Object.values(DATA).reduce((n,rows)=>n+(Array.isArray(rows)?rows.length:0),0);
+  const lastTs=getLastSyncTs();
+  const status=getSystemStatusMeta();
+  settingsLastRefresh.textContent=formatSyncDate(lastTs);
+  settingsTotalRows.textContent=`${totalRows.toLocaleString("id-ID")} row`;
+  settingsSystemStatus.textContent=status.label;
+  settingsSystemDot.className=`status-dot ${status.dot}`;
+  settingsCacheStatus.textContent=lastTs?"Aktif":"Tidak aktif";
+  settingsCacheTime.textContent=formatSyncDate(lastTs);
+  settingsDataSources.innerHTML=Object.entries(sheetMap).map(([label,key])=>{
+    const count=(DATA[key]||[]).length;
+    const tag=!apiConnected?"error":(count>0?"ok":"empty");
+    const txt=!apiConnected?"error":(count>0?"tersedia":"kosong");
+    const active=!apiConnected?"Tidak ada data":(count>0?"Aktif":"Tidak ada data");
+    return `<div class='settings-source-item'><div class='settings-source-main'><i data-lucide='${icons[label]||"database"}'></i><div><strong>${label}</strong><small>${active}</small></div></div><div class='settings-source-meta'><span>${count.toLocaleString("id-ID")} row</span><em class='${tag}'>${txt}</em></div></div>`;
+  }).join("");
+  if(window.lucide)lucide.createIcons();
+}
 function renderFilters(){const searchFilters=FILTERS.filter(f=>!["Barang Masuk","Barang Keluar"].includes(f));filterRow.innerHTML=searchFilters.map(f=>`<button class='chip ${f===currentFilter?"active":""}' onclick="setFilter(decodeURIComponent('${encAttr(f)}'))">${esc(f)}</button>`).join("");if(!searchFilters.includes(currentFilter)){currentFilter="Semua";}}
 function setFilter(f){currentFilter=f;renderFilters();SEARCH_STATE.filterValue=SEARCH_STATE.inputValue||searchInput?.value||lastQuery||"";runSearch();} function initDashboard(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div>";}
 function showSkeleton(){dashboardCards.innerHTML="<div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div>";}
@@ -458,8 +486,15 @@ if(refreshBtn){refreshBtn.classList.toggle("is-syncing",isSyncing);refreshBtn.di
 if(refreshToggleHeader){refreshToggleHeader.classList.toggle("is-syncing",isSyncing);refreshToggleHeader.disabled=!!isSyncing;}
 }
 function renderState(id,text){document.getElementById(id).innerHTML=`<div class='state'>${esc(text)}</div>`;} function renderError(id,text){document.getElementById(id).innerHTML=`<div class='state error'>${esc(text)}</div>`;}
-function updateSyncTime(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||Date.now());lastSync.textContent="Sync: "+new Date(ts).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});}
-function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";settingsApiState.textContent=t;sidebarApi.textContent="";}
+function updateSyncTime(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||Date.now());lastSync.textContent="Sync: "+new Date(ts).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});updateSettingsDashboard();}
+function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";settingsApiState.textContent=t;sidebarApi.textContent="";updateSettingsDashboard();}
+async function clearSystemCache(){
+  const ok=window.confirm("Hapus cache lokal sekarang?");
+  if(!ok)return;
+  await clearCache();
+  updateSettingsDashboard();
+  toast("Cache berhasil dibersihkan","success");
+}
 function showCopyButtonFeedback(btn){if(!btn)return;const label=btn.querySelector('span:last-child');if(!label)return;const prev=label.textContent;btn.classList.add('is-copied');label.textContent='Copied';clearTimeout(btn._copyTimer);btn._copyTimer=setTimeout(()=>{label.textContent=prev;btn.classList.remove('is-copied');},1200);}
 function copySku(sku,btn){navigator.clipboard.writeText(sku||"").then(()=>{showCopyButtonFeedback(btn);toast(`SKU ${sku} disalin`);});}
 function copyText(value,message,btn){navigator.clipboard.writeText(value||"").then(()=>{showCopyButtonFeedback(btn);toast(message);});}
@@ -581,7 +616,7 @@ function handleSearchShortcuts(e){const key=(e.key||"").toLowerCase();if((e.ctrl
 function openSearchModal(){prevRouteBeforeSearch=location.pathname||"/";searchModalOpen=true;if(location.pathname!=='/search')navigateTo('/search');setTimeout(()=>searchInput?.focus(),20);renderRecentHistory();}
 function closeSearchModal(){searchModalOpen=false;if(location.pathname==='/search')navigateTo(prevRouteBeforeSearch==='/search'?'/':prevRouteBeforeSearch);}
 function syncSearchModalUi(_open){}
-window.loadAllData=loadAllData;window.syncData=syncData;window.loadCache=loadCache;window.saveCache=saveCache;window.isCacheFresh=isCacheFresh;window.clearCache=clearCache;window.exportLocationCsv=exportLocationCsv;window.toggleDark=toggleDark;window.toggleCompact=toggleCompact;window.setFilter=setFilter;window.copySku=copySku;window.copyText=copyText;window.showDetail=showDetail;window.navigateTo=navigateTo;window.navigateToSku=navigateToSku;window.goBackToPreviousPage=goBackToPreviousPage;window.showPage=showPage;window.resetMovementFilter=resetMovementFilter;window.renderDataTablePage=renderDataTablePage;window.applyTableFilters=applyTableFilters;window.sortTableRows=sortTableRows;window.paginateRows=paginateRows;window.exportFilteredCsv=exportFilteredCsv;window.getUniqueOptions=getUniqueOptions;window.toggleColumnVisibility=toggleColumnVisibility;window.toggleAllColumns=toggleAllColumns;window.changeStokMinusPage=changeStokMinusPage;window.openStokMinusTrace=openStokMinusTrace;window.exportStokMinusCsv=exportStokMinusCsv;
+window.loadAllData=loadAllData;window.syncData=syncData;window.loadCache=loadCache;window.saveCache=saveCache;window.isCacheFresh=isCacheFresh;window.clearCache=clearCache;window.clearSystemCache=clearSystemCache;window.exportLocationCsv=exportLocationCsv;window.toggleDark=toggleDark;window.toggleCompact=toggleCompact;window.setFilter=setFilter;window.copySku=copySku;window.copyText=copyText;window.showDetail=showDetail;window.navigateTo=navigateTo;window.navigateToSku=navigateToSku;window.goBackToPreviousPage=goBackToPreviousPage;window.showPage=showPage;window.resetMovementFilter=resetMovementFilter;window.renderDataTablePage=renderDataTablePage;window.applyTableFilters=applyTableFilters;window.sortTableRows=sortTableRows;window.paginateRows=paginateRows;window.exportFilteredCsv=exportFilteredCsv;window.getUniqueOptions=getUniqueOptions;window.toggleColumnVisibility=toggleColumnVisibility;window.toggleAllColumns=toggleAllColumns;window.changeStokMinusPage=changeStokMinusPage;window.openStokMinusTrace=openStokMinusTrace;window.exportStokMinusCsv=exportStokMinusCsv;
 
 const ANOMALY_STATE={page:1,pageSize:25,rows:[]};
 function normalizeSku(v){return clean(String(v||'').replace(/[^A-Za-z0-9-]/g,''));}

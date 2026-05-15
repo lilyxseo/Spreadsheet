@@ -91,7 +91,60 @@
     <section id="page-stok-minus" class="panel page hidden"><h3 class="page-title">Stok Minus</h3><div id="stokMinusSummary" class="grid dashboard"></div><div id="stokMinusTable" style="margin-top:10px"></div><div id="stokMinusPanel"></div></section>
     
     <section id="page-cycle-count" class="panel page hidden"><h3 class="page-title">Cycle Count (Audit Stok Fisik)</h3><div id="cycleCountApp"></div></section>
-    <section id="page-settings" class="panel page hidden"><h3 class="page-title">Settings / Info</h3><p><strong>Status API:</strong> <span id="settingsApiState">-</span></p><p><strong>Data loaded:</strong> <span id="loadedState">-</span></p><p><strong>Jumlah data per sheet:</strong> <span id="countPerSheet">-</span></p><p><strong>Spreadsheet ID:</strong> <code id="spreadsheetInfo"></code></p><p><strong>Sheet digunakan:</strong> <span id="sheetInfo"></span></p><div class="row"><button class="btn-primary" data-refresh-btn onclick="loadAllData(true)">Refresh Manual</button><button id="darkBtn" onclick="toggleDark()">Toggle Dark</button><button id="compactBtn" onclick="toggleCompact()">Toggle Compact</button></div></section>
+    <section id="page-settings" class="panel page hidden">
+      <h3 class="page-title">Pengaturan & Informasi Sistem</h3>
+      <div class="settings-layout">
+        <article class="card settings-card">
+          <div class="settings-head"><i data-lucide="monitor-cog"></i><h4>Informasi Sistem</h4></div>
+          <div class="settings-grid">
+            <div class="settings-item"><small>Nama aplikasi</small><strong>Mini WMS - Goto Living</strong></div>
+            <div class="settings-item"><small>Versi aplikasi</small><strong>v1.0.0</strong></div>
+            <div class="settings-item"><small>Terakhir refresh data</small><strong id="settingsLastRefresh">-</strong></div>
+            <div class="settings-item"><small>Total data terbaca</small><strong id="settingsTotalRows">0 row</strong></div>
+          </div>
+          <div class="settings-status"><span id="settingsSystemDot" class="status-dot loading"></span><i data-lucide="activity"></i><span>Status sistem:</span><strong id="settingsSystemStatus">Loading</strong></div>
+        </article>
+        <article class="card settings-card">
+          <div class="settings-head"><i data-lucide="database"></i><h4>Sumber Data</h4></div>
+          <div id="settingsDataSources" class="settings-list"></div>
+        </article>
+        <article class="card settings-card">
+          <div class="settings-head"><i data-lucide="hard-drive"></i><h4>Cache & Data</h4></div>
+          <div class="settings-grid settings-grid--cache">
+            <div class="settings-item"><small>Status cache</small><strong id="settingsCacheStatus">-</strong></div>
+            <div class="settings-item"><small>Waktu terakhir cache</small><strong id="settingsCacheTime">-</strong></div>
+          </div>
+          <div class="row settings-actions">
+            <button class="btn-primary" data-refresh-btn onclick="loadAllData(true)">Refresh Data</button>
+            <button class="btn-ghost" onclick="clearSystemCache()">Clear Cache</button>
+          </div>
+        </article>
+        <article class="card settings-card">
+          <div class="settings-head"><i data-lucide="file-output"></i><h4>Export & Laporan</h4></div>
+          <div class="settings-grid">
+            <div class="settings-item"><small>Format default</small><strong>CSV</strong></div>
+            <div class="settings-item"><small>Struktur export</small><strong>Mengikuti tabel aktif</strong></div>
+            <div class="settings-item"><small>Include header</small><strong>Aktif</strong></div>
+            <div class="settings-item"><small>Separator</small><strong>Koma (,)</strong></div>
+          </div>
+        </article>
+        <article class="card settings-card">
+          <div class="settings-head"><i data-lucide="info"></i><h4>Tentang Aplikasi</h4></div>
+          <p class="settings-desc">Sistem monitoring dan analisis stok gudang berbasis data sheet.</p>
+          <ul class="settings-feature-list">
+            <li><i data-lucide="layout-dashboard"></i><span>Dashboard</span></li>
+            <li><i data-lucide="alert-triangle"></i><span>Anomaly detection</span></li>
+            <li><i data-lucide="trending-down"></i><span>Stok minus</span></li>
+            <li><i data-lucide="map-pin"></i><span>Lokasi</span></li>
+            <li><i data-lucide="clipboard-check"></i><span>Cycle count</span></li>
+          </ul>
+          <small class="settings-note">Data berasal dari Google Sheet, gunakan dengan hati-hati.</small>
+        </article>
+      </div>
+      <div class="settings-legacy hidden">
+        <p><strong>Status API:</strong> <span id="settingsApiState">-</span></p><p><strong>Data loaded:</strong> <span id="loadedState">-</span></p><p><strong>Jumlah data per sheet:</strong> <span id="countPerSheet">-</span></p><p><strong>Spreadsheet ID:</strong> <code id="spreadsheetInfo"></code></p><p><strong>Sheet digunakan:</strong> <span id="sheetInfo"></span></p>
+      </div>
+    </section>
   </main>
 </div>
 
