@@ -237,9 +237,10 @@ const qty=parseNumber(getVal(row,["qty"]));
 const tanggal=getVal(row,["tanggal","date","created at","waktu"])||"-";
 return{sku,nama,qty,tanggal,type,sheet,row};
 }
-const STATS_STATE={page:1,pageSize:25,q:"",sort:"absDesc"};
+const STATS_STATE={page:1,pageSize:25,q:"",sort:"absDesc",sheet:"all"};
 function updateStats(){
-const rows=[...(DATA["RPL"]||[]),...(DATA["BULKY"]||[])].filter(r=>clean(getVal(r,["sku"])));
+const sourceRows={RPL:(DATA["RPL"]||[]),BULKY:(DATA["BULKY"]||[])};
+const rows=(STATS_STATE.sheet==="RPL"?sourceRows.RPL:STATS_STATE.sheet==="BULKY"?sourceRows.BULKY:[...sourceRows.RPL,...sourceRows.BULKY]).filter(r=>clean(getVal(r,["sku"])));
 if(!rows.length){statsCards.innerHTML="";statsChart.innerHTML="<div class='state'>Sheet RPL/BULKY belum ada data.</div>";return;}
 const norm=rows.map(r=>{const sel=parseNumber(getVal(r,["selisih","selisih kartu stok","selisih kartu stock","selisih kartu stok vs iseller","selisih kartu stok vs netsuite"]));const iseller=parseNumber(getVal(r,["stok iseller","iseller"]));const netsuite=parseNumber(getVal(r,["stok netsuite","netsuite"]));return{lokasi:getVal(r,["lokasi"])||"-",sku:getVal(r,["sku"])||"-",nama:getVal(r,["nama barang","nama"])||"-",stokBulky:parseNumber(getVal(r,["stok bulky"])),stokRetail:parseNumber(getVal(r,["stok retail"])),stokGlobal:parseNumber(getVal(r,["stok global","kartu stok","stok kartu","stok kartu stok"])),iseller,netsuite,selisih:sel,status:getVal(r,["status"])||"-",selisihAbs:Math.abs(sel),nsIseller:getVal(r,["ns dan iseller","iseller vs netsuite"])||"-"};});
 const totalSku=norm.length,skuAkurat=norm.filter(r=>r.selisih===0).length,skuTidakAkurat=totalSku-skuAkurat,akurasi=totalSku?((skuAkurat/totalSku)*100):0,selisihTotal=norm.reduce((n,r)=>n+r.selisih,0);
@@ -254,13 +255,15 @@ const sorter={absDesc:(a,b)=>b.selisihAbs-a.selisihAbs,absAsc:(a,b)=>a.selisihAb
 tableRows=[...tableRows].sort(sorter[STATS_STATE.sort]||sorter.absDesc);
 const maxPage=Math.max(1,Math.ceil(tableRows.length/STATS_STATE.pageSize));if(STATS_STATE.page>maxPage)STATS_STATE.page=maxPage;
 const paged=tableRows.slice((STATS_STATE.page-1)*STATS_STATE.pageSize,STATS_STATE.page*STATS_STATE.pageSize);
-statsChart.innerHTML=`<div class='mv-toolbar stats-toolbar'><input id='statsSearch' placeholder='Search SKU/Nama/Lokasi' value='${esc(STATS_STATE.q)}'><select id='statsSort'><option value='absDesc'>Selisih terbesar</option><option value='absAsc'>Selisih terkecil</option><option value='sku'>SKU A-Z</option></select><select id='statsSize'><option value='25'>25</option><option value='50'>50</option><option value='100'>100</option></select></div>
-<div class='table-wrap table-wrap-full'><table><thead><tr><th>LOKASI</th><th>SKU</th><th>NAMA BARANG</th><th>SELISIH</th><th>AKSI</th></tr></thead><tbody>${paged.map(r=>`<tr class='${r.selisih!==0?"row-mismatch":""}'><td>${esc(r.lokasiText)}</td><td>${esc(r.sku)}</td><td>${esc(r.nama)}</td><td class='${r.selisih!==0?"txt-danger":""}'>${r.selisih}</td><td class='action-cell'><button class='detail-mini-btn' type='button' onclick="navigateToSku(decodeURIComponent('${encAttr(r.sku)}'))">Lihat SKU</button></td></tr>`).join("")||`<tr><td colspan='5'><div class='state'>Tidak ada data.</div></td></tr>`}</tbody></table></div>
+statsChart.innerHTML=`<div class='mv-toolbar stats-toolbar'><input id='statsSearch' placeholder='Search SKU/Nama/Lokasi' value='${esc(STATS_STATE.q)}'><select id='statsSheet'><option value='all'>RPL + BULKY</option><option value='RPL'>RPL</option><option value='BULKY'>BULKY</option></select><select id='statsSort'><option value='absDesc'>Selisih terbesar</option><option value='absAsc'>Selisih terkecil</option><option value='sku'>SKU A-Z</option></select><select id='statsSize'><option value='25'>25</option><option value='50'>50</option><option value='100'>100</option></select></div>
+<div class='table-wrap table-wrap-full'><table><thead><tr><th>LOKASI</th><th>SKU</th><th>NAMA BARANG</th><th>SELISIH</th><th>AKSI</th></tr></thead><tbody>${paged.map(r=>`<tr class='${r.selisih!==0?"row-mismatch":""}'><td><span class='cell-lokasi' title='${esc(r.lokasiText)}'>${esc(r.lokasiText)}</span></td><td>${esc(r.sku)}</td><td>${esc(r.nama)}</td><td class='${r.selisih!==0?"txt-danger":""}'>${r.selisih}</td><td class='action-cell'><button class='detail-mini-btn' type='button' onclick="navigateToSku(decodeURIComponent('${encAttr(r.sku)}'))">Lihat SKU</button></td></tr>`).join("")||`<tr><td colspan='5'><div class='state'>Tidak ada data.</div></td></tr>`}</tbody></table></div>
 <div class='mv-pagination'><span>Menampilkan ${(tableRows.length?((STATS_STATE.page-1)*STATS_STATE.pageSize+1):0)}–${Math.min(STATS_STATE.page*STATS_STATE.pageSize,tableRows.length)} dari ${tableRows.length} data</span><div class='row'><button class='btn-ghost' id='statsPrev'>Prev</button><button class='btn-ghost' id='statsNext'>Next</button></div></div>
 `;
 document.getElementById("statsSearch")?.addEventListener("input",debounce(e=>{STATS_STATE.q=e.target.value;STATS_STATE.page=1;updateStats();},200));
+document.getElementById("statsSheet")&&(document.getElementById("statsSheet").value=STATS_STATE.sheet);
 document.getElementById("statsSort")&&(document.getElementById("statsSort").value=STATS_STATE.sort);
 document.getElementById("statsSize")&&(document.getElementById("statsSize").value=String(STATS_STATE.pageSize));
+document.getElementById("statsSheet")?.addEventListener("change",e=>{STATS_STATE.sheet=e.target.value;STATS_STATE.page=1;updateStats();});
 document.getElementById("statsSort")?.addEventListener("change",e=>{STATS_STATE.sort=e.target.value;updateStats();});
 document.getElementById("statsSize")?.addEventListener("change",e=>{STATS_STATE.pageSize=Number(e.target.value)||25;STATS_STATE.page=1;updateStats();});
 document.getElementById("statsPrev")?.addEventListener("click",()=>{STATS_STATE.page=Math.max(1,STATS_STATE.page-1);updateStats();});
