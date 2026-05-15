@@ -183,10 +183,12 @@ function renderInsightCard(insight){
 if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
 return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
+function filterBarangMasukRows(rows){const target=clean("Barang Masuk");return (rows||[]).filter(r=>clean(getVal(r,["status"]))===target);}
 function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{totals[s]=(DATA[s]||[]).length;if(s==="Barang Masuk")totals[s]=(DATA[s]||[]).filter(r=>clean(getVal(r,["sku"]))).length;(DATA[s]||[]).forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
-const inSummary=getDailyMovementSummary(DATA["Barang Masuk"]||[],"receipt");
+const barangMasukRows=filterBarangMasukRows(DATA["Barang Masuk"]||[]);
+const inSummary=getDailyMovementSummary(barangMasukRows,"receipt");
 const outSummary=getDailyMovementSummary(DATA["Barang Keluar"]||[],"pengeluaran");
 const totalMovement=(DATA["Barang Masuk"]||[]).filter(r=>clean(getVal(r,["status","status movement","status_movement","movement status"])).includes("movement")).length;
 const cards=[
@@ -200,13 +202,13 @@ const cards=[
 {name:"Lokasi tersisa",value:lokasiTersisa}
 ];
 dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
-const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
+const inRows=getLatestRows("Barang Masuk",50,true,true),outRows=getLatestRows("Barang Keluar",50);
 const dashInsight=buildAutoInsight(DATA,{accuracyRows:[]});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
 ${renderDashboardTableSection("Barang Masuk","Data terbaru dari sheet Barang Masuk",inRows,"b-in")}
 ${renderDashboardTableSection("Barang Keluar","Data terbaru dari sheet Barang Keluar",outRows,"b-out")}
 </div>`;}
-function getLatestRows(sheetName,limit=50,requireSku=false){let rows=(DATA[sheetName]||[]).slice();if(requireSku)rows=rows.filter(r=>clean(getVal(r,["sku"])));return rows.reverse().slice(0,limit);}
+function getLatestRows(sheetName,limit=50,requireSku=false,onlyBarangMasukStatus=false){let rows=(DATA[sheetName]||[]).slice();if(requireSku)rows=rows.filter(r=>clean(getVal(r,["sku"])));if(onlyBarangMasukStatus)rows=filterBarangMasukRows(rows);return rows.reverse().slice(0,limit);}
 function getDailyMovementSummary(rows,expectedType){
 const todayKey=getTodayDateKey();
 let totalQty=0,todayQty=0;
@@ -385,7 +387,7 @@ function encAttr(v){return encodeURIComponent(String(v??""));} function badgeCla
 function debounce(fn,wait){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait)}}
 
 
-function normalizeMovementRows(sheet,type){return (DATA[sheet]||[]).map((r,sourceIndex)=>({r,sourceIndex})).filter(({r})=>clean(getVal(r,["sku"]))).map(({r,sourceIndex})=>{const sku=getVal(r,["sku"]);const nama=getVal(r,["nama barang","nama","item","description"])||"-";const qty=parseNumber(getVal(r,["qty"]));const tanggal=getVal(r,["tanggal","date","created at","waktu"])||"";const from=getVal(r,["from"])||"-";const to=getVal(r,["to"])||"-";const status=getVal(r,["status"])||"-";const pic=getVal(r,["pic","user","operator"])||"-";const lokasi=getVal(r,["lokasi","location","rak","bin","area"])||"-";const ket=getVal(r,["keterangan","notes","remark"])||"-";return {tanggal,from,to,sku,nama,qty,status,pic,lokasi,keterangan:ket,type,row:r,_sheetOrder:sourceIndex};});}
+function normalizeMovementRows(sheet,type){const statusIn=clean("Barang Masuk");return (DATA[sheet]||[]).map((r,sourceIndex)=>({r,sourceIndex})).filter(({r})=>clean(getVal(r,["sku"]))).map(({r,sourceIndex})=>{const sku=getVal(r,["sku"]);const nama=getVal(r,["nama barang","nama","item","description"])||"-";const qty=parseNumber(getVal(r,["qty"]));const tanggal=getVal(r,["tanggal","date","created at","waktu"])||"";const from=getVal(r,["from"])||"-";const to=getVal(r,["to"])||"-";const status=getVal(r,["status"])||"-";const pic=getVal(r,["pic","user","operator"])||"-";const lokasi=getVal(r,["lokasi","location","rak","bin","area"])||"-";const ket=getVal(r,["keterangan","notes","remark"])||"-";return {tanggal,from,to,sku,nama,qty,status,pic,lokasi,keterangan:ket,type,row:r,_sheetOrder:sourceIndex};}).filter(row=>type!=="IN"||clean(row.status)===statusIn);}
 const DEBOUNCED_RENDER={in:debounce(()=>renderDataTablePage("in","Barang Masuk",true),250),out:debounce(()=>renderDataTablePage("out","Barang Keluar",true),250)};
 function debouncedTableRender(mode){return (DEBOUNCED_RENDER[mode]||(()=>{}))();}
 const TABLE_STATE={in:{page:1,pageSize:25,rows:[],filtered:[]},out:{page:1,pageSize:25,rows:[],filtered:[]}};
