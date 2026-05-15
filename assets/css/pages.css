@@ -152,6 +152,11 @@
 .insight-group li{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4}
 .insight-dot{color:#64748b;font-weight:700}
 .insight-card strong{color:#0f766e}
+body.dark .insight-card{background:linear-gradient(180deg,#0f172a,#111827);border-color:#334155;color:#e2e8f0}
+body.dark .insight-group h4{color:#f8fafc}
+body.dark .insight-group li{color:#cbd5e1}
+body.dark .insight-dot{color:#94a3b8}
+body.dark .insight-card strong{color:#5eead4}
 @media (max-width:768px){.insight-card{padding:10px}.insight-group li{font-size:12px}}
 
 @media (max-width: 899px){
