@@ -7,6 +7,7 @@ console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
+const AUTO_SYNC_CHECK_INTERVAL_MS=30*1000;
 const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
@@ -55,6 +56,7 @@ const db=await openCacheDb();
 await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of SHEETS){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
 localStorage.setItem(CACHE_KEYS.lastSync,String(Date.now()));
 localStorage.setItem(CACHE_KEYS.version,CACHE_VERSION);
+updateSyncTime();
 }catch(err){console.warn("IndexedDB save failed", err); }
 }
 function isCacheFresh(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);return !!ts;}
@@ -144,6 +146,7 @@ if(hasValidData(cachedData)){
 applyData(cachedData,{fromCache:true});
 hideInitialLoader();
 rerenderCurrentPage({fromCache:true});
+startAutoSync();
 return;
 }
 try{
@@ -156,9 +159,14 @@ setStatus("error","Data belum siap dimuat");
 }
 startAutoSync();
 }
+function getLastSyncTs(){return Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);}
+function shouldAutoSyncNow(){const ts=getLastSyncTs();return !ts||Date.now()-ts>=AUTO_SYNC_INTERVAL_MS;}
+function maybeAutoSync(){if(shouldAutoSyncNow())syncData({force:true,silent:true});}
 function startAutoSync(){
-setInterval(()=>{syncData({force:true,silent:true});},AUTO_SYNC_INTERVAL_MS);
+maybeAutoSync();
+setInterval(maybeAutoSync,AUTO_SYNC_CHECK_INTERVAL_MS);
 }
+
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
