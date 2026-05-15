@@ -25,37 +25,12 @@
       <div class="status-mini sidebar-status"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
       <div class="sidebar-menu-scroll">
       <nav class="sidebar-nav" id="menuWrap">
-        <button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Overview</span></button>
-        <div class="menu-group has-submenu" data-parent-key="data">
-          <button class="side-link nav-item nav-parent" data-parent="data"><span class="parent-left"><i data-lucide="database"></i><span>Data</span></span><i data-lucide="chevron-right" class="chev"></i></button>
-          <div class="submenu" data-submenu="data">
-            <button class="side-link nav-item sub-link" data-page="search" data-route="/search"><span>Cari Data</span></button>
-            <button class="side-link nav-item sub-link" data-page="barang-masuk" data-route="/barang-masuk"><span>Barang Masuk</span></button>
-            <button class="side-link nav-item sub-link" data-page="barang-keluar" data-route="/barang-keluar"><span>Barang Keluar</span></button>
-          </div>
-        </div>
-        <div class="menu-group has-submenu" data-parent-key="monitoring">
-          <button class="side-link nav-item nav-parent" data-parent="monitoring"><span class="parent-left"><i data-lucide="shield-alert"></i><span>Monitoring Stok</span></span><i data-lucide="chevron-right" class="chev"></i></button>
-          <div class="submenu" data-submenu="monitoring">
-            <button class="side-link nav-item sub-link" data-page="stats" data-route="/accuracy"><span>Akurasi Stok</span></button>
-            <button class="side-link nav-item sub-link" data-page="stok-minus" data-route="/stok-minus"><span>Stok Minus</span></button>
-            <button class="side-link nav-item sub-link" data-page="anomaly" data-route="/anomaly"><span>Anomaly</span></button>
-          </div>
-        </div>
-        <div class="menu-group has-submenu" data-parent-key="analisis">
-          <button class="side-link nav-item nav-parent" data-parent="analisis"><span class="parent-left"><i data-lucide="bar-chart-3"></i><span>Analisis</span></span><i data-lucide="chevron-right" class="chev"></i></button>
-          <div class="submenu" data-submenu="analisis">
-            <button class="side-link nav-item sub-link" data-page="statistics" data-route="/statistics"><span>Statistik</span></button>
-            <button class="side-link nav-item sub-link" data-page="locations" data-route="/locations"><span>Lokasi</span></button>
-          </div>
-        </div>
-        <div class="menu-group has-submenu" data-parent-key="inventory">
-          <button class="side-link nav-item nav-parent" data-parent="inventory"><span class="parent-left"><i data-lucide="boxes"></i><span>Inventory</span></span><i data-lucide="chevron-right" class="chev"></i></button>
-          <div class="submenu" data-submenu="inventory">
-            <button class="side-link nav-item sub-link" data-page="cycle-count" data-route="/cycle-count"><span>Cycle Count</span></button>
-          </div>
-        </div>
-        <button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Pengaturan</span></button>
+        <section class="menu-group"><p class="menu-category">MAIN</p><button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button></section>
+        <section class="menu-group"><p class="menu-category">DATA</p><button class="side-link nav-item" data-page="search" data-route="/search"><i data-lucide="search"></i><span>Cari Data</span></button><button class="side-link nav-item" data-page="barang-masuk" data-route="/barang-masuk"><i data-lucide="arrow-down-to-line"></i><span>Barang Masuk</span></button><button class="side-link nav-item" data-page="barang-keluar" data-route="/barang-keluar"><i data-lucide="arrow-up-from-line"></i><span>Barang Keluar</span></button></section>
+        <section class="menu-group"><p class="menu-category">MONITORING STOK</p><button class="side-link nav-item" data-page="stats" data-route="/accuracy"><i data-lucide="shield-check"></i><span>Akurasi Stok</span></button><button class="side-link nav-item" data-page="stok-minus" data-route="/stok-minus"><i data-lucide="trending-down"></i><span>Stok Minus</span></button><button class="side-link nav-item" data-page="anomaly" data-route="/anomaly"><i data-lucide="alert-triangle"></i><span>Anomaly</span></button></section>
+        <section class="menu-group"><p class="menu-category">ANALISIS</p><button class="side-link nav-item" data-page="statistics" data-route="/statistics"><i data-lucide="bar-chart-3"></i><span>Statistik</span></button><button class="side-link nav-item" data-page="locations" data-route="/locations"><i data-lucide="map-pin"></i><span>Lokasi</span></button></section>
+        <section class="menu-group"><p class="menu-category">INVENTORY</p><button class="side-link nav-item" data-page="cycle-count" data-route="/cycle-count"><i data-lucide="clipboard-check"></i><span>Cycle Count</span></button></section>
+        <section class="menu-group"><p class="menu-category">SISTEM</p><button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Pengaturan</span></button></section>
       </nav>
       </div>
     </div>

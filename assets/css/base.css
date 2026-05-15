@@ -322,6 +322,14 @@ textarea{resize:vertical;min-height:96px}
 }
 .menu-group{display:grid;gap:4px;padding-bottom:10px;border-bottom:1px solid rgba(127,29,29,.08)}
 .menu-group:last-of-type{border-bottom:0}
+.menu-category{
+  margin:4px 10px 2px;
+  font-size:10px;
+  letter-spacing:.12em;
+  font-weight:700;
+  text-transform:uppercase;
+  color:rgba(127,29,29,.55);
+}
 .side-link.nav-item,
 .sidebar-item,
 .sidebar-parent,
@@ -332,34 +340,17 @@ textarea{resize:vertical;min-height:96px}
   overflow:visible;
 }
 .side-link.nav-item{
-  margin-top:0;min-height:42px;padding:9px 11px;border-radius:13px;border:1px solid transparent;background:transparent;
+  margin-top:0;min-height:42px;padding:10px 12px;border-radius:12px;border:1px solid transparent;background:transparent;
   color: rgba(127,29,29,.88);
   justify-content:flex-start;gap:10px;
+  border-left-width:4px;
   transition: background-color .2s ease,border-color .2s ease,color .2s ease;
 }
 .side-link.nav-item i{width:18px;height:18px;flex-shrink:0;opacity:.9}
 .side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .side-link.nav-item:hover{color:#991b1b;background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.12);box-shadow:none;transform:none !important}
-.side-link.nav-item.active{color:#9f1239;background:rgba(251,113,133,.14);border-color:rgba(244,63,94,.24);font-weight:700;box-shadow:none}
-.side-link.nav-item.active i{color:#dc2626}
-.nav-parent,
-.sidebar-parent{display:flex;justify-content:space-between;align-items:center;padding:10px 11px}
-.parent-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-.menu-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chev,
-.chevron{width:15px;height:15px;transition:transform .18s ease,color .18s ease;opacity:.8;color:rgba(127,29,29,.65);margin-left:auto;flex-shrink:0}
-.menu-group.open .chev{transform:rotate(90deg)}
-.submenu{display:flex;flex-direction:column;gap:2px;margin-top:2px;padding-left:0;max-height:0;overflow:hidden;opacity:0;transform:translateY(-3px);transition:max-height .2s ease,opacity .18s ease,transform .18s ease}
-.menu-group.open .submenu{max-height:320px;opacity:1;transform:translateY(0)}
-.sub-link,
-.submenu-item{padding:8px 10px 8px 34px;border-radius:10px;min-height:36px}
-.sub-link span{font-size:13px;display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sub-link.active{font-weight:700}
-.submenu-item:hover{
-  background:rgba(239,68,68,.07);
-  border-color:transparent;
-  box-shadow:none;
-}
+.side-link.nav-item.active{color:#7f1d1d;background:rgba(225,29,72,.1);border-color:rgba(244,63,94,.22);border-left-color:#a21caf;font-weight:700;box-shadow:none}
+.side-link.nav-item.active i{color:#be123c;opacity:1}
 
 .sidebar-item:hover,
 .sidebar-parent:hover,
@@ -389,11 +380,11 @@ body.dark .close-side{color:#f87171}
 body.dark .brand-logo-placeholder .brand-logo{filter:none}
 body.dark .sidebar-status{background:rgba(239,68,68,.12);color:rgba(248,113,113,.95);border:0}
 body.dark .menu-group{border-bottom-color:rgba(148,163,184,.12)}
+body.dark .menu-category{color:rgba(148,163,184,.8)}
 body.dark .side-link.nav-item{color:rgba(226,232,240,.92)}
 body.dark .side-link.nav-item:hover{color:#f8fafc;background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.2)}
-body.dark .side-link.nav-item.active{color:#fecdd3;background:rgba(244,63,94,.22);border-color:rgba(252,165,165,.3);box-shadow:none}
-body.dark .side-link.nav-item.active i{color:#fca5a5}
-body.dark .chev,body.dark .chevron{color:rgba(226,232,240,.7)}
+body.dark .side-link.nav-item.active{color:#ffe4e6;background:rgba(190,24,93,.24);border-color:rgba(244,114,182,.35);border-left-color:#c084fc;box-shadow:none}
+body.dark .side-link.nav-item.active i{color:#fda4af}
 body.dark .sidebar-footer{background:transparent;backdrop-filter:none}
 body.dark .account-card{border:1px solid rgba(148,163,184,.34);background:rgba(15,23,42,.42)}
 body.dark .account-meta strong{color:#f87171}
@@ -405,8 +396,6 @@ body.dark .account-more.icon-btn{color:rgba(226,232,240,.86)}
   .sidebar{width:min(86vw,300px)}
   .side-link.nav-item{min-height:44px;padding:10px 12px}
   .side-link.nav-item span{font-size:13px}
-  .nav-parent,.sidebar-parent{padding:10px 12px}
-  .sub-link,.submenu-item{padding:9px 11px 9px 36px}
 }
 
 
