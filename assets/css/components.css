@@ -23,4 +23,7 @@
 .row-mismatch td{background:rgba(220,38,38,.08)}
 
 .theme-btn.is-syncing i{animation:spin-theme .7s linear infinite;}
+#refreshToggleHeader.is-syncing{cursor:progress;}
+#refreshToggleHeader.is-syncing i{animation:spin-refresh .65s linear infinite;transform-origin:center;}
 @keyframes spin-theme{to{transform:rotate(360deg);}}
+@keyframes spin-refresh{to{transform:rotate(360deg);}}
