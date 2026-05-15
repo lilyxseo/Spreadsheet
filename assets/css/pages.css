@@ -405,3 +405,15 @@ body.dark #locationsFilters #locSkuSearchInput{
   #locationsSummary .metric .k{font-size:12px;letter-spacing:.2px}
   #locationsSummary .metric .v{font-size:clamp(24px,2.1vw,30px);line-height:1.2}
 }
+
+.archive-layout{display:grid;gap:14px}
+.archive-section{display:grid;gap:12px}
+.archive-filter-card{margin-top:4px}
+.archive-table-card{margin-top:8px}
+.archive-filters{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.archive-table-wrap{max-height:520px}
+.archive-table-wrap thead th{position:sticky;top:0;z-index:3;background:#f3e2e5;color:#b31217}
+@media (max-width:899px){
+  .archive-layout{gap:12px}
+  .archive-filters{grid-template-columns:1fr}
+}
