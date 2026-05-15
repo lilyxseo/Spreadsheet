@@ -1,6 +1,6 @@
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
-const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","financeSummary","financeTrendChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime"];
+const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
@@ -35,7 +35,7 @@ function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classLis
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics")return showPage("statistics");if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
@@ -101,7 +101,6 @@ function rerenderCurrentPage({fromCache=false}={}){
 const page=getActivePage();
 if(page==="dashboard")updateDashboard();
 if(page==="stats")updateStats();
-if(page==="statistics")renderFinanceStatistics();
 if(page==="locations")renderLocationsPage();
 if(page==="detail"&&currentSku)showDetail(currentSku);
 if(page==="search"&&String(lastQuery||"").trim()){SEARCH_STATE.filterValue=lastQuery;runSearch();}
@@ -354,79 +353,6 @@ function normalizeDateKey(raw){
   }
   const dt=new Date(s);if(Number.isNaN(dt.getTime()))return "";
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
-}
-const STATISTICS_STATE={startDate:"",endDate:"",sku:"",name:"",type:"all",granularity:"daily",page:1,pageSize:12,debounced:debounce(()=>renderFinanceStatistics(),250)};
-function getWeekKey(dateKey){
-  const dt=new Date(`${dateKey}T00:00:00`);
-  const firstJan=new Date(dt.getFullYear(),0,1);
-  const day=Math.floor((dt-firstJan)/86400000);
-  const week=Math.ceil((day+firstJan.getDay()+1)/7);
-  return `${dt.getFullYear()}-W${String(week).padStart(2,"0")}`;
-}
-function aggregatePeriod(rows,granularity){
-  const map=new Map();
-  rows.forEach(r=>{const key=granularity==="daily"?r.dateKey:(granularity==="weekly"?getWeekKey(r.dateKey):r.dateKey.slice(0,7));if(!map.has(key))map.set(key,{inCount:0,outCount:0,inQty:0,outQty:0});const t=map.get(key);if(r.type==="Masuk"){t.inCount++;t.inQty+=r.qty;}else{t.outCount++;t.outQty+=r.qty;}});
-  return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-}
-function getMovementRows(){
-  const toRows=(sheet,type)=>(DATA[sheet]||[]).map(r=>{const dateKey=normalizeDateKey(getVal(r,["tanggal","date","created at","waktu"]));if(!dateKey)return null;const sku=String(getVal(r,["sku"])||"-").trim();const name=String(getVal(r,["nama barang","nama","item","description"])||"-").trim();return{type,dateKey,qty:parseNumber(getVal(r,["qty"])),sku,name};}).filter(Boolean);
-  return [...toRows("Barang Masuk","Masuk"),...toRows("Barang Keluar","Keluar")];
-}
-function buildStatisticsData(){
-  const allRows=getMovementRows();
-  const f=STATISTICS_STATE;
-  const filtered=allRows.filter(r=>{
-    if(f.startDate&&r.dateKey<f.startDate)return false;
-    if(f.endDate&&r.dateKey>f.endDate)return false;
-    if(f.type!=="all"&&r.type!==f.type)return false;
-    if(f.sku&&!clean(r.sku).includes(clean(f.sku)))return false;
-    if(f.name&&!clean(r.name).includes(clean(f.name)))return false;
-    return true;
-  });
-  const dayMap=new Map();
-  const skuIn=new Map(),skuOut=new Map(),nameMap=new Map();
-  filtered.forEach(r=>{
-    if(!dayMap.has(r.dateKey))dayMap.set(r.dateKey,{date:r.dateKey,inCount:0,outCount:0,inQty:0,outQty:0,total:0});
-    const d=dayMap.get(r.dateKey);
-    if(r.type==="Masuk"){d.inCount++;d.inQty+=r.qty;skuIn.set(r.sku,(skuIn.get(r.sku)||0)+1);}else{d.outCount++;d.outQty+=r.qty;skuOut.set(r.sku,(skuOut.get(r.sku)||0)+1);}
-    d.total+=Math.abs(r.qty);nameMap.set(r.name,(nameMap.get(r.name)||0)+1);
-  });
-  const daily=[...dayMap.values()].sort((a,b)=>a.date.localeCompare(b.date));
-  const top=(map,limit=10)=>[...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0,limit);
-  return{filtered,daily,period:aggregatePeriod(filtered,STATISTICS_STATE.granularity),topIn:top(skuIn),topOut:top(skuOut),topName:top(nameMap),topDate:daily.sort((a,b)=>b.total-a.total).slice(0,10)};
-}
-function bindStatisticsEvents(){
-  if(window.__statsBound)return; window.__statsBound=true;
-  document.addEventListener("input",e=>{if(!e.target?.matches("[data-stats-filter]"))return;const k=e.target.dataset.statsFilter;STATISTICS_STATE[k]=e.target.value;STATISTICS_STATE.page=1;STATISTICS_STATE.debounced();});
-  document.addEventListener("click",e=>{const btn=e.target.closest("[data-stats-action]");if(!btn)return;const action=btn.dataset.statsAction;
-    if(action==="granularity"){STATISTICS_STATE.granularity=btn.dataset.value;renderFinanceStatistics();}
-    if(action==="reset"){Object.assign(STATISTICS_STATE,{startDate:"",endDate:"",sku:"",name:"",type:"all",page:1});renderFinanceStatistics();}
-    if(action==="prev"||action==="next"){const max=Math.max(1,Math.ceil((window.__statsRows?.length||0)/STATISTICS_STATE.pageSize));STATISTICS_STATE.page=action==="prev"?Math.max(1,STATISTICS_STATE.page-1):Math.min(max,STATISTICS_STATE.page+1);renderFinanceStatistics();}
-  });
-}
-function renderFinanceStatistics(){
-  bindStatisticsEvents();
-  const stats=buildStatisticsData();
-  window.__statsRows=stats.daily;
-  const totalIn=stats.filtered.filter(r=>r.type==="Masuk").length,totalOut=stats.filtered.filter(r=>r.type==="Keluar").length;
-  const qtyIn=stats.filtered.filter(r=>r.type==="Masuk").reduce((n,r)=>n+r.qty,0),qtyOut=stats.filtered.filter(r=>r.type==="Keluar").reduce((n,r)=>n+r.qty,0);
-  const active=stats.topDate[0]?.date||"-";
-  const topIn=stats.topIn[0]?.[0]||"-",topOut=stats.topOut[0]?.[0]||"-";
-  financeSummary.innerHTML=[["Total Barang Masuk",totalIn],["Total Barang Keluar",totalOut],["Total Qty Masuk",qtyIn],["Total Qty Keluar",qtyOut],["Selisih Qty",qtyIn-qtyOut],["Hari paling aktif",active],["SKU paling sering masuk",topIn],["SKU paling sering keluar",topOut]].map(c=>`<div class='metric'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
-  const max=Math.max(...stats.period.map(([,v])=>Math.max(v.inQty,v.outQty)),1);
-  const trendRows=stats.period.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.inCount}</td><td>${v.inQty}</td><td>${v.outCount}</td><td>${v.outQty}</td><td><div class='st-bars'><div class='st-bar in' style='width:${(v.inQty/max)*100}%'></div><div class='st-bar out' style='width:${(v.outQty/max)*100}%'></div></div></td></tr>`).join("");
-  const start=(STATISTICS_STATE.page-1)*STATISTICS_STATE.pageSize;const pageRows=stats.daily.slice(start,start+STATISTICS_STATE.pageSize);
-  financeTrendChart.innerHTML=`<div class='stats-filter-box'><input type='date' data-stats-filter='startDate' value='${esc(STATISTICS_STATE.startDate)}'><input type='date' data-stats-filter='endDate' value='${esc(STATISTICS_STATE.endDate)}'><input type='text' placeholder='Filter SKU' data-stats-filter='sku' value='${esc(STATISTICS_STATE.sku)}'><input type='text' placeholder='Filter nama barang' data-stats-filter='name' value='${esc(STATISTICS_STATE.name)}'><select data-stats-filter='type'><option value='all' ${STATISTICS_STATE.type==="all"?"selected":""}>Semua</option><option value='Masuk' ${STATISTICS_STATE.type==="Masuk"?"selected":""}>Masuk</option><option value='Keluar' ${STATISTICS_STATE.type==="Keluar"?"selected":""}>Keluar</option></select><button class='btn-ghost' data-stats-action='reset'>Reset Filter</button></div>
-  <div class='stats-toggle'><button class='btn-ghost ${STATISTICS_STATE.granularity==="daily"?"active":""}' data-stats-action='granularity' data-value='daily'>Harian</button><button class='btn-ghost ${STATISTICS_STATE.granularity==="weekly"?"active":""}' data-stats-action='granularity' data-value='weekly'>Mingguan</button><button class='btn-ghost ${STATISTICS_STATE.granularity==="monthly"?"active":""}' data-stats-action='granularity' data-value='monthly'>Bulanan</button></div>
-  <div class='table-wrap table-wrap-full'><table><thead><tr><th>Periode</th><th>Barang Masuk</th><th>Qty Masuk</th><th>Barang Keluar</th><th>Qty Keluar</th><th>Trend</th></tr></thead><tbody>${trendRows||"<tr><td colspan='6'><div class='state'>Data trend kosong.</div></td></tr>"}</tbody></table></div>
-  <div class='stats-rank-grid'>${[
-    ["Top 10 SKU Barang Masuk",stats.topIn],
-    ["Top 10 SKU Barang Keluar",stats.topOut],
-    ["Top 10 Nama Barang paling aktif",stats.topName],
-    ["Top tanggal movement terbanyak",stats.topDate.map(d=>[d.date,d.total])]
-  ].map(([title,arr])=>`<div class='card'><h4>${title}</h4><ol>${arr.map(i=>`<li><span>${esc(i[0])}</span><strong>${i[1]}</strong></li>`).join("")||"<li>-</li>"}</ol></div>`).join("")}</div>
-  <div class='table-wrap table-wrap-full'><table><thead><tr><th>Tanggal</th><th>Total Barang Masuk</th><th>Qty Masuk</th><th>Total Barang Keluar</th><th>Qty Keluar</th><th>Selisih Qty</th><th>Status</th></tr></thead><tbody>${pageRows.map(d=>{const diff=d.inQty-d.outQty;const st=diff>0?"Masuk lebih besar":(diff<0?"Keluar lebih besar":"Seimbang");return `<tr><td>${d.date}</td><td>${d.inCount}</td><td>${d.inQty}</td><td>${d.outCount}</td><td>${d.outQty}</td><td>${diff}</td><td>${st}</td></tr>`;}).join("")||"<tr><td colspan='7'><div class='state'>Tidak ada ringkasan tanggal.</div></td></tr>"}</tbody></table></div>
-  <div class='mv-pagination'><span>Menampilkan ${stats.daily.length?start+1:0}-${Math.min(start+STATISTICS_STATE.pageSize,stats.daily.length)} dari ${stats.daily.length}</span><div class='row'><button class='btn-ghost' data-stats-action='prev'>Prev</button><button class='btn-ghost' data-stats-action='next'>Next</button></div></div>`;
 }
 function updateSettings(){loadedState.textContent=apiConnected?"Loaded":"Belum loaded";countPerSheet.textContent=SHEETS.map(s=>`${s}: ${(DATA[s]||[]).length}`).join(" | ");updateSettingsDashboard();}
 function formatSyncDate(ts){if(!ts)return "-";return new Date(ts).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"});}
