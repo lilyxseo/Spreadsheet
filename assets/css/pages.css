@@ -285,14 +285,7 @@ body.dark #locationsFilters #locSkuSearchInput{
   #locationsSummary .metric{
     border-radius:14px;
     padding:16px;
-    border:1px solid var(--line);
-    background:linear-gradient(180deg,#fff,#f8fafc);
-    box-shadow:0 6px 16px rgba(15,23,42,.06);
   }
   #locationsSummary .metric .k{font-size:12px;letter-spacing:.2px}
   #locationsSummary .metric .v{font-size:clamp(24px,2.1vw,30px);line-height:1.2}
-}
-body.dark #locationsSummary .metric{
-  background:linear-gradient(180deg,#111827,#0f172a);
-  border-color:#334155;
 }
