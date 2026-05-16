@@ -783,18 +783,23 @@ body.dark .app-icon {
 
 .login-btn:disabled,
 .login-btn.is-loading {
-  opacity: 0.85;
-  filter: brightness(0.9);
-  cursor: wait;
+  opacity: 0.92;
+  filter: brightness(0.85);
+  cursor: not-allowed;
 }
 
 .btn-spinner {
+  display: inline-block;
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.45);
   border-top-color: #ffffff;
   border-radius: 999px;
   animation: login-spin 0.75s linear infinite;
+}
+
+ .btn-spinner[hidden] {
+  display: none;
 }
 
 @keyframes login-spin {
