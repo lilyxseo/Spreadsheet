@@ -1,4 +1,4 @@
-import { ensureAuthSession, bindLogoutButtons, supabase } from "./supabase.js";
+import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase } from "./supabase.js";
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp"];
@@ -18,6 +18,7 @@ let authChecking=true;
 let user=null;
 let mainDataCache=null;
 let mainDataPromise=null;
+let appInitialized=false;
 
 function preloadMainData(){
 if(mainDataPromise)return mainDataPromise;
@@ -61,22 +62,43 @@ if(roleEl)roleEl.textContent=displayRole;
 function renderAuthState(){
 const loadingScreen=document.getElementById("authLoadingScreen");
 const appRoot=document.getElementById("appRoot");
+const loginView=document.getElementById("loginView");
 if(authChecking){
 if(loadingScreen){loadingScreen.hidden=false;loadingScreen.style.display="flex";loadingScreen.style.pointerEvents="auto";}
 if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
+if(loginView){loginView.hidden=true;loginView.style.display="none";}
 return;
 }
-if(!user){location.replace("/login.html");return;}
+if(!user){
+if(loadingScreen){loadingScreen.hidden=true;loadingScreen.style.display="none";loadingScreen.style.pointerEvents="none";}
+if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
+if(loginView){loginView.hidden=false;loginView.style.display="grid";}
+return;
+}
 if(loadingScreen){
 loadingScreen.hidden=true;
 loadingScreen.style.display="none";
 loadingScreen.style.pointerEvents="none";
 }
+if(loginView){loginView.hidden=true;loginView.style.display="none";}
 if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
+}
+async function resolveEmailFromLoginInput(loginInput){
+const trimmedInput=String(loginInput||"").trim();
+if(!trimmedInput)return "";
+if(trimmedInput.includes("@"))return trimmedInput;
+const {data,error}=await supabase.from("users").select("email").eq("username",trimmedInput).limit(2);
+if(error)throw error;
+if(!Array.isArray(data)||data.length===0)throw new Error("Username tidak ditemukan");
+if(data.length>1)throw new Error("Username tidak unique. Hubungi admin.");
+const email=data[0]?.email?.trim();
+if(!email)throw new Error("Email user tidak valid");
+return email;
 }
 
 window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
+applyTheme();
 renderAuthState();
 preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));
 try{
@@ -96,14 +118,30 @@ user=null;
 authChecking=false;
 renderAuthState();
 }
-if(!user)return;
+if(!user){bindLoginView();if(window.lucide)lucide.createIcons();return;}
 const profile=await fetchUserProfile(user.id);
 console.log("Profile public.users:",profile);
 if(!profile){
 console.warn("Profile tidak ditemukan / tidak bisa diakses. Pastikan RLS public.users mengizinkan select untuk user id sendiri.");
 }
 renderSidebarProfile(profile,user);
-applyTheme();bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+if(!appInitialized){
+bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;
+}
+await initAppData();
+if(window.lucide)lucide.createIcons();
+});
+window.addEventListener("auth:logout",()=>{user=null;authChecking=false;renderAuthState();bindLoginView();});
+
+function bindLoginView(){
+const form=document.getElementById("loginForm"),emailEl=document.getElementById("email"),passwordEl=document.getElementById("password"),loginBtn=document.getElementById("loginBtn"),errorMsg=document.getElementById("formError"),errorText=errorMsg?.querySelector("span"),togglePasswordBtn=document.getElementById("togglePassword");
+if(!form||form.dataset.bound==="1")return;
+const showError=(message)=>{if(!errorMsg||!errorText)return;errorText.textContent=message||"";errorMsg.hidden=!message;errorMsg.style.display=message?"flex":"none";if(window.lucide)lucide.createIcons();};
+const setLoading=(isLoading)=>{loginBtn.disabled=isLoading;loginBtn.classList.toggle("is-loading",isLoading);loginBtn.querySelector("span").textContent=isLoading?"Signing In...":"Login";};
+togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const email=await resolveEmailFromLoginInput(emailEl.value.trim());const {error}=await loginWithEmailPassword(email,passwordEl.value);if(error)throw error;const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;authChecking=false;renderAuthState();if(user){const profile=await fetchUserProfile(user.id);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
+form.dataset.bound="1";
+}
 function bindNav(){
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{navigateTo(btn.dataset.route);closeSidebarMobile();}));
 }
