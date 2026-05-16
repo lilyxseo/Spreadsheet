@@ -390,3 +390,21 @@ body.dark {
   box-shadow: none !important;
   background: transparent;
 }
+
+.auth-view[hidden] { display: none !important; }
+
+.form-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 1.35;
+  background: color-mix(in srgb, #16a34a 12%, var(--panel, #ffffff) 88%);
+  border: 1px solid color-mix(in srgb, #16a34a 34%, var(--line, #e5e7eb) 66%);
+  color: color-mix(in srgb, #166534 84%, var(--text, #111827) 16%);
+}
+.form-success[hidden] { display: none !important; }
