@@ -1,4 +1,4 @@
-import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase } from "./supabase.js";
+import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, signupWithEmailPassword, getCurrentUser } from "./firebase-auth.js";
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp"];
@@ -56,11 +56,8 @@ console.timeEnd("preloadData");
 return window.mainDataPromise;
 }
 
-async function fetchUserProfile(authUserId){
-if(!authUserId)return null;
-const {data,error}=await supabase.from("users").select("full_name, role, username, email").eq("id",authUserId).maybeSingle();
-if(error){console.error("Gagal mengambil profile user",error);return null;}
-return data||null;
+async function fetchUserProfile(){
+return null;
 }
 
 function renderSidebarProfile(profile,authUser){
@@ -106,14 +103,8 @@ if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
 async function resolveEmailFromLoginInput(loginInput){
 const trimmedInput=String(loginInput||"").trim();
 if(!trimmedInput)return "";
-if(trimmedInput.includes("@"))return trimmedInput;
-const {data,error}=await supabase.from("users").select("email").eq("username",trimmedInput).limit(2);
-if(error)throw error;
-if(!Array.isArray(data)||data.length===0)throw new Error("Username tidak ditemukan");
-if(data.length>1)throw new Error("Username tidak unique. Hubungi admin.");
-const email=data[0]?.email?.trim();
-if(!email)throw new Error("Email user tidak valid");
-return email;
+if(!trimmedInput.includes("@"))throw new Error("Gunakan email untuk login Firebase.");
+return trimmedInput;
 }
 
 window.addEventListener("DOMContentLoaded",async ()=>{
@@ -121,15 +112,9 @@ authChecking=true;
 applyTheme();
 renderAuthState();
 try{
-const session=await ensureAuthSession();
-if(session){
-const {data:userData,error:userErr}=await supabase.auth.getUser();
-if(userErr)throw userErr;
-user=userData?.user||null;
-console.log("Auth user id:",user?.id||null);
-}else{
-user=null;
-}
+const currentUser=await ensureAuthSession();
+user=currentUser||null;
+console.log("Auth user id:",user?.uid||null);
 }catch(err){
 console.error("Auth session check failed",err);
 user=null;
@@ -162,12 +147,12 @@ const setLoading=(isLoading)=>{const labelEl=loginBtn.querySelector("span");cons
 const setSignupLoading=(isLoading)=>{const labelEl=signupBtn?.querySelector("span");const spinnerEl=signupBtn?.querySelector(".btn-spinner");if(!signupBtn)return;signupBtn.disabled=isLoading;signupBtn.classList.toggle("is-loading",isLoading);if(labelEl)labelEl.textContent=isLoading?"Memproses":"Sign Up";if(spinnerEl)spinnerEl.hidden=!isLoading;};
 const showAuthMode=(mode)=>{const isSignup=mode==="signup";if(signupForm)signupForm.hidden=!isSignup;form.hidden=isSignup;if(googleLoginBtn)googleLoginBtn.hidden=isSignup;if(divider)divider.hidden=isSignup;if(rememberRow)rememberRow.hidden=isSignup;if(loginLine)loginLine.hidden=!isSignup;if(signupLink?.parentElement)signupLink.parentElement.hidden=isSignup;showError("");showSignupError("");if(window.lucide)lucide.createIcons();};
 const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if(msg.includes("email")&&(msg.includes("already")||msg.includes("registered")||msg.includes("exists")||msg.includes("duplicate")))return "Email sudah dipakai.";if(msg.includes("username")&&(msg.includes("exists")||msg.includes("duplicate")||msg.includes("already")))return "Username sudah dipakai.";if(err?.code==="23505"&&String(err?.details||"").toLowerCase().includes("username"))return "Username sudah dipakai.";if(err?.code==="23505")return "Email sudah dipakai.";return err?.message||"Sign up gagal. Coba lagi.";};
+const mapSignupError=(err)=>{const code=String(err?.code||"").toLowerCase();if(code==="auth/email-already-in-use")return "Email sudah dipakai.";if(code==="auth/weak-password")return "Password terlalu lemah (minimal 6 karakter).";return err?.message||"Sign up gagal. Coba lagi.";};
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const email=await resolveEmailFromLoginInput(emailEl.value.trim());const {error}=await loginWithEmailPassword(email,passwordEl.value);if(error)throw error;const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;authChecking=false;renderAuthState();if(user){const profile=await fetchUserProfile(user.id);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
-signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"User"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const email=await resolveEmailFromLoginInput(emailEl.value.trim());await loginWithEmailPassword(email,passwordEl.value);user=await getCurrentUser();authChecking=false;renderAuthState();if(user){const profile=await fetchUserProfile(user.uid);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
+signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password.length<6)return showSignupError("Password minimal 6 karakter.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{await signupWithEmailPassword(email,password);signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
 form.dataset.bound="1";
 }
