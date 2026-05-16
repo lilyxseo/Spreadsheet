@@ -393,3 +393,100 @@ body.dark {
   box-shadow: none !important;
   background: transparent;
 }
+.login-head {
+  display: block;
+  margin-bottom: 28px;
+}
+
+.login-head-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-brand-text {
+  min-width: 0;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--login-title);
+}
+
+.login-subtitle {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--login-subtitle);
+}
+
+.app-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  margin: 0;
+}
+
+.btn-social {
+  border: 1px solid var(--login-social-border);
+  background: var(--login-social-bg);
+  color: var(--login-social-text);
+}
+
+.google-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.input-wrap {
+  border: 1px solid var(--login-input-border);
+  background: var(--login-input-bg);
+}
+
+.input-wrap:hover,
+.input-wrap:focus-within {
+  border-color: var(--primary-2);
+}
+
+.input-wrap .form-input {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.password-toggle,
+.password-toggle:hover,
+.password-toggle:focus,
+.password-toggle:active {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.remember-checkbox {
+  appearance: auto !important;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--primary-2);
+}
+
+body.dark .login-title,
+body.dark .form-field label,
+body.dark .remember-row {
+  color: var(--login-text);
+}
+
+body.dark .login-subtitle {
+  color: var(--login-subtitle);
+}
