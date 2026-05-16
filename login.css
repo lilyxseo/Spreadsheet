@@ -145,16 +145,22 @@ body {
   right: 16px;
   top: 50%;
   transform: translateY(-50%);
+  min-height: 0;
   padding: 0;
   background: transparent;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   color: var(--login-eye);
   width: 20px;
   height: 20px;
   line-height: 1;
+  font-size: 0;
   display: grid;
   place-items: center;
   outline: none;
+  cursor: pointer;
+  transition: none;
 }
 .password-toggle i { width: 16px; height: 16px; }
 .password-toggle:hover { color: var(--login-eye); background: transparent; transform: translateY(-50%); }
