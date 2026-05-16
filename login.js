@@ -17,11 +17,16 @@ function showError(message) {
   }
   errorText.textContent = message;
   errorMsg.hidden = false;
+  errorMsg.style.display = "flex";
+  const icon = errorMsg.querySelector("i");
+  if (icon) icon.setAttribute("data-lucide", "alert-circle");
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function clearError() {
   if (!errorMsg || !errorText) return;
   errorMsg.hidden = true;
+  errorMsg.style.display = "none";
   errorText.textContent = '';
 }
 

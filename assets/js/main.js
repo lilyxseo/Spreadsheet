@@ -29,10 +29,16 @@ if(appRoot)appRoot.hidden=false;
 window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 renderAuthState();
+try{
 const session=await ensureAuthSession();
-authChecking=false;
 user=session?.user||null;
+}catch(err){
+console.error("Auth session check failed",err);
+user=null;
+}finally{
+authChecking=false;
 renderAuthState();
+}
 if(!user)return;
 applyTheme();bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){

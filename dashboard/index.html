@@ -7,9 +7,14 @@
 </head>
 <body>
   <script type="module">
-    import { ensureAuthSession } from '../assets/js/supabase.js';
-    const session = await ensureAuthSession();
-    if (session) location.replace('/');
+    import { getSession } from '../assets/js/supabase.js';
+
+    const session = await getSession();
+    if (!session) {
+      location.replace('/login.html');
+    } else {
+      location.replace('/');
+    }
   </script>
 </body>
 </html>
