@@ -42,6 +42,7 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
+  justify-self: center;
   padding: 32px 20px;
 }
 
@@ -95,22 +96,24 @@ body {
 .form-field label { display: block; margin-bottom: 8px; font-size: 0.88rem; font-weight: 600; color: var(--login-label); }
 
 .input-wrap {
-  position: relative;
-  display: flex; align-items: center; width: 100%; min-height: 48px;
-  border: 1px solid var(--login-input-border); border-radius: 12px;
-  background: var(--login-input-bg); transition: border-color .2s ease, box-shadow .2s ease;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--login-input-border);
+  border-radius: 12px;
+  background: var(--login-input-bg);
+  transition: border-color .2s ease, box-shadow .2s ease;
   overflow: hidden;
 }
 .input-wrap:focus-within { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
 .input-icon {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
   width: 18px;
   height: 18px;
   color: var(--login-input-icon);
   pointer-events: none;
+  justify-self: center;
 }
 .form-field input {
   width: 100%;
@@ -130,21 +133,16 @@ body {
   outline: none;
   border-radius: 0;
   color: var(--login-input-text);
-  padding-left: 48px;
-  padding-right: 16px;
+  padding: 0 16px 0 0;
 }
 
-.password-wrap .form-input {
-  padding-right: 48px;
+.password-wrap {
+  grid-template-columns: 48px 1fr 48px;
 }
 .input-wrap .form-input::placeholder { color: var(--login-input-placeholder); }
 .input-wrap .form-input:focus { outline: none; box-shadow: none; }
 
 .password-toggle {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
   min-height: 0;
   padding: 0;
   background: transparent;
@@ -152,8 +150,8 @@ body {
   border-radius: 0;
   box-shadow: none;
   color: var(--login-eye);
-  width: 20px;
-  height: 20px;
+  width: 48px;
+  height: 48px;
   line-height: 1;
   font-size: 0;
   display: grid;
@@ -163,8 +161,8 @@ body {
   transition: none;
 }
 .password-toggle i { width: 16px; height: 16px; }
-.password-toggle:hover { color: var(--login-eye); background: transparent; transform: translateY(-50%); }
-.password-toggle:active { transform: translateY(-50%); }
+.password-toggle:hover { color: var(--login-eye); background: transparent; }
+.password-toggle:active { transform: none; }
 .password-toggle[aria-pressed="true"] { color: var(--login-eye); background: transparent; }
 
 .remember-row { margin-top: 4px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: var(--login-remember); font-size: 0.88rem; cursor: pointer; }
