@@ -6,15 +6,8 @@
   <title>Dashboard - Mini WMS</title>
 </head>
 <body>
-  <script type="module">
-    import { getSession } from '../assets/js/supabase.js';
-
-    const session = await getSession();
-    if (!session) {
-      location.replace('/login.html');
-    } else {
-      location.replace('/');
-    }
+  <script>
+    location.replace('/');
   </script>
 </body>
 </html>
