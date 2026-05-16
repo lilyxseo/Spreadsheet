@@ -96,9 +96,10 @@ body {
 
 .input-wrap {
   position: relative;
-  display: flex; align-items: center; min-height: 48px;
+  display: flex; align-items: center; width: 100%; min-height: 48px;
   border: 1px solid var(--login-input-border); border-radius: 12px;
   background: var(--login-input-bg); transition: border-color .2s ease, box-shadow .2s ease;
+  overflow: hidden;
 }
 .input-wrap:focus-within { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
 .input-icon {
@@ -117,15 +118,23 @@ body {
   box-sizing: border-box;
 }
 .input-wrap .form-input {
+  display: block;
   width: 100%;
+  min-width: 0;
   background: transparent;
   border: 0;
+  appearance: none;
+  -webkit-appearance: none;
   height: 48px;
   box-shadow: none;
   outline: none;
-  border-radius: 12px;
+  border-radius: 0;
   color: var(--login-input-text);
   padding-left: 48px;
+  padding-right: 16px;
+}
+
+.password-wrap .form-input {
   padding-right: 48px;
 }
 .input-wrap .form-input::placeholder { color: var(--login-input-placeholder); }
@@ -145,6 +154,7 @@ body {
   line-height: 1;
   display: grid;
   place-items: center;
+  outline: none;
 }
 .password-toggle i { width: 16px; height: 16px; }
 .password-toggle:hover { color: var(--login-eye); background: transparent; transform: translateY(-50%); }
@@ -169,7 +179,7 @@ body {
 .login-btn.is-loading { opacity: 0.85; cursor: wait; }
 
 .form-error { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--login-error-border); background: var(--login-error-bg); color: var(--login-error-text); display: none; align-items: center; gap: 8px; font-size: 0.87rem; }
-.form-error:not([hidden]):has(span:not(:empty)) { display: flex; }
+.form-error:not([hidden]) { display: flex; }
 .form-error[hidden] { display: none !important; }
 .form-error i { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
 
