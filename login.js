@@ -62,6 +62,7 @@ function setPasswordVisibility(isVisible) {
 async function init() {
   clearError();
   setPasswordVisibility(false);
+  togglePasswordBtn?.setAttribute('type', 'button');
   if (window.lucide) window.lucide.createIcons();
   const existingSession = await getSession();
   if (existingSession) {
@@ -71,7 +72,8 @@ async function init() {
 
   googleLoginBtn?.addEventListener('click', handleGoogleLogin);
 
-  togglePasswordBtn.addEventListener('click', () => {
+  togglePasswordBtn.addEventListener('click', (e) => {
+    e.preventDefault();
     const nextVisible = passwordEl.type === 'password';
     setPasswordVisibility(nextVisible);
   });
