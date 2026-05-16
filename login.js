@@ -9,6 +9,30 @@ const errorText = errorMsg?.querySelector('span');
 const togglePasswordBtn = document.getElementById('togglePassword');
 const googleLoginBtn = document.getElementById('googleLoginBtn');
 
+async function resolveEmailFromLoginInput(loginInput) {
+  const trimmedInput = String(loginInput || '').trim();
+  if (!trimmedInput) return '';
+  if (trimmedInput.includes('@')) return trimmedInput;
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('email')
+    .eq('username', trimmedInput)
+    .limit(2);
+
+  if (error) throw error;
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('Username tidak ditemukan');
+  }
+  if (data.length > 1) {
+    throw new Error('Username tidak unique. Hubungi admin.');
+  }
+
+  const email = data[0]?.email?.trim();
+  if (!email) throw new Error('Email user tidak valid');
+  return email;
+}
+
 function showError(message) {
   if (!errorMsg || !errorText) return;
   if (!message) {
@@ -63,6 +87,11 @@ function setPasswordVisibility() {
 
 async function init() {
   clearError();
+  const loginLabel = document.querySelector('label[for="email"]');
+  if (loginLabel) loginLabel.textContent = 'Email atau Username';
+  emailEl.type = 'text';
+  emailEl.setAttribute('autocomplete', 'username');
+  emailEl.setAttribute('placeholder', 'Masukkan email atau username');
   passwordEl.type = 'password';
   togglePasswordBtn.innerHTML = '<i data-lucide="eye-off" aria-hidden="true"></i>';
   togglePasswordBtn?.setAttribute('type', 'button');
@@ -92,8 +121,9 @@ async function init() {
     setLoading(true);
 
     try {
-      const email = emailEl.value.trim();
+      const loginInput = emailEl.value.trim();
       const password = passwordEl.value;
+      const email = await resolveEmailFromLoginInput(loginInput);
       const { error } = await loginWithEmailPassword(email, password);
       if (error) throw error;
       location.replace('/index.html');
