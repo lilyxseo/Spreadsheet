@@ -614,6 +614,7 @@ body.dark .remember-checkbox {
   margin-top: 2px;
 }
 body.dark .app-icon {
+  background: #dedede;
   border-color: color-mix(in srgb, var(--primary-2) 28%, var(--line) 72%);
 
 @media (max-width: 640px) {
