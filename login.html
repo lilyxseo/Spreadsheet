@@ -53,7 +53,7 @@
           </p>
           <div class="form-field">
             <label for="email">Email Address</label>
-            <div class="input-wrap">
+            <div class="input-wrap" role="group" aria-labelledby="email">
               <i data-lucide="mail" class="input-icon" aria-hidden="true"></i>
               <input class="form-input" id="email" name="email" type="email" autocomplete="email" required placeholder="you@company.com" />
             </div>
@@ -61,7 +61,7 @@
 
           <div class="form-field">
             <label for="password">Password</label>
-            <div class="input-wrap password-wrap">
+            <div class="input-wrap password-wrap" role="group" aria-labelledby="password">
               <i data-lucide="lock" class="input-icon" aria-hidden="true"></i>
               <input class="form-input" id="password" name="password" type="password" autocomplete="current-password" required placeholder="Masukkan password" />
               <button id="togglePassword" class="password-toggle" type="button" aria-label="Tampilkan password" aria-pressed="false">
