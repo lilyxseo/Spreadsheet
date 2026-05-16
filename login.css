@@ -200,3 +200,71 @@
     height: 62px;
   }
 }
+.login-form-panel {
+  background: var(--login-card-bg);
+  border: 1px solid var(--login-card-border);
+  border-radius: 20px;
+  padding: 36px 28px;
+  box-shadow: var(--login-card-shadow);
+}
+
+.input-wrap {
+  border: 1px solid var(--login-input-border);
+  background: var(--login-input-bg);
+  border-radius: 10px;
+}
+
+.input-wrap:focus-within {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+}
+
+.input-icon {
+  color: var(--login-input-icon);
+}
+
+.form-input {
+  color: var(--login-input-text);
+}
+
+.form-input::placeholder {
+  color: var(--login-input-placeholder);
+}
+
+.toggle-password {
+  color: var(--login-eye);
+}
+
+.btn-social {
+  border: 1px solid var(--login-social-border);
+  background: var(--login-social-bg);
+  color: var(--login-social-text);
+}
+
+.divider::before,
+.divider::after {
+  background: var(--login-divider-line);
+}
+
+.divider {
+  color: var(--login-divider);
+}
+
+.app-icon {
+  background: var(--login-icon-bg);
+  border: 1px solid var(--login-icon-border);
+  box-shadow: var(--login-icon-shadow);
+}
+
+.remember-checkbox {
+  accent-color: #dc2626;
+}
+
+.signup-line {
+  color: var(--login-signup-text);
+}
+
+.signup-line a {
+  color: var(--login-signup-link);
+  font-weight: 600;
+}
