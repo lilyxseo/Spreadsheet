@@ -19,6 +19,12 @@ let user=null;
 window.mainDataCache=window.mainDataCache||null;
 window.mainDataPromise=window.mainDataPromise||null;
 let appInitialized=false;
+function setAppAuthState(state){
+const appRoot=document.getElementById("appRoot");
+if(!appRoot)return;
+appRoot.classList.remove("is-auth-checking","is-logged-out","is-logged-in");
+appRoot.classList.add(state);
+}
 
 function preloadMainData(){
 if(window.mainDataCache){
@@ -75,12 +81,14 @@ const loadingScreen=document.getElementById("authLoadingScreen");
 const appRoot=document.getElementById("appRoot");
 const loginView=document.getElementById("loginView");
 if(authChecking){
+setAppAuthState("is-auth-checking");
 if(loadingScreen){loadingScreen.hidden=false;loadingScreen.style.display="flex";loadingScreen.style.pointerEvents="auto";}
 if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
 if(loginView){loginView.hidden=true;loginView.style.display="none";}
 return;
 }
 if(!user){
+setAppAuthState("is-logged-out");
 if(loadingScreen){loadingScreen.hidden=true;loadingScreen.style.display="none";loadingScreen.style.pointerEvents="none";}
 if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
 if(loginView){loginView.hidden=false;loginView.style.display="grid";}
@@ -91,6 +99,7 @@ loadingScreen.hidden=true;
 loadingScreen.style.display="none";
 loadingScreen.style.pointerEvents="none";
 }
+setAppAuthState("is-logged-in");
 if(loginView){loginView.hidden=true;loginView.style.display="none";}
 if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
 }
@@ -111,7 +120,6 @@ window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 applyTheme();
 renderAuthState();
-preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));
 try{
 const session=await ensureAuthSession();
 if(session){
@@ -139,6 +147,7 @@ renderSidebarProfile(profile,user);
 if(!appInitialized){
 bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;
 }
+preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));
 await initAppData();
 if(window.lucide)lucide.createIcons();
 });
@@ -150,7 +159,7 @@ if(!form||form.dataset.bound==="1")return;
 const showError=(message)=>{if(!errorMsg||!errorText)return;errorText.textContent=message||"";errorMsg.hidden=!message;errorMsg.style.display=message?"flex":"none";if(window.lucide)lucide.createIcons();};
 const setLoading=(isLoading)=>{loginBtn.disabled=isLoading;loginBtn.classList.toggle("is-loading",isLoading);loginBtn.querySelector("span").textContent=isLoading?"Signing In...":"Login";};
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const email=await resolveEmailFromLoginInput(emailEl.value.trim());const {error}=await loginWithEmailPassword(email,passwordEl.value);if(error)throw error;const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;authChecking=false;renderAuthState();if(user){const profile=await fetchUserProfile(user.id);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const email=await resolveEmailFromLoginInput(emailEl.value.trim());const {error}=await loginWithEmailPassword(email,passwordEl.value);if(error)throw error;const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;authChecking=false;renderAuthState();if(user){const profile=await fetchUserProfile(user.id);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 form.dataset.bound="1";
 }
 function bindNav(){
