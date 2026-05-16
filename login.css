@@ -95,13 +95,21 @@
 
 .btn-social {
   width: 100%;
-  height: 46px;
-  border-radius: 10px;
+  min-height: 46px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  padding: 0 16px;
   font-weight: 600;
+  transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.btn-social-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .divider {
@@ -300,6 +308,16 @@
   color: var(--login-social-text);
 }
 
+.btn-social:hover {
+  background: var(--login-social-hover-bg);
+  border-color: var(--login-social-hover-border);
+}
+
+.btn-social:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-2, #dc2626) 16%, transparent);
+}
+
 .divider::before,
 .divider::after {
   background: var(--login-divider-line);
@@ -349,10 +367,11 @@
 }
 
 
-.btn-social svg {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+.btn-social .google-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  display: block;
 }
 
 
