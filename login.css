@@ -17,7 +17,7 @@
   --login-input-bg: var(--panel, #ffffff);
   --login-input-border: color-mix(in srgb, var(--line, #d1d5db) 86%, var(--panel, #ffffff) 14%);
   --login-input-text: var(--text, #111827);
-  --login-input-placeholder: color-mix(in srgb, var(--muted, #9ca3af) 92%, var(--panel, #ffffff) 8%);
+  --login-input-placeholder: color-mix(in srgb, #6b7280 72%, var(--panel, #ffffff) 28%);
   --login-input-icon: color-mix(in srgb, var(--muted, #9ca3af) 88%, var(--text, #111827) 12%);
   --login-eye: color-mix(in srgb, var(--muted, #6b7280) 82%, var(--text, #111827) 18%);
   --login-remember: color-mix(in srgb, var(--text, #4b5563) 76%, var(--muted, #6b7280) 24%);
