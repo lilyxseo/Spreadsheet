@@ -42,20 +42,19 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  justify-self: center;
-  padding: 32px 20px;
+  padding: 24px 16px;
 }
 
 .login-shell {
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
 }
 
 .login-form-panel {
   background: var(--login-card-bg);
   border: 1px solid var(--login-card-border);
   border-radius: 20px;
-  padding: 24px;
+  padding: 26px;
   box-shadow: var(--login-card-shadow);
 }
 
@@ -96,8 +95,7 @@ body {
 .form-field label { display: block; margin-bottom: 8px; font-size: 0.88rem; font-weight: 600; color: var(--login-label); }
 
 .input-wrap {
-  display: grid;
-  grid-template-columns: 48px 1fr;
+  display: flex;
   align-items: center;
   width: 100%;
   min-height: 48px;
@@ -113,7 +111,9 @@ body {
   height: 18px;
   color: var(--login-input-icon);
   pointer-events: none;
-  justify-self: center;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
 }
 .form-field input {
   width: 100%;
@@ -122,7 +122,7 @@ body {
 }
 .input-wrap .form-input {
   display: block;
-  width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
   background: transparent;
   border: 0;
@@ -133,12 +133,10 @@ body {
   outline: none;
   border-radius: 0;
   color: var(--login-input-text);
-  padding: 0 16px 0 0;
+  padding: 0 14px 0 0;
 }
 
-.password-wrap {
-  grid-template-columns: 48px 1fr 48px;
-}
+.password-wrap .form-input { padding-right: 8px; }
 .input-wrap .form-input::placeholder { color: var(--login-input-placeholder); }
 .input-wrap .form-input:focus { outline: none; box-shadow: none; }
 
@@ -150,6 +148,7 @@ body {
   border-radius: 0;
   box-shadow: none;
   color: var(--login-eye);
+  flex: 0 0 48px;
   width: 48px;
   height: 48px;
   line-height: 1;
@@ -168,14 +167,15 @@ body {
 .remember-row { margin-top: 4px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: var(--login-remember); font-size: 0.88rem; cursor: pointer; }
 .remember-checkbox {
   appearance: auto;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  max-width: 18px;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
   padding: 0;
   margin: 0;
-  border-radius: 4px;
+  border-radius: 2px;
   accent-color: var(--primary-color);
+  vertical-align: middle;
 }
 
 .login-btn { width: 100%; min-height: 48px; border-radius: 12px; border: 0; background: #dc2626; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .18s ease, filter .18s ease; }
@@ -229,7 +229,7 @@ body {
 }
 
 @media (max-width: 640px) {
-    .login-page { padding: 16px; }
-    .login-shell { width: calc(100% - 32px); max-width: 420px; }
-  .login-form-panel { padding: 24px; border-radius: 16px; }
+  .login-page { padding: 16px; }
+  .login-shell { width: 100%; max-width: 360px; }
+  .login-form-panel { padding: 22px; border-radius: 16px; }
 }
