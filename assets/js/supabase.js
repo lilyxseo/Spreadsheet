@@ -11,10 +11,6 @@ export async function getSession() {
 
 export async function ensureAuthSession() {
   const session = await getSession();
-  if (!session && !location.pathname.endsWith('/login.html')) {
-    location.replace('/login.html');
-    return null;
-  }
   return session;
 }
 
@@ -23,8 +19,7 @@ export async function loginWithEmailPassword(email, password) {
 }
 
 export async function logout() {
-  await supabase.auth.signOut();
-  location.replace('/login.html');
+  return supabase.auth.signOut();
 }
 
 export function bindLogoutButtons(selector = '[data-logout-btn]') {
@@ -33,6 +28,7 @@ export function bindLogoutButtons(selector = '[data-logout-btn]') {
       btn.disabled = true;
       try {
         await logout();
+        window.dispatchEvent(new CustomEvent('auth:logout'));
       } finally {
         btn.disabled = false;
       }
