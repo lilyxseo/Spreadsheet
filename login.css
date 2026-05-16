@@ -127,7 +127,7 @@
   border-radius: 10px;
   display: flex;
   align-items: center;
-  overflow: visible;
+  overflow: hidden;
   transition: border-color .18s ease, box-shadow .18s ease;
 }
 
@@ -142,7 +142,7 @@
 .form-input {
   flex: 1;
   height: 100%;
-  border: 0;
+  border: none;
   outline: 0;
   background: transparent;
   font-size: 14px;
@@ -153,12 +153,13 @@
 .password-toggle {
   width: 46px;
   height: 46px;
-  border: 0;
+  border: none;
   background: transparent;
   display: grid;
   place-items: center;
   flex: 0 0 46px;
   padding: 0;
+  box-shadow: none;
 }
 
 .password-toggle svg,
@@ -291,6 +292,16 @@
   color: var(--login-eye);
 }
 
+.password-toggle:hover,
+.password-toggle:focus,
+.password-toggle:focus-visible,
+.password-toggle:active {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
 .btn-social {
   border: 1px solid var(--login-social-border);
   background: var(--login-social-bg);
@@ -316,14 +327,17 @@
   accent-color: var(--primary-2);
 }
 
-.login-title,
-.form-field label,
-.remember-row {
-  color: var(--text);
+.login-title {
+  color: var(--login-title);
 }
 
 .login-subtitle {
-  color: var(--text);
+  color: var(--login-subtitle);
+}
+
+.form-field label,
+.remember-row {
+  color: var(--login-label);
 }
 
 .login-btn {
