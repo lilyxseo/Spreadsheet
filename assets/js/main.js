@@ -82,6 +82,9 @@ document.getElementById("recentSearch")?.addEventListener("click",e=>{const btn=
 anomalyType?.addEventListener("change",()=>renderAnomalyPage());anomalySearch?.addEventListener("input",debounce(()=>renderAnomalyPage(),180));
 bindArchiveEvents();
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(btn){const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){toggleColumnMenu(mode);return;}return;}
+const accountToggle=e.target.closest("[data-account-menu-toggle]"),accountMenu=document.querySelector("[data-account-menu]");
+if(accountToggle){if(accountMenu)accountMenu.hidden=!accountMenu.hidden;return;}
+if(accountMenu&&!e.target.closest(".account-card"))accountMenu.hidden=true;
 const closeBtn=e.target.closest("[data-mv-columns-close]");if(closeBtn){closeColumnMenus();return;}
 if(!e.target.closest(".mv-column-dropdown-wrap"))closeColumnMenus();
 const toggle=e.target.closest("[data-col-filter-toggle]");if(toggle){const mode=toggle.dataset.mode,col=toggle.dataset.col;document.querySelectorAll(`[data-col-filter-menu][data-mode="${mode}"]`).forEach(menu=>menu.hidden=true);const menu=document.querySelector(`[data-col-filter-menu][data-mode="${mode}"][data-col="${col}"]`);if(menu){menu.hidden=!menu.hidden;const st=TABLE_STATE[mode];if(st)st.openFilterCol=menu.hidden?"":col;if(!menu.hidden)positionColumnFilterMenu(menu);}return;}

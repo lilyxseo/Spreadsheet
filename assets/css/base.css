@@ -380,6 +380,19 @@ textarea{resize:vertical;min-height:96px}
 .account-meta small{font-size:10px;color:rgba(127,29,29,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .account-status{font-size:9px;color:rgba(127,29,29,.56)}
 .account-more.icon-btn{width:26px;height:26px;border-radius:8px;background:transparent;border-color:transparent;color:rgba(127,29,29,.72)}
+.account-card{position:relative}
+.account-menu{
+  position:absolute;right:8px;bottom:44px;z-index:50;
+  min-width:130px;padding:6px;border-radius:10px;
+  background:#fff;border:1px solid rgba(239,68,68,.16);box-shadow:0 10px 20px rgba(0,0,0,.12);
+}
+.account-menu-item{
+  width:100%;display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border:0;border-radius:8px;background:transparent;
+  color:#991b1b;font-weight:600;cursor:pointer;
+}
+.account-menu-item i{width:16px;height:16px}
+.account-menu-item:hover{background:rgba(239,68,68,.08)}
 
 body.dark .sidebar{
   background: linear-gradient(180deg, #0f172a 0%, #0b1a34 60%, #081224 100%);
@@ -405,6 +418,9 @@ body.dark .account-meta strong{color:#f87171}
 body.dark .account-meta small{color:rgba(226,232,240,.82)}
 body.dark .account-status{color:rgba(148,163,184,.82)}
 body.dark .account-more.icon-btn{color:rgba(226,232,240,.86)}
+body.dark .account-menu{background:#0f172a;border-color:rgba(148,163,184,.34)}
+body.dark .account-menu-item{color:#fda4af}
+body.dark .account-menu-item:hover{background:rgba(148,163,184,.14)}
 
 @media (max-width: 899px){
   .sidebar{width:min(86vw,300px)}
