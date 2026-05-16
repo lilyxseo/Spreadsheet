@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - Mini WMS</title>
+</head>
+<body>
+  <script type="module">
+    import { ensureAuthSession } from '../assets/js/supabase.js';
+    const session = await ensureAuthSession();
+    if (session) location.replace('/');
+  </script>
+</body>
+</html>
