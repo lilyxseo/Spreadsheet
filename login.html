@@ -3,59 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Mini WMS</title>
+  <title>Sign In - WMS</title>
   <link rel="stylesheet" href="./assets/css/base.css" />
-  <style>
-    body{min-height:100vh;display:grid;place-items:center;padding:24px;background:#0b1020;color:#f3f4f6}
-    .card{width:100%;max-width:420px;background:#111827;border:1px solid #374151;border-radius:12px;padding:20px}
-    .field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
-    input{padding:10px 12px;border-radius:8px;border:1px solid #374151;background:#0f172a;color:#fff}
-    button{margin-top:16px;width:100%;padding:10px 12px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;cursor:pointer}
-    button[disabled]{opacity:.7;cursor:wait}
-    .error{margin-top:10px;color:#fca5a5;min-height:20px}
-  </style>
+  <link rel="stylesheet" href="./login.css" />
 </head>
 <body>
-  <form class="card" id="loginForm">
-    <h1>Login WMS</h1>
-    <p>Masuk dengan akun Supabase.</p>
-    <label class="field">Email<input id="email" type="email" required autocomplete="email" /></label>
-    <label class="field">Password<input id="password" type="password" required autocomplete="current-password" /></label>
-    <button id="loginBtn" type="submit">Login</button>
-    <div id="errorMsg" class="error"></div>
-  </form>
+  <main class="login-page">
+    <section class="login-card" aria-labelledby="loginTitle">
+      <header class="login-header">
+        <div class="app-icon" aria-hidden="true">
+          <i data-lucide="warehouse"></i>
+        </div>
+        <h1 id="loginTitle">Sign In</h1>
+        <p>Masuk ke Dashboard WMS</p>
+      </header>
 
-  <script type="module">
-    import { loginWithEmailPassword, getSession } from './assets/js/supabase.js';
+      <form id="loginForm" class="login-form" novalidate>
+        <div class="field-group">
+          <label for="email">Email Address</label>
+          <div class="input-wrap">
+            <i data-lucide="mail"></i>
+            <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@company.com" />
+          </div>
+        </div>
 
-    const form = document.getElementById('loginForm');
-    const emailEl = document.getElementById('email');
-    const passwordEl = document.getElementById('password');
-    const loginBtn = document.getElementById('loginBtn');
-    const errorMsg = document.getElementById('errorMsg');
+        <div class="field-group">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <i data-lucide="lock"></i>
+            <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••" />
+            <button type="button" class="toggle-password" id="togglePassword" aria-label="Tampilkan password" aria-pressed="false">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+        </div>
 
-    const existingSession = await getSession();
-    if (existingSession) location.replace('/dashboard/index.html');
+        <button id="loginBtn" class="sign-btn" type="submit">
+          <span>Sign In</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorMsg.textContent = '';
-      loginBtn.disabled = true;
-      loginBtn.textContent = 'Loading...';
+        <p id="errorMsg" class="error-message" role="status" aria-live="polite" hidden>
+          <i data-lucide="alert-circle"></i>
+          <span></span>
+        </p>
+      </form>
 
-      try {
-        const email = emailEl.value.trim();
-        const password = passwordEl.value;
-        const { error } = await loginWithEmailPassword(email, password);
-        if (error) throw error;
-        location.replace('/dashboard/index.html');
-      } catch (err) {
-        errorMsg.textContent = err?.message || 'Login gagal. Coba lagi.';
-      } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-      }
-    });
-  </script>
+      <footer class="login-footer">
+        <span>Don't have an account?</span>
+        <a href="#" aria-disabled="true">Sign Up</a>
+      </footer>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module" src="./login.js"></script>
 </body>
 </html>
