@@ -20,10 +20,18 @@ let user=null;
 function renderAuthState(){
 const loadingScreen=document.getElementById("authLoadingScreen");
 const appRoot=document.getElementById("appRoot");
-if(authChecking){if(loadingScreen)loadingScreen.hidden=false;if(appRoot)appRoot.hidden=true;return;}
+if(authChecking){
+if(loadingScreen){loadingScreen.hidden=false;loadingScreen.style.display="flex";loadingScreen.style.pointerEvents="auto";}
+if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
+return;
+}
 if(!user){location.replace("/login.html");return;}
-if(loadingScreen)loadingScreen.hidden=true;
-if(appRoot)appRoot.hidden=false;
+if(loadingScreen){
+loadingScreen.hidden=true;
+loadingScreen.style.display="none";
+loadingScreen.style.pointerEvents="none";
+}
+if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
 }
 
 window.addEventListener("DOMContentLoaded",async ()=>{
