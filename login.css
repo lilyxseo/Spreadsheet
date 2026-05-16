@@ -14,12 +14,34 @@ body {
   padding: 24px 16px;
 }
 
-.login-card {
-  width: min(100%, 420px);
+.login-shell {
+  width: min(100%, 1000px);
+  display: grid;
+  grid-template-columns: 1fr minmax(360px, 430px);
+  gap: 0;
   background: var(--panel);
   border: 1px solid color-mix(in srgb, var(--line) 78%, white);
-  border-radius: 24px;
+  border-radius: 28px;
   box-shadow: 0 16px 44px rgba(15, 23, 42, 0.12), 0 3px 10px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.login-banner {
+  margin: 14px;
+  margin-right: 0;
+  border-radius: 22px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--primary) 82%, #ff8a8a) 0%, var(--primary) 100%);
+  display: grid;
+  place-items: center;
+}
+
+.banner-placeholder {
+  font-size: .9rem;
+  color: color-mix(in srgb, white 86%, var(--primary));
+  letter-spacing: .02em;
+}
+
+.login-card {
   padding: 30px 24px;
 }
 
@@ -94,14 +116,31 @@ body {
   display:flex; align-items:flex-start; gap:8px;
 }
 .form-error i { width: 16px; height: 16px; color: var(--primary); flex-shrink: 0; margin-top: 1px; }
-.signup-link { margin: 20px 0 0; text-align: center; color: var(--muted); font-size: .88rem; }
-.signup-link a { color: var(--primary); text-decoration: none; pointer-events: none; opacity: .6; }
+
+@media (max-width: 860px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+    width: min(100%, 460px);
+  }
+
+  .login-banner {
+    display: none;
+  }
+
+  .login-card {
+    padding: 24px 20px;
+  }
+}
 
 @media (max-width: 480px) {
   .login-page { padding: 16px; }
-  .login-card {
-    width: min(100%, 100%);
+
+  .login-shell {
+    width: 100%;
     border-radius: 20px;
+  }
+
+  .login-card {
     padding: 20px;
   }
 }
