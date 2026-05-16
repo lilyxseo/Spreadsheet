@@ -582,9 +582,59 @@ window.renderAnomalyPage=renderAnomalyPage;window.changeAnomalyPage=changeAnomal
 
 const CYCLE_KEY="cycle_count_history_v2";
 const CYCLE_STATE={search:"",searchInput:"",searchTimer:null,selectedSku:null,selectedLocations:new Set(),actualRows:[]};
-function getPrintCcHistory(){
-const rows=DATA["Print CC"]||[];
-return rows.map(r=>({tanggal:getVal(r,["tanggal","date"]).trim(),lokasi:getVal(r,["lokasi","location"]).trim()||"-",sku:getVal(r,["sku"]).trim(),nama:getVal(r,["nama barang","nama","item","description"]).trim()||"-",bulky:parseNumber(getVal(r,["bulky","stok bulky","qty bulky"])),retail:parseNumber(getVal(r,["retail","stok retail","qty retail"])),aktualBulky:parseNumber(getVal(r,["aktual bulky","qty aktual bulky"])),aktualRetail:parseNumber(getVal(r,["aktual retail","qty aktual retail"])),catatan:getVal(r,["catatan","note"]).trim()})).filter(r=>r.sku);
+const CYCLE_REQUIRED_HEADERS=["tanggal","lokasi","sku","nama barang"];
+const CYCLE_HEADER_ALIAS={tanggal:["tanggal","date"],lokasi:["lokasi","location"],sku:["sku"],nama:["nama barang","nama","item","description"],bulky:["bulky","stok bulky","qty bulky"],retail:["retail","stok retail","qty retail"],aktualBulky:["aktual bulky","qty aktual bulky"],aktualRetail:["aktual retail","qty aktual retail"],catatan:["catatan","note"]};
+let CYCLE_PRINT_CC_REMOTE={rows:[],error:"",loaded:false};
+function normalizeCycleCell(v){return String(v??"").trim();}
+function detectPrintCcHeaderRow(values){
+for(let i=0;i<values.length;i++){
+const cols=(values[i]||[]).map(normalizeCycleCell).map(clean);
+if(CYCLE_REQUIRED_HEADERS.every(h=>cols.includes(h)))return i;
+}
+return -1;
+}
+function findHeaderIndexByAlias(headerRow,aliases){
+const normalized=(headerRow||[]).map(c=>clean(normalizeCycleCell(c)));
+for(const alias of aliases){const idx=normalized.indexOf(clean(alias));if(idx>=0)return idx;}
+return -1;
+}
+function parsePrintCcRows(rawValues){
+const values=Array.isArray(rawValues)?rawValues:[];
+const headerIndex=detectPrintCcHeaderRow(values);
+console.debug("[CycleCount][PrintCC] raw rows:",values.length);
+console.debug("[CycleCount][PrintCC] detected header row:",headerIndex>=0?headerIndex+1:"not found");
+if(headerIndex<0)return {rows:[],error:"Header Print CC tidak ditemukan. Pastikan ada kolom: Tanggal, Lokasi, SKU, Nama Barang."};
+const header=values[headerIndex]||[];
+const idxTanggal=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.tanggal),idxLokasi=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.lokasi),idxSku=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.sku),idxNama=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.nama),idxBulky=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.bulky),idxRetail=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.retail),idxAktualBulky=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.aktualBulky),idxAktualRetail=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.aktualRetail),idxCatatan=findHeaderIndexByAlias(header,CYCLE_HEADER_ALIAS.catatan);
+if([idxTanggal,idxLokasi,idxSku,idxNama].some(i=>i<0))return {rows:[],error:"Struktur header Print CC tidak valid. Kolom wajib: Tanggal, Lokasi, SKU, Nama Barang."};
+const rows=[];
+for(let r=headerIndex+1;r<values.length;r++){
+const row=values[r]||[];
+if(!row.length||row.every(c=>!normalizeCycleCell(c)))continue;
+const sku=normalizeCycleCell(row[idxSku]);
+if(!sku)continue;
+rows.push({tanggal:normalizeCycleCell(row[idxTanggal]),lokasi:normalizeCycleCell(row[idxLokasi])||"-",sku,nama:normalizeCycleCell(row[idxNama])||"-",bulky:parseNumber(idxBulky>=0?row[idxBulky]:""),retail:parseNumber(idxRetail>=0?row[idxRetail]:""),aktualBulky:parseNumber(idxAktualBulky>=0?row[idxAktualBulky]:""),aktualRetail:parseNumber(idxAktualRetail>=0?row[idxAktualRetail]:""),catatan:normalizeCycleCell(idxCatatan>=0?row[idxCatatan]:"")});
+}
+console.debug("[CycleCount][PrintCC] parsed rows:",rows.length);
+return {rows,error:""};
+}
+async function fetchPrintCcHistoryRemote(){
+const range="Print CC!A1:ZZ";
+const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+const res=await fetch(url);
+const json=await res.json();
+if(!res.ok||json.error)throw new Error((json.error&&json.error.message)||res.statusText||"Gagal memuat sheet Print CC");
+return parsePrintCcRows(json.values||[]);
+}
+async function ensureCyclePrintCcLoaded(){
+if(CYCLE_PRINT_CC_REMOTE.loaded)return;
+try{
+const parsed=await fetchPrintCcHistoryRemote();
+CYCLE_PRINT_CC_REMOTE={rows:parsed.rows,error:parsed.error||"",loaded:true};
+}catch(err){
+CYCLE_PRINT_CC_REMOTE={rows:[],error:`Gagal fetch Print CC: ${err.message||"unknown error"}`,loaded:true};
+console.error("[CycleCount][PrintCC] fetch error:",err);
+}
 }
 function getCycleCache(){try{return JSON.parse(localStorage.getItem(CYCLE_KEY)||"[]");}catch(_){return [];}}
 function saveCycleCache(rows){localStorage.setItem(CYCLE_KEY,JSON.stringify(rows));toast("Draft cycle count tersimpan","success");}
@@ -593,11 +643,12 @@ function getCycleSourceRows(){return (DATA["Kartu Stock"]||[]).map(r=>({sku:getV
 function getSkuCandidates(query){const q=clean(query);if(!q)return[];const bySku=new Map();getCycleSourceRows().forEach(r=>{const k=clean(r.sku);if(!k)return;if(!bySku.has(k))bySku.set(k,{sku:r.sku,nama:r.nama});});return [...bySku.values()].filter(r=>clean(`${r.sku} ${r.nama}`).includes(q)).slice(0,30);}
 function debounceCycleSearch(v){CYCLE_STATE.searchInput=v;clearTimeout(CYCLE_STATE.searchTimer);CYCLE_STATE.searchTimer=setTimeout(()=>{CYCLE_STATE.search=v;renderCycleCountPage();},250);}
 function getRowsBySku(sku){return getCycleSourceRows().filter(r=>clean(r.sku)===clean(sku));}
-function buildHistoryRows(){const sheetRows=getPrintCcHistory();const cacheRows=getCycleCache();return [...cacheRows,...sheetRows].sort((a,b)=>new Date(b.tanggal||0)-new Date(a.tanggal||0));}
+function buildHistoryRows(){const sheetRows=CYCLE_PRINT_CC_REMOTE.rows||[];const cacheRows=getCycleCache();return [...cacheRows,...sheetRows].sort((a,b)=>new Date(b.tanggal||0)-new Date(a.tanggal||0));}
 function diffBadge(system,actual){const diff=(Number(actual)||0)-(Number(system)||0);if(diff===0)return "<span class='badge b-ok'>Sesuai</span>";return `<span class='badge ${diff>0?'b-low':'b-high'}'>Selisih ${diff>0?'+':''}${diff}</span>`;}
-function renderCycleCountPage(){if(!cycleCountApp)return;const history=buildHistoryRows();const candidates=getSkuCandidates(CYCLE_STATE.search);const selectedRows=CYCLE_STATE.selectedSku?getRowsBySku(CYCLE_STATE.selectedSku):[];const picked=selectedRows.filter(r=>CYCLE_STATE.selectedLocations.has(`${r.sku}__${r.lokasi}`));const formRows=CYCLE_STATE.actualRows.length?CYCLE_STATE.actualRows:picked.map(r=>({...r,aktualBulky:r.bulky,aktualRetail:r.retail,catatan:""}));
-cycleCountApp.innerHTML=`<div class='card cc-card'><div class='section-header'><h4>History Cycle Count</h4><div class='row'><button class='btn-ghost' onclick='ccClearCache()'>Clear Draft/Cache</button><button class='btn-primary' onclick='ccOpenModal()'>Mulai Cycle Count</button></div></div><div class='table-wrap'><table><thead><tr><th>Tanggal</th><th>Lokasi</th><th>SKU</th><th>Nama Barang</th><th>Bulky</th><th>Retail</th><th>Aktual Bulky</th><th>Aktual Retail</th><th>Catatan</th><th>Selisih</th></tr></thead><tbody>${history.map(r=>`<tr><td>${esc(r.tanggal||"-")}</td><td>${esc(r.lokasi)}</td><td>${esc(r.sku)}</td><td>${esc(r.nama)}</td><td>${r.bulky}</td><td>${r.retail}</td><td>${r.aktualBulky}</td><td>${r.aktualRetail}</td><td>${esc(r.catatan||"-")}</td><td>${diffBadge(r.bulky+r.retail,r.aktualBulky+r.aktualRetail)}</td></tr>`).join('')||"<tr><td colspan='10'><div class='state'>Belum ada history cycle count.</div></td></tr>"}</tbody></table></div></div>${CYCLE_STATE.open?`<div class='cc-modal'><div class='cc-modal-card'><div class='section-header'><h4>Tambah Data Cycle Count</h4><button class='btn-ghost' onclick='ccCloseModal()'>Tutup</button></div><div class='mv-toolbar'><input id='ccSearch' class='search-lg' placeholder='Cari SKU / Nama Barang' value='${esc(CYCLE_STATE.searchInput)}'></div>${!CYCLE_STATE.search?"<div class='state'>Ketik SKU untuk mulai.</div>":candidates.length?`<div class='table-wrap'><table><thead><tr><th>SKU</th><th>Nama Barang</th><th>Aksi</th></tr></thead><tbody>${candidates.map(c=>`<tr><td>${highlight(c.sku,CYCLE_STATE.search)}</td><td>${highlight(c.nama,CYCLE_STATE.search)}</td><td><button class='btn-ghost' onclick="ccPickSku('${encAttr(c.sku)}')">Pilih</button></td></tr>`).join('')}</tbody></table></div>`:"<div class='state'>SKU tidak ditemukan.</div>"}${selectedRows.length>1?`<div class='cc-chip'>${selectedRows.map(r=>{const key=`${r.sku}__${r.lokasi}`;const on=CYCLE_STATE.selectedLocations.has(key);return `<label><input type='checkbox' ${on?'checked':''} onchange="ccToggleLokasi('${encAttr(r.sku)}','${encAttr(r.lokasi)}')"> ${esc(r.lokasi)}</label>`;}).join('')}</div>`:''}${formRows.length?`<div class='table-wrap'><table><thead><tr><th>Lokasi</th><th>SKU</th><th>Nama Barang</th><th>Stok Bulky</th><th>Stok Retail</th><th>Input Aktual Bulky</th><th>Input Aktual Retail</th><th>Catatan</th></tr></thead><tbody>${formRows.map((r,i)=>`<tr><td>${esc(r.lokasi)}</td><td>${esc(r.sku)}</td><td>${esc(r.nama)}</td><td>${r.bulky}</td><td>${r.retail}</td><td><input type='number' data-cc='ab' data-idx='${i}' value='${r.aktualBulky}'></td><td><input type='number' data-cc='ar' data-idx='${i}' value='${r.aktualRetail}'></td><td><input data-cc='ct' data-idx='${i}' value='${esc(r.catatan||"")}'></td></tr>`).join('')}</tbody></table></div><div class='row'><button class='btn-primary' onclick='ccSaveNewData()'>Simpan</button></div>`:''}</div></div>`:''}`;
+function renderCycleCountPage(){if(!cycleCountApp)return;const history=buildHistoryRows();const candidates=getSkuCandidates(CYCLE_STATE.search);const selectedRows=CYCLE_STATE.selectedSku?getRowsBySku(CYCLE_STATE.selectedSku):[];const picked=selectedRows.filter(r=>CYCLE_STATE.selectedLocations.has(`${r.sku}__${r.lokasi}`));const formRows=CYCLE_STATE.actualRows.length?CYCLE_STATE.actualRows:picked.map(r=>({...r,aktualBulky:r.bulky,aktualRetail:r.retail,catatan:""}));const fetchError=CYCLE_PRINT_CC_REMOTE.error?`<div class='state' style='margin-bottom:10px;color:#b91c1c;'>${esc(CYCLE_PRINT_CC_REMOTE.error)}</div>`:"";
+cycleCountApp.innerHTML=`<div class='card cc-card'><div class='section-header'><h4>History Cycle Count</h4><div class='row'><button class='btn-ghost' onclick='ccClearCache()'>Clear Draft/Cache</button><button class='btn-primary' onclick='ccOpenModal()'>Mulai Cycle Count</button></div></div>${fetchError}<div class='table-wrap'><table><thead><tr><th>Tanggal</th><th>Lokasi</th><th>SKU</th><th>Nama Barang</th><th>Bulky</th><th>Retail</th><th>Aktual Bulky</th><th>Aktual Retail</th><th>Catatan</th><th>Selisih</th></tr></thead><tbody>${history.map(r=>`<tr><td>${esc(r.tanggal||"-")}</td><td>${esc(r.lokasi)}</td><td>${esc(r.sku)}</td><td>${esc(r.nama)}</td><td>${r.bulky}</td><td>${r.retail}</td><td>${r.aktualBulky}</td><td>${r.aktualRetail}</td><td>${esc(r.catatan||"-")}</td><td>${diffBadge(r.bulky+r.retail,r.aktualBulky+r.aktualRetail)}</td></tr>`).join('')||"<tr><td colspan='10'><div class='state'>Belum ada history cycle count.</div></td></tr>"}</tbody></table></div></div>${CYCLE_STATE.open?`<div class='cc-modal'><div class='cc-modal-card'><div class='section-header'><h4>Tambah Data Cycle Count</h4><button class='btn-ghost' onclick='ccCloseModal()'>Tutup</button></div><div class='mv-toolbar'><input id='ccSearch' class='search-lg' placeholder='Cari SKU / Nama Barang' value='${esc(CYCLE_STATE.searchInput)}'></div>${!CYCLE_STATE.search?"<div class='state'>Ketik SKU untuk mulai.</div>":candidates.length?`<div class='table-wrap'><table><thead><tr><th>SKU</th><th>Nama Barang</th><th>Aksi</th></tr></thead><tbody>${candidates.map(c=>`<tr><td>${highlight(c.sku,CYCLE_STATE.search)}</td><td>${highlight(c.nama,CYCLE_STATE.search)}</td><td><button class='btn-ghost' onclick="ccPickSku('${encAttr(c.sku)}')">Pilih</button></td></tr>`).join('')}</tbody></table></div>`:"<div class='state'>SKU tidak ditemukan.</div>"}${selectedRows.length>1?`<div class='cc-chip'>${selectedRows.map(r=>{const key=`${r.sku}__${r.lokasi}`;const on=CYCLE_STATE.selectedLocations.has(key);return `<label><input type='checkbox' ${on?'checked':''} onchange="ccToggleLokasi('${encAttr(r.sku)}','${encAttr(r.lokasi)}')"> ${esc(r.lokasi)}</label>`;}).join('')}</div>`:''}${formRows.length?`<div class='table-wrap'><table><thead><tr><th>Lokasi</th><th>SKU</th><th>Nama Barang</th><th>Stok Bulky</th><th>Stok Retail</th><th>Input Aktual Bulky</th><th>Input Aktual Retail</th><th>Catatan</th></tr></thead><tbody>${formRows.map((r,i)=>`<tr><td>${esc(r.lokasi)}</td><td>${esc(r.sku)}</td><td>${esc(r.nama)}</td><td>${r.bulky}</td><td>${r.retail}</td><td><input type='number' data-cc='ab' data-idx='${i}' value='${r.aktualBulky}'></td><td><input type='number' data-cc='ar' data-idx='${i}' value='${r.aktualRetail}'></td><td><input data-cc='ct' data-idx='${i}' value='${esc(r.catatan||"")}'></td></tr>`).join('')}</tbody></table></div><div class='row'><button class='btn-primary' onclick='ccSaveNewData()'>Simpan</button></div>`:''}</div></div>`:''}`;
 }
+document.addEventListener("DOMContentLoaded",()=>{ensureCyclePrintCcLoaded().finally(()=>renderCycleCountPage());});
 window.ccOpenModal=()=>{CYCLE_STATE.open=true;renderCycleCountPage();};
 window.ccCloseModal=()=>{CYCLE_STATE.open=false;CYCLE_STATE.actualRows=[];CYCLE_STATE.selectedSku=null;CYCLE_STATE.selectedLocations.clear();renderCycleCountPage();};
 window.ccPickSku=(skuEnc)=>{const sku=decodeURIComponent(skuEnc);CYCLE_STATE.selectedSku=sku;const rows=getRowsBySku(sku);CYCLE_STATE.selectedLocations=new Set(rows.map(r=>`${r.sku}__${r.lokasi}`));CYCLE_STATE.actualRows=[];renderCycleCountPage();};
