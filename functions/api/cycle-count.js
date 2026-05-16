@@ -127,7 +127,22 @@ function validateItem(item, index) {
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.GOOGLE_SHEET_ID || !env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
+    const SHEET_MAP = {
+      cycle_count: env.SHEET_ID_INVENTORY,
+    };
+    const sheetId = SHEET_MAP["cycle_count"];
+
+    if (!sheetId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Sheet tidak ditemukan",
+        }),
+        { status: 400 }
+      );
+    }
+
+    if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
       return json({ success: false, message: "Environment variable belum lengkap" }, 500);
     }
 
@@ -159,7 +174,7 @@ export async function onRequestPost({ request, env }) {
     ]);
 
     const url =
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_SHEET_ID}` +
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}` +
       `/values/${encodeURIComponent(SHEET_RANGE)}:append?valueInputOption=USER_ENTERED`;
 
     const sheetRes = await fetch(url, {
