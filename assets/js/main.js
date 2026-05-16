@@ -1,5 +1,6 @@
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
+import { supabase } from "./supabase.js";
 const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
@@ -12,8 +13,69 @@ const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+let authUser=null;
+const PUBLIC_ROUTES = new Set(["/login"]);
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
-window.addEventListener("DOMContentLoaded",()=>{applyTheme();bindNav();bindEvents();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+
+
+async function guardRoute(path = location.pathname){
+  const { data, error } = await supabase.auth.getSession();
+  if(error){ console.error(error); }
+  authUser = data?.session?.user || null;
+  toggleProtectedUI(!!authUser);
+  if(!authUser && !PUBLIC_ROUTES.has(path)){
+    if(path !== '/login') history.replaceState({},'', '/login');
+    showPage('login');
+    return false;
+  }
+  if(authUser && path === '/login'){
+    history.replaceState({},'', '/');
+    showPage('dashboard');
+    return false;
+  }
+  return true;
+}
+
+function toggleProtectedUI(isAuthed){
+  document.querySelector('.sidebar')?.classList.toggle('hidden', !isAuthed);
+  document.querySelector('.header')?.classList.toggle('hidden', !isAuthed);
+}
+
+function setupAuthListener(){
+  supabase.auth.onAuthStateChange((_event, session)=>{
+    authUser = session?.user || null;
+    toggleProtectedUI(!!authUser);
+    if(!authUser && location.pathname !== '/login'){
+      navigateTo('/login');
+      showPage('login');
+    }
+    if(authUser && location.pathname === '/login'){
+      navigateTo('/');
+      showPage('dashboard');
+    }
+  });
+}
+
+async function handleLoginSubmit(e){
+  e.preventDefault();
+  const form = e.currentTarget;
+  const email = form.querySelector('[name="email"]')?.value?.trim();
+  const password = form.querySelector('[name="password"]')?.value || '';
+  const errEl = document.getElementById('loginError');
+  const btn = form.querySelector('button[type="submit"]');
+  errEl.textContent='';
+  btn.disabled=true; btn.dataset.label = btn.textContent; btn.textContent='Loading...';
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  btn.disabled=false; btn.textContent = btn.dataset.label || 'Login';
+  if(error){ errEl.textContent = error.message; return; }
+  navigateTo('/');
+}
+
+async function handleLogout(){
+  await supabase.auth.signOut();
+  navigateTo('/login');
+}
+window.addEventListener("DOMContentLoaded",async ()=>{applyTheme();bindNav();bindEvents();setupSidebar();setupAuthListener();document.getElementById("loginForm")?.addEventListener("submit",handleLoginSubmit);document.getElementById("logoutBtn")?.addEventListener("click",handleLogout);renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;const allowed=await guardRoute(location.pathname);if(allowed&&location.pathname!=="/login"){initAppData();renderRecentHistory();routeFromPath(location.pathname);}else{showPage("login");}if(window.lucide)lucide.createIcons();window.addEventListener("popstate",async ()=>{const ok=await guardRoute(location.pathname);if(ok)routeFromPath(location.pathname);});});
 function bindNav(){
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{navigateTo(btn.dataset.route);closeSidebarMobile();}));
 }
@@ -32,11 +94,11 @@ const toggle=e.target.closest("[data-col-filter-toggle]");if(toggle){const mode=
 if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const st=TABLE_STATE[mode];ensureColumnFilterState(mode);if(e.target.matches("[data-col-filter-clear]")){st.columnFilters[col]=[];st.openFilterCol=col;st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}if(e.target.matches("[data-col-filter-all]")){st.columnFilters[col]=getUniqueOptions(applyTableFilters(st.rows,mode,col),col);st.openFilterCol=col;st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}return;}
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);});}
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
+function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`)?.classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(page==="login")return;if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(path==="/login")return showPage("login");if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
