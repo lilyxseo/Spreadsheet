@@ -261,7 +261,7 @@
 }
 
 .input-wrap {
-  border: 1px solid var(--login-input-border);
+  border: 1px solid #ff9b9b;
   background: var(--login-input-bg);
   border-radius: 10px;
 }
