@@ -347,6 +347,8 @@ body.dark .insight-card strong{color:#5eead4}
 #page-cycle-count .cc-card{min-width:0}
 .cc-grid{display:grid;grid-template-columns:320px 1fr;gap:16px}
 .cc-card{border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.cc-section{margin-top:18px}
+#page-cycle-count .cc-section:first-child{margin-top:0}
 .cc-session-list{display:flex;flex-direction:column;gap:8px;max-height:70vh;overflow:auto}
 .cc-session{border:1px solid var(--line,#e7e7e7);background:var(--card,#fff);border-radius:12px;padding:10px;text-align:left}
 .cc-session.active{border-color:#2563eb}
@@ -369,11 +371,22 @@ body.dark .insight-card strong{color:#5eead4}
   overflow:auto;
   -webkit-overflow-scrolling:touch;
 }
+#page-cycle-count .cc-table-wrap{max-height:360px}
+#page-cycle-count .cc-search-wrap,
+#page-cycle-count .cc-session-wrap{max-height:340px}
+#page-cycle-count .cc-table-wrap thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:var(--card,#fff);
+}
 #page-cycle-count .table-wrap table{min-width:760px}
 #page-cycle-count th,
 #page-cycle-count td{
   white-space:nowrap;
   font-size:12px;
+  padding:12px 14px;
+  line-height:1.55;
 }
 
 @media (max-width:900px){
