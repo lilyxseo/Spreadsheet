@@ -9,6 +9,15 @@ const errorText = errorMsg?.querySelector('span');
 const togglePasswordBtn = document.getElementById('togglePassword');
 const googleLoginBtn = document.getElementById('googleLoginBtn');
 
+function applyStoredTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  const isDark = savedTheme === 'dark';
+  document.documentElement.classList.toggle('dark', isDark);
+  document.body.classList.toggle('dark', isDark);
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+}
+
 async function resolveEmailFromLoginInput(loginInput) {
   const trimmedInput = String(loginInput || '').trim();
   if (!trimmedInput) return '';
@@ -86,6 +95,7 @@ function setPasswordVisibility() {
 }
 
 async function init() {
+  applyStoredTheme();
   clearError();
   const loginLabel = document.querySelector('label[for="email"]');
   if (loginLabel) loginLabel.textContent = 'Email atau Username';

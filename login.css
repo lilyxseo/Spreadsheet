@@ -141,7 +141,7 @@ body {
 
 
 
-:where(body.dark-mode, body.dark, html.dark, [data-theme="dark"]) {
+:where(html.dark, body.dark, html[data-theme="dark"], body[data-theme="dark"], [data-theme="dark"]) {
   --login-bg: var(--bg, #0b1220);
   --login-text: var(--text, #e5e7eb);
   --login-card-bg: color-mix(in srgb, var(--panel, #111827) 94%, #0f172a 6%);
