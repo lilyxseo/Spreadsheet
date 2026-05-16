@@ -13,7 +13,29 @@
   <link rel="icon" href="./assets/goto.svg" sizes="any" />
 </head>
 <body>
-<div id="authLoadingScreen" aria-live="polite" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg,#0b1220);color:var(--text,#fff);"><div class="subtitle">Memeriksa sesi...</div></div>
+<div id="authLoadingScreen" class="auth-loading-screen" aria-live="polite">
+  <div class="app-shell-skeleton" aria-hidden="true">
+    <aside class="app-shell-skeleton__sidebar">
+      <div class="skel skel-block skel-logo"></div>
+      <div class="skel skel-line"></div>
+      <div class="skel skel-line"></div>
+      <div class="skel skel-line"></div>
+      <div class="skel skel-line"></div>
+    </aside>
+    <section class="app-shell-skeleton__content">
+      <header class="app-shell-skeleton__header">
+        <div class="skel skel-chip"></div>
+        <div class="skel skel-chip"></div>
+      </header>
+      <main class="app-shell-skeleton__main">
+        <div class="app-shell-skeleton__cards">
+          <div class="skel skel-card"></div><div class="skel skel-card"></div><div class="skel skel-card"></div><div class="skel skel-card"></div>
+        </div>
+        <div class="skel skel-table"></div>
+      </main>
+    </section>
+  </div>
+</div>
 <main class="login-page" id="loginView" hidden>
   <section class="login-shell" aria-labelledby="loginTitle">
     <div class="login-form-panel">

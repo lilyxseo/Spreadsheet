@@ -562,3 +562,20 @@ body.dark,
 .metric-delta--neutral{color:var(--muted)}
 body.dark .metric-delta--in{color:#4ade80}
 body.dark .metric-delta--out{color:#f87171}
+
+.auth-loading-screen{min-height:100vh;display:none;background:var(--bg);color:var(--text)}
+.app-shell-skeleton{display:grid;grid-template-columns:260px 1fr;min-height:100vh;width:100%}
+.app-shell-skeleton__sidebar{border-right:1px solid var(--line);padding:20px;display:grid;align-content:start;gap:14px;background:var(--panel)}
+.app-shell-skeleton__content{display:grid;grid-template-rows:auto 1fr;background:var(--bg)}
+.app-shell-skeleton__header{display:flex;justify-content:flex-end;gap:12px;border-bottom:1px solid var(--line);padding:16px;background:var(--panel)}
+.app-shell-skeleton__main{padding:18px;display:grid;gap:14px}
+.app-shell-skeleton__cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.skel{border-radius:12px;background:linear-gradient(100deg,color-mix(in srgb,var(--panel-soft) 76%, #fff) 20%,color-mix(in srgb,var(--line) 55%, #fff) 50%,color-mix(in srgb,var(--panel-soft) 76%, #fff) 80%);background-size:220% 100%;animation:skeleton-shimmer 1.35s ease-in-out infinite}
+.skel-logo{height:56px}
+.skel-line{height:40px}
+.skel-chip{height:34px;width:90px}
+.skel-card{height:120px}
+.skel-table{height:320px}
+@keyframes skeleton-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+body.dark .skel{background:linear-gradient(100deg,#18223b 20%,#26324f 50%,#18223b 80%);background-size:220% 100%}
+@media (max-width:899px){.app-shell-skeleton{grid-template-columns:1fr}.app-shell-skeleton__sidebar{display:none}.app-shell-skeleton__cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
