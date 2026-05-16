@@ -96,10 +96,11 @@ body {
 
 .input-wrap {
   position: relative;
-  display: flex; align-items: center; width: 100%; min-height: 48px;
+  display: block;
+  width: 100%;
+  min-height: 48px;
   border: 1px solid var(--login-input-border); border-radius: 12px;
   background: var(--login-input-bg); transition: border-color .2s ease, box-shadow .2s ease;
-  overflow: hidden;
 }
 .input-wrap:focus-within { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
 .input-icon {
@@ -112,7 +113,7 @@ body {
   color: var(--login-input-icon);
   pointer-events: none;
 }
-.form-field input {
+.input-wrap input {
   width: 100%;
   height: 48px;
   box-sizing: border-box;
@@ -122,16 +123,16 @@ body {
   width: 100%;
   min-width: 0;
   background: transparent;
-  border: 0;
+  border: 0 !important;
   appearance: none;
   -webkit-appearance: none;
+  -moz-appearance: none;
   height: 48px;
   box-shadow: none;
   outline: none;
-  border-radius: 0;
+  border-radius: 12px;
   color: var(--login-input-text);
-  padding-left: 48px;
-  padding-right: 16px;
+  padding: 0 16px 0 48px;
 }
 
 .password-wrap .form-input {
@@ -147,7 +148,8 @@ body {
   transform: translateY(-50%);
   padding: 0;
   background: transparent;
-  border: 0;
+  border: 0 !important;
+  box-shadow: none !important;
   color: var(--login-eye);
   width: 20px;
   height: 20px;
