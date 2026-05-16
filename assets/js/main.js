@@ -14,7 +14,27 @@ const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
-window.addEventListener("DOMContentLoaded",async ()=>{const session=await ensureAuthSession();if(!session)return;applyTheme();bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
+let authChecking=true;
+let user=null;
+
+function renderAuthState(){
+const loadingScreen=document.getElementById("authLoadingScreen");
+const appRoot=document.getElementById("appRoot");
+if(authChecking){if(loadingScreen)loadingScreen.hidden=false;if(appRoot)appRoot.hidden=true;return;}
+if(!user){location.replace("/login.html");return;}
+if(loadingScreen)loadingScreen.hidden=true;
+if(appRoot)appRoot.hidden=false;
+}
+
+window.addEventListener("DOMContentLoaded",async ()=>{
+authChecking=true;
+renderAuthState();
+const session=await ensureAuthSession();
+authChecking=false;
+user=session?.user||null;
+renderAuthState();
+if(!user)return;
+applyTheme();bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{navigateTo(btn.dataset.route);closeSidebarMobile();}));
 }
