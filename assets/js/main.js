@@ -1,4 +1,4 @@
-import { ensureAuthSession, bindLogoutButtons } from "./supabase.js";
+import { ensureAuthSession, bindLogoutButtons, supabase } from "./supabase.js";
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp"];
@@ -16,6 +16,25 @@ const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResul
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
 let authChecking=true;
 let user=null;
+
+async function fetchUserProfile(authUserId){
+if(!authUserId)return null;
+const {data,error}=await supabase.from("users").select("full_name, role, email").eq("id",authUserId).maybeSingle();
+if(error){console.error("Gagal mengambil profile user",error);return null;}
+return data||null;
+}
+
+function renderSidebarProfile(profile,authUser){
+const accountMeta=document.querySelector(".account-meta");
+if(!accountMeta)return;
+const nameEl=accountMeta.querySelector("strong");
+const roleEl=accountMeta.querySelector("small");
+const fallbackEmail=authUser?.email||"";
+const displayName=String(profile?.full_name||"").trim()||fallbackEmail;
+const displayRole=String(profile?.role||"").trim()||"User";
+if(nameEl)nameEl.textContent=displayName||"-";
+if(roleEl)roleEl.textContent=displayRole;
+}
 
 function renderAuthState(){
 const loadingScreen=document.getElementById("authLoadingScreen");
@@ -48,6 +67,8 @@ authChecking=false;
 renderAuthState();
 }
 if(!user)return;
+const profile=await fetchUserProfile(user.id);
+renderSidebarProfile(profile,user);
 applyTheme();bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{navigateTo(btn.dataset.route);closeSidebarMobile();}));
