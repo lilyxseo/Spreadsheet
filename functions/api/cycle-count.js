@@ -1,6 +1,6 @@
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
-const SHEET_RANGE = "Cycle Count!A:J";
+const SHEET_RANGE = "Cycle Count!A4:I";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
