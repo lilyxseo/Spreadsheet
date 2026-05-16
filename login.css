@@ -1,3 +1,36 @@
+:root {
+  --login-bg: var(--bg, #f3f4f6);
+  --login-text: var(--text, #111827);
+  --login-card-bg: var(--panel, #ffffff);
+  --login-card-border: color-mix(in srgb, var(--line, #e5e7eb) 85%, #ffffff 15%);
+  --login-card-shadow: 0 24px 44px color-mix(in srgb, var(--text, #0f172a) 12%, transparent);
+  --login-title: var(--text, #111827);
+  --login-subtitle: var(--muted, #6b7280);
+  --login-label: color-mix(in srgb, var(--text, #111827) 82%, var(--muted, #6b7280) 18%);
+  --login-social-bg: var(--panel, #ffffff);
+  --login-social-border: color-mix(in srgb, var(--line, #d1d5db) 82%, var(--panel, #ffffff) 18%);
+  --login-social-text: var(--text, #111827);
+  --login-social-hover-bg: color-mix(in srgb, var(--panel-soft, #f9fafb) 72%, var(--panel, #ffffff) 28%);
+  --login-social-hover-border: color-mix(in srgb, var(--line, #9ca3af) 70%, var(--text, #111827) 30%);
+  --login-divider: color-mix(in srgb, var(--muted, #9ca3af) 85%, var(--panel, #ffffff) 15%);
+  --login-divider-line: color-mix(in srgb, var(--line, #e5e7eb) 84%, var(--panel, #ffffff) 16%);
+  --login-input-bg: var(--panel, #ffffff);
+  --login-input-border: color-mix(in srgb, var(--line, #d1d5db) 86%, var(--panel, #ffffff) 14%);
+  --login-input-text: var(--text, #111827);
+  --login-input-placeholder: color-mix(in srgb, var(--muted, #9ca3af) 92%, var(--panel, #ffffff) 8%);
+  --login-input-icon: color-mix(in srgb, var(--muted, #9ca3af) 88%, var(--text, #111827) 12%);
+  --login-eye: color-mix(in srgb, var(--muted, #6b7280) 82%, var(--text, #111827) 18%);
+  --login-remember: color-mix(in srgb, var(--text, #4b5563) 76%, var(--muted, #6b7280) 24%);
+  --login-signup-text: var(--muted, #6b7280);
+  --login-signup-link: var(--primary-2, #dc2626);
+  --login-signup-link-hover: color-mix(in srgb, var(--primary-2, #ef4444) 86%, #ffffff 14%);
+  --login-error-bg: color-mix(in srgb, var(--danger, #dc2626) 12%, var(--panel, #ffffff) 88%);
+  --login-error-border: color-mix(in srgb, var(--danger, #dc2626) 34%, var(--line, #e5e7eb) 66%);
+  --login-error-text: color-mix(in srgb, var(--danger, #b91c1c) 84%, var(--text, #111827) 16%);
+  --login-icon-bg: color-mix(in srgb, #ffffff 72%, #fee2e2 28%);
+  --login-icon-border: color-mix(in srgb, #fecaca 52%, #ffffff 48%);
+  --login-icon-shadow: 0 8px 18px color-mix(in srgb, var(--primary-2, #dc2626) 16%, transparent);
+}
 .login-page {
   min-height: 100vh;
   display: grid;
