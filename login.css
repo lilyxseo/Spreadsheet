@@ -50,18 +50,22 @@
 }
 
 .login-head {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
   margin-bottom: 28px;
 }
 
 .app-icon {
-  width: 68px;
-  height: 68px;
-  margin: 0 auto 22px;
-  border-radius: 18px;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  padding: 14px;
+  padding: 8px;
+  flex: 0 0 42px;
 }
 
 .app-icon-image {
@@ -70,17 +74,21 @@
   object-fit: contain;
 }
 
+.login-head-text {
+  min-width: 0;
+}
+
 .login-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 17px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .login-subtitle {
-  margin: 10px 0 0;
-  font-size: 15px;
-  line-height: 1.5;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .btn-social {
@@ -243,13 +251,8 @@
     border-radius: 18px;
   }
 
-  .login-title {
-    font-size: 26px;
-  }
-
-  .app-icon {
-    width: 62px;
-    height: 62px;
+  .login-head {
+    gap: 12px;
   }
 }
 .login-form-panel {
