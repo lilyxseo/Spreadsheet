@@ -11,8 +11,12 @@ const googleLoginBtn = document.getElementById('googleLoginBtn');
 
 function showError(message) {
   if (!errorMsg || !errorText) return;
+  if (!message) {
+    clearError();
+    return;
+  }
   errorText.textContent = message;
-  errorMsg.hidden = !message;
+  errorMsg.hidden = false;
 }
 
 function clearError() {
@@ -46,7 +50,7 @@ function setPasswordVisibility(isVisible) {
   togglePasswordBtn.setAttribute('aria-pressed', String(isVisible));
   togglePasswordBtn.setAttribute('aria-label', isVisible ? 'Sembunyikan password' : 'Tampilkan password');
   const icon = togglePasswordBtn.querySelector('i');
-  if (icon) icon.setAttribute('data-lucide', isVisible ? 'eye-off' : 'eye');
+  if (icon) icon.setAttribute('data-lucide', isVisible ? 'eye' : 'eye-off');
   if (window.lucide) window.lucide.createIcons();
 }
 
