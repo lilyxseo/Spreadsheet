@@ -108,6 +108,63 @@
         <a href="#" id="signupLink">Sign up</a>
       </p>
 
+      <form id="signupForm" novalidate hidden>
+        <p id="signupError" class="form-error" role="alert" aria-live="polite" hidden>
+          <i data-lucide="alert-circle" aria-hidden="true"></i>
+          <span></span>
+        </p>
+
+        <div class="form-field">
+          <label for="signupFullName">Full Name</label>
+          <div class="input-wrap">
+            <i data-lucide="user-round" class="input-icon" aria-hidden="true"></i>
+            <input id="signupFullName" class="form-input" name="full_name" type="text" autocomplete="name" required placeholder="Nama lengkap" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="signupUsername">Username</label>
+          <div class="input-wrap">
+            <i data-lucide="at-sign" class="input-icon" aria-hidden="true"></i>
+            <input id="signupUsername" class="form-input" name="username" type="text" autocomplete="username" required placeholder="username" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="signupEmail">Email</label>
+          <div class="input-wrap">
+            <i data-lucide="mail" class="input-icon" aria-hidden="true"></i>
+            <input id="signupEmail" class="form-input" name="email" type="email" autocomplete="email" required placeholder="nama@email.com" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="signupPassword">Password</label>
+          <div class="input-wrap">
+            <i data-lucide="lock" class="input-icon" aria-hidden="true"></i>
+            <input id="signupPassword" class="form-input" name="password" type="password" autocomplete="new-password" required placeholder="Masukkan password" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="signupConfirmPassword">Confirm Password</label>
+          <div class="input-wrap">
+            <i data-lucide="lock-keyhole" class="input-icon" aria-hidden="true"></i>
+            <input id="signupConfirmPassword" class="form-input" name="confirm_password" type="password" autocomplete="new-password" required placeholder="Ulangi password" />
+          </div>
+        </div>
+
+        <button id="signupBtn" class="btn-primary login-btn" type="submit">
+          <span>Sign Up</span>
+          <span class="btn-spinner" aria-hidden="true" hidden></span>
+        </button>
+      </form>
+
+      <p class="signup-line" id="loginLine" hidden>
+        Sudah punya akun?
+        <a href="#" id="loginLink">Login</a>
+      </p>
+
     </div>
   </section>
 </main>
