@@ -62,7 +62,6 @@
     .search-bar,.toolbar,.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     button,select{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
     button{
-      min-height:40px;
       display:inline-flex;
       align-items:center;
       justify-content:center;
