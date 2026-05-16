@@ -226,6 +226,6 @@ body {
 
 @media (max-width: 640px) {
     .login-page { padding: 16px; }
-    .login-shell { width: calc(100% - 32px); max-width: 420px; }
+    .login-shell { width: 100%; max-width: 420px; }
   .login-form-panel { padding: 24px; border-radius: 16px; }
 }
