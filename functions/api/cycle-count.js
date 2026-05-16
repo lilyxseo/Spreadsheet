@@ -85,6 +85,14 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function formatTanggal(date) {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 function validateItem(item, index) {
   const lokasi = String(item?.lokasi || "").trim();
   const sku = String(item?.sku || "").trim();
@@ -124,7 +132,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     const body = await request.json();
-    const tanggal = String(body?.tanggal || new Date().toISOString().slice(0, 10)).trim();
+    const tanggal = String(body?.tanggal || formatTanggal(new Date())).trim();
     const items = body?.items;
 
     if (!Array.isArray(items)) return json({ success: false, message: "items wajib array" }, 400);
@@ -138,7 +146,6 @@ export async function onRequestPost({ request, env }) {
     }
 
     const accessToken = await createAccessToken(env);
-    const createdAt = new Date().toISOString();
     const rows = validated.map((item) => [
       tanggal,
       item.lokasi,
@@ -149,7 +156,6 @@ export async function onRequestPost({ request, env }) {
       item.aktual_bulky,
       item.aktual_retail,
       item.catatan,
-      createdAt,
     ]);
 
     const url =
