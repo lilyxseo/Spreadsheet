@@ -181,7 +181,7 @@
 .stats-table-wrap tbody td{background:#fff}
 .stats-table-wrap thead th{position:sticky;top:0;z-index:3;background:#f3e2e5;color:#b31217}
 .stats-table-wrap th:first-child,.stats-table-wrap td:first-child{width:220px;max-width:220px}
-.stats-table-wrap td:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats-table-wrap td:first-child{white-space:normal;word-break:break-word;overflow-wrap:anywhere;line-height:1.35}
 .stats-pagination{margin-top:8px}
 .stats-top-gap{margin-top:18px}
 body.dark .stats-table-wrap tbody td{background:var(--panel)}
