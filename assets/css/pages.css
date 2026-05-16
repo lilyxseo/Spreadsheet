@@ -366,6 +366,22 @@ body.dark .insight-card strong{color:#5eead4}
 .cc-modal-card{width:min(980px,100%);max-height:90dvh;overflow:auto;background:var(--card,#fff);border-radius:16px;padding:12px}
 .cc-chip label{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border-radius:999px;padding:6px 10px}
 #page-cycle-count .row{flex-wrap:wrap}
+#page-cycle-count .cc-main-header{justify-content:flex-end}
+#page-cycle-count .cc-action-stack{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+#page-cycle-count .cc-empty-state{
+  border:1px dashed #d7dee8;
+  border-radius:14px;
+  padding:28px 18px;
+  text-align:center;
+  color:#4b5563;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
+#page-cycle-count .cc-empty-state i{width:28px;height:28px;color:#64748b}
+#page-cycle-count .cc-empty-state h4{margin:0;font-size:16px;color:#111827}
+#page-cycle-count .cc-empty-state p{margin:0;font-size:13px}
 #page-cycle-count .table-wrap{
   max-width:100%;
   overflow:auto;
@@ -395,10 +411,12 @@ body.dark .insight-card strong{color:#5eead4}
 }
 
 @media (max-width:768px){
-  #page-cycle-count{padding:10px}
+  #page-cycle-count{padding:16px}
   #page-cycle-count .page-title{font-size:16px}
-  #page-cycle-count .cc-card{padding:10px}
+  #page-cycle-count .cc-card{padding:16px}
   #page-cycle-count .section-header{gap:8px}
+  #page-cycle-count .cc-action-stack{width:100%;flex-direction:column}
+  #page-cycle-count .cc-action-stack button{width:100%}
   #page-cycle-count .section-header .btn-primary{width:100%}
   #page-cycle-count .cc-step{font-size:11px;padding:6px 8px}
   #page-cycle-count .cc-form input,
