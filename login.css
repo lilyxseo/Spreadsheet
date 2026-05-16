@@ -351,3 +351,42 @@
   height: 18px;
   flex: 0 0 18px;
 }
+
+
+/* Login dark theme refinements */
+body.dark {
+  --login-card-bg: color-mix(in srgb, var(--panel) 92%, #020617 8%);
+  --login-card-border: color-mix(in srgb, var(--line) 74%, #0f172a 26%);
+  --login-subtitle: color-mix(in srgb, var(--muted) 88%, #e2e8f0 12%);
+  --login-social-bg: color-mix(in srgb, var(--panel) 84%, #0b1222 16%);
+  --login-social-border: color-mix(in srgb, var(--line) 76%, #1e293b 24%);
+  --login-divider-line: color-mix(in srgb, var(--line) 72%, #0f172a 28%);
+  --login-input-bg: color-mix(in srgb, var(--panel) 86%, #020617 14%);
+  --login-input-border: color-mix(in srgb, var(--line) 78%, #0f172a 22%);
+  --login-input-text: #e2e8f0;
+  --login-social-text: #e2e8f0;
+  --login-input-placeholder: color-mix(in srgb, var(--muted) 86%, #cbd5e1 14%);
+  --login-eye: color-mix(in srgb, var(--muted) 84%, #e2e8f0 16%);
+}
+
+/* Keep input + icon + toggle in one seamless border */
+.input-wrap .form-input,
+.input-wrap .form-input:hover,
+.input-wrap .form-input:focus,
+.input-wrap .form-input:focus-visible {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.password-toggle,
+.password-toggle:hover,
+.password-toggle:focus,
+.password-toggle:focus-visible,
+.password-toggle:active {
+  border: 0 !important;
+  border-left: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent;
+}
