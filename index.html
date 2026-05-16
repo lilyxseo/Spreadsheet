@@ -13,7 +13,8 @@
   <link rel="icon" href="./assets/goto.svg" sizes="any" />
 </head>
 <body>
-<div class="app">
+<div id="authLoadingScreen" aria-live="polite" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg,#0b1220);color:var(--text,#fff);"><div class="subtitle">Memeriksa sesi...</div></div>
+<div class="app" id="appRoot" hidden>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-main">
