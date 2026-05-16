@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login WMS</title>
+  <link rel="stylesheet" href="./assets/css/base.css" />
+  <style>
+    body{min-height:100vh;display:grid;place-items:center;background:#f6f7fb}
+    .card{width:min(420px,92vw);padding:24px;border-radius:14px;background:#fff;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+    .stack{display:grid;gap:12px}.err{color:#b42318;font-size:.9rem;min-height:20px}
+    button[disabled]{opacity:.7;cursor:not-allowed}
+  </style>
+</head>
+<body>
+  <form id="loginForm" class="card stack">
+    <h2>Login WMS</h2>
+    <input id="email" type="email" placeholder="Email" required />
+    <input id="password" type="password" placeholder="Password" required />
+    <button id="loginBtn" class="btn-primary" type="submit">Login</button>
+    <div id="loginError" class="err"></div>
+  </form>
+
+  <script type="module">
+    import { loginWithEmail, redirectIfLoggedIn } from "./assets/js/auth.js";
+
+    const form = document.getElementById("loginForm");
+    const btn = document.getElementById("loginBtn");
+    const err = document.getElementById("loginError");
+
+    await redirectIfLoggedIn();
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      err.textContent = "";
+      btn.disabled = true;
+      const oldText = btn.textContent;
+      btn.textContent = "Loading...";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const { error } = await loginWithEmail(email, password);
+
+      if (error) {
+        err.textContent = error.message || "Login gagal";
+        btn.disabled = false;
+        btn.textContent = oldText;
+        return;
+      }
+
+      location.href = "/dashboard/index.html";
+    });
+  </script>
+</body>
+</html>
