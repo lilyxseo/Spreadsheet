@@ -215,8 +215,8 @@
 }
 
 .input-wrap:focus-within {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+  border-color: var(--primary-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-2) 14%, transparent);
 }
 
 .input-icon {
@@ -257,7 +257,27 @@
 }
 
 .remember-checkbox {
-  accent-color: #dc2626;
+  accent-color: var(--primary-2);
+}
+
+.login-title,
+.form-field label,
+.remember-row {
+  color: var(--text);
+}
+
+.login-subtitle {
+  color: var(--text);
+}
+
+.login-btn {
+  background: var(--primary-color, var(--primary-2));
+  border: 1px solid var(--primary-2);
+  color: var(--panel);
+}
+
+.login-btn:hover {
+  background: var(--primary-2);
 }
 
 .signup-line {
