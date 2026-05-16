@@ -19,7 +19,7 @@ let user=null;
 
 async function fetchUserProfile(authUserId){
 if(!authUserId)return null;
-const {data,error}=await supabase.from("users").select("full_name, role, email").eq("id",authUserId).maybeSingle();
+const {data,error}=await supabase.from("users").select("full_name, role, username, email").eq("id",authUserId).maybeSingle();
 if(error){console.error("Gagal mengambil profile user",error);return null;}
 return data||null;
 }
@@ -29,8 +29,9 @@ const accountMeta=document.querySelector(".account-meta");
 if(!accountMeta)return;
 const nameEl=accountMeta.querySelector("strong");
 const roleEl=accountMeta.querySelector("small");
-const fallbackEmail=authUser?.email||"";
-const displayName=String(profile?.full_name||"").trim()||fallbackEmail;
+const fallbackEmail=String(profile?.email||authUser?.email||"").trim();
+const fallbackUsername=String(profile?.username||"").trim();
+const displayName=String(profile?.full_name||"").trim()||fallbackUsername||fallbackEmail;
 const displayRole=String(profile?.role||"").trim()||"User";
 if(nameEl)nameEl.textContent=displayName||"-";
 if(roleEl)roleEl.textContent=displayRole;
@@ -58,7 +59,14 @@ authChecking=true;
 renderAuthState();
 try{
 const session=await ensureAuthSession();
-user=session?.user||null;
+if(session){
+const {data:userData,error:userErr}=await supabase.auth.getUser();
+if(userErr)throw userErr;
+user=userData?.user||null;
+console.log("Auth user id:",user?.id||null);
+}else{
+user=null;
+}
 }catch(err){
 console.error("Auth session check failed",err);
 user=null;
@@ -68,6 +76,10 @@ renderAuthState();
 }
 if(!user)return;
 const profile=await fetchUserProfile(user.id);
+console.log("Profile public.users:",profile);
+if(!profile){
+console.warn("Profile tidak ditemukan / tidak bisa diakses. Pastikan RLS public.users mengizinkan select untuk user id sendiri.");
+}
 renderSidebarProfile(profile,user);
 applyTheme();bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();initDashboard();document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;initAppData();renderRecentHistory();routeFromPath(location.pathname);if(window.lucide)lucide.createIcons();window.addEventListener("popstate",()=>routeFromPath(location.pathname));});
 function bindNav(){
