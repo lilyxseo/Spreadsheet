@@ -42,13 +42,18 @@
           <small>PIC Inventory</small>
           <span id="sidebarApi" class="account-status"></span>
         </div>
-        <button class="icon-btn account-more" title="Akun"><i data-lucide="ellipsis"></i></button>
-        <button class="btn-ghost" data-logout-btn type="button">Logout</button>
+        <button class="icon-btn account-more" title="Akun" aria-label="Menu akun" type="button" data-account-menu-toggle><i data-lucide="ellipsis"></i></button>
+        <div class="account-menu" data-account-menu hidden>
+          <button class="account-menu-item" data-logout-btn type="button">
+            <i data-lucide="log-out"></i>
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
     </div>
   </aside>
   <main class="content">
-    <div class="header"><div class="header-card"><div class="header-left"><button class="icon-btn mobile-only" id="openSidebar" aria-label="Menu"><i data-lucide="menu"></i></button></div><div class="header-actions"><button id="refreshToggleHeader" class="theme-btn icon-only" aria-label="Refresh data manual" title="Refresh data manual"><i data-lucide="refresh-cw"></i></button><button id="darkBtnHeader" class="theme-btn icon-only" aria-label="Toggle dark mode" title="Toggle dark mode"><i data-lucide="moon-star"></i></button><button class="btn-ghost" data-logout-btn type="button">Logout</button></div></div></div>
+    <div class="header"><div class="header-card"><div class="header-left"><button class="icon-btn mobile-only" id="openSidebar" aria-label="Menu"><i data-lucide="menu"></i></button></div><div class="header-actions"><button id="refreshToggleHeader" class="theme-btn icon-only" aria-label="Refresh data manual" title="Refresh data manual"><i data-lucide="refresh-cw"></i></button><button id="darkBtnHeader" class="theme-btn icon-only" aria-label="Toggle dark mode" title="Toggle dark mode"><i data-lucide="moon-star"></i></button></div></div></div>
 
     <section id="page-dashboard" class="page"><section class="dashboard-section"><div class="card"><div class="section-header section-header--dashboard"><h3 class="page-title">Dashboard</h3></div><div id="dashboardCards" class="grid dashboard"></div></div></section><div id="recentMove"></div></section>
     <section id="page-search" class="panel page hidden"><h3 class="page-title">Cari Data <span class="subtitle"></span></h3><div class="search-layout"><div class="search-bar"><input id="searchInput" class="search-lg" placeholder="Cari SKU, 4 digit akhir, nama barang"/></div><div class="toolbar search-toolbar"><div id="filterRow" class="chip-group"></div><select id="sortSearch"><option value="rank">Sort: Ranking</option><option value="sku">Sort: SKU A-Z</option><option value="name">Sort: Nama A-Z</option></select><button id="clearSearchHistory" class="btn-ghost" type="button">Clear History</button></div><div id="recentSearch"></div></div><div id="status" class="subtitle"></div><div id="results" style="margin-top:10px"></div></section>
