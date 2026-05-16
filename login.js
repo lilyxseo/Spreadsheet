@@ -1,17 +1,18 @@
-import { loginWithEmailPassword, getSession } from './assets/js/supabase.js';
+import { loginWithEmailPassword, getSession, supabase } from './assets/js/supabase.js';
 
 const form = document.getElementById('loginForm');
 const emailEl = document.getElementById('email');
 const passwordEl = document.getElementById('password');
 const loginBtn = document.getElementById('loginBtn');
-const errorMsg = document.getElementById('errorMsg');
+const errorMsg = document.getElementById('formError');
 const errorText = errorMsg?.querySelector('span');
 const togglePasswordBtn = document.getElementById('togglePassword');
+const googleLoginBtn = document.getElementById('googleLoginBtn');
 
 function showError(message) {
   if (!errorMsg || !errorText) return;
   errorText.textContent = message;
-  errorMsg.hidden = false;
+  errorMsg.hidden = !message;
 }
 
 function clearError() {
@@ -23,7 +24,21 @@ function clearError() {
 function setLoading(isLoading) {
   loginBtn.disabled = isLoading;
   loginBtn.classList.toggle('is-loading', isLoading);
-  loginBtn.querySelector('span').textContent = isLoading ? 'Signing In...' : 'Sign In';
+  loginBtn.querySelector('span').textContent = isLoading ? 'Signing In...' : 'Login';
+}
+
+
+async function handleGoogleLogin() {
+  clearError();
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${location.origin}/index.html` }
+    });
+    if (error) throw error;
+  } catch (err) {
+    showError(err?.message || 'Login Google gagal. Coba lagi.');
+  }
 }
 
 function setPasswordVisibility(isVisible) {
@@ -42,6 +57,8 @@ async function init() {
     location.replace('/index.html');
     return;
   }
+
+  googleLoginBtn?.addEventListener('click', handleGoogleLogin);
 
   togglePasswordBtn.addEventListener('click', () => {
     const nextVisible = passwordEl.type === 'password';
