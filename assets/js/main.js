@@ -16,6 +16,27 @@ const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResul
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
 let authChecking=true;
 let user=null;
+let mainDataCache=null;
+let mainDataPromise=null;
+
+function preloadMainData(){
+if(mainDataPromise)return mainDataPromise;
+mainDataPromise=(async()=>{
+const freshData={};
+for(const sheet of SHEETS){
+const raw=await fetchSheet(sheet);
+await new Promise(resolve=>scheduleUIWork(resolve));
+freshData[sheet]=parseSheet(raw, sheet);
+}
+mainDataCache=freshData;
+return freshData;
+})().catch(err=>{
+mainDataCache=null;
+mainDataPromise=null;
+throw err;
+});
+return mainDataPromise;
+}
 
 async function fetchUserProfile(authUserId){
 if(!authUserId)return null;
@@ -57,6 +78,7 @@ if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
 window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 renderAuthState();
+preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));
 try{
 const session=await ensureAuthSession();
 if(session){
@@ -217,6 +239,29 @@ hideInitialLoader();
 async function initAppData(){
 console.log("INIT APP START");
 console.log("CURRENT ROUTE", location.pathname);
+if(hasValidData(mainDataCache)){
+applyData(mainDataCache,{deferRender:true});
+await saveCache(mainDataCache);
+hideInitialLoader();
+rerenderCurrentPage();
+startAutoSync();
+return;
+}
+if(mainDataPromise){
+try{
+const preloadedData=await mainDataPromise;
+if(hasValidData(preloadedData)){
+applyData(preloadedData,{deferRender:true});
+await saveCache(preloadedData);
+hideInitialLoader();
+rerenderCurrentPage();
+startAutoSync();
+return;
+}
+}catch(err){
+console.warn("Preload utama gagal, lanjut cache/fetch biasa",err);
+}
+}
 const cachedData=await loadCache();
 console.log("CACHE DATA", cachedData);
 if(hasValidData(cachedData)){
