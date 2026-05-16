@@ -55,6 +55,8 @@ function setPasswordVisibility(isVisible) {
 }
 
 async function init() {
+  clearError();
+  setPasswordVisibility(false);
   if (window.lucide) window.lucide.createIcons();
   const existingSession = await getSession();
   if (existingSession) {
