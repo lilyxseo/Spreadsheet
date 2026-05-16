@@ -490,3 +490,67 @@ body.dark .remember-row {
 body.dark .login-subtitle {
   color: var(--login-subtitle);
 }
+
+body.dark {
+  --login-title: #f8fafc;
+  --login-subtitle: #cbd5e1;
+  --login-label: #e2e8f0;
+  --login-remember: #cbd5e1;
+  --login-signup-text: #cbd5e1;
+  --login-signup-link: #f87171;
+
+  --login-input-text: #f8fafc;
+  --login-input-placeholder: #94a3b8;
+  --login-input-icon: #f43f5e;
+  --login-eye: #cbd5e1;
+
+  --login-social-text: #f8fafc;
+  --login-divider: #f43f5e;
+}
+
+body.dark .login-title,
+body.dark .form-field label,
+body.dark .remember-row {
+  color: var(--login-title) !important;
+}
+
+body.dark .login-subtitle {
+  color: var(--login-subtitle) !important;
+}
+
+body.dark .form-input {
+  color: var(--login-input-text) !important;
+}
+
+body.dark .form-input::placeholder {
+  color: var(--login-input-placeholder) !important;
+}
+
+body.dark .input-icon {
+  color: var(--login-input-icon) !important;
+}
+
+body.dark .password-toggle {
+  color: var(--login-eye) !important;
+}
+
+body.dark .btn-social {
+  color: var(--login-social-text) !important;
+}
+
+body.dark .signup-line {
+  color: var(--login-signup-text) !important;
+}
+
+body.dark .signup-line a {
+  color: var(--login-signup-link) !important;
+}
+
+body.dark .login-btn {
+  color: #ffffff !important;
+}
+
+body.dark .remember-checkbox {
+  background: transparent !important;
+  accent-color: var(--primary-2);
+}
