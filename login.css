@@ -2,8 +2,8 @@
   --login-bg: var(--bg, #f3f4f6);
   --login-text: var(--text, #111827);
   --login-card-bg: var(--panel, #ffffff);
-  --login-card-border: color-mix(in srgb, var(--line, #e5e7eb) 85%, #ffffff 15%);
-  --login-card-shadow: 0 24px 44px color-mix(in srgb, var(--text, #0f172a) 12%, transparent);
+  --login-card-border: color-mix(in srgb, var(--line, #e5e7eb) 78%, #ffffff 22%);
+  --login-card-shadow: 0 16px 34px color-mix(in srgb, var(--text, #0f172a) 10%, transparent);
   --login-title: var(--text, #111827);
   --login-subtitle: var(--muted, #6b7280);
   --login-label: color-mix(in srgb, var(--text, #111827) 82%, var(--muted, #6b7280) 18%);
@@ -127,7 +127,8 @@
   border-radius: 10px;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 .input-icon {
@@ -146,9 +147,10 @@
   background: transparent;
   font-size: 14px;
   min-width: 0;
+  padding: 0 14px 0 0;
 }
 
-.toggle-password {
+.password-toggle {
   width: 46px;
   height: 46px;
   border: 0;
@@ -159,8 +161,8 @@
   padding: 0;
 }
 
-.toggle-password svg,
-.toggle-password i {
+.password-toggle svg,
+.password-toggle i {
   width: 20px;
   height: 20px;
 }
@@ -174,9 +176,11 @@
 }
 
 .remember-checkbox {
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border-radius: 4px;
+  flex: 0 0 16px;
   margin: 0;
 }
 
@@ -197,17 +201,32 @@
   font-size: 14px;
 }
 
+
+.form-error {
+  background: var(--login-error-bg);
+  border: 1px solid var(--login-error-border);
+  color: var(--login-error-text);
+}
+
+.form-error i {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
 .form-error[hidden] {
   display: none !important;
 }
 
 .form-error:not([hidden]) {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 10px;
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 @media (max-width: 640px) {
@@ -247,6 +266,10 @@
   border-radius: 10px;
 }
 
+.input-wrap:hover {
+  border-color: color-mix(in srgb, var(--primary-2) 36%, var(--login-input-border) 64%);
+}
+
 .input-wrap:focus-within {
   border-color: var(--primary-2);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-2) 14%, transparent);
@@ -264,7 +287,7 @@
   color: var(--login-input-placeholder);
 }
 
-.toggle-password {
+.password-toggle {
   color: var(--login-eye);
 }
 
@@ -320,4 +343,11 @@
 .signup-line a {
   color: var(--login-signup-link);
   font-weight: 600;
+}
+
+
+.btn-social svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
