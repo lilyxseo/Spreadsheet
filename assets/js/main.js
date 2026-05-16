@@ -76,6 +76,20 @@ if(nameEl)nameEl.textContent=displayName||"-";
 if(roleEl)roleEl.textContent=displayRole;
 }
 
+
+function showLoginView(){
+const appRoot=document.getElementById("appRoot");
+const loginView=document.getElementById("loginView");
+if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
+if(loginView){loginView.hidden=false;loginView.style.display="grid";}
+}
+
+function showDashboardView(){
+const appRoot=document.getElementById("appRoot");
+const loginView=document.getElementById("loginView");
+if(loginView){loginView.hidden=true;loginView.style.display="none";}
+if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
+}
 function renderAuthState(){
 const loadingScreen=document.getElementById("authLoadingScreen");
 const appRoot=document.getElementById("appRoot");
@@ -90,8 +104,7 @@ return;
 if(!user){
 setAppAuthState("is-logged-out");
 if(loadingScreen){loadingScreen.hidden=true;loadingScreen.style.display="none";loadingScreen.style.pointerEvents="none";}
-if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
-if(loginView){loginView.hidden=false;loginView.style.display="grid";}
+showLoginView();
 return;
 }
 if(loadingScreen){
@@ -100,8 +113,7 @@ loadingScreen.style.display="none";
 loadingScreen.style.pointerEvents="none";
 }
 setAppAuthState("is-logged-in");
-if(loginView){loginView.hidden=true;loginView.style.display="none";}
-if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
+showDashboardView();
 }
 async function resolveEmailFromLoginInput(loginInput){
 const trimmedInput=String(loginInput||"").trim();
@@ -187,7 +199,7 @@ function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classLis
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
-function routeFromPath(path){if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(!user){showLoginView();return;}if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
