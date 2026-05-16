@@ -27,6 +27,9 @@
   --login-error-bg: color-mix(in srgb, var(--danger, #dc2626) 12%, var(--panel, #ffffff) 88%);
   --login-error-border: color-mix(in srgb, var(--danger, #dc2626) 34%, var(--line, #e5e7eb) 66%);
   --login-error-text: color-mix(in srgb, var(--danger, #b91c1c) 84%, var(--text, #111827) 16%);
+  --login-icon-bg: color-mix(in srgb, #ffffff 72%, #fee2e2 28%);
+  --login-icon-border: color-mix(in srgb, #fecaca 52%, #ffffff 48%);
+  --login-icon-shadow: 0 8px 18px color-mix(in srgb, var(--primary-2, #dc2626) 16%, transparent);
 }
 
 body {
@@ -55,21 +58,27 @@ body {
   box-shadow: var(--login-card-shadow);
 }
 
-.login-head { text-align: center; margin-bottom: 26px; }
+.login-head { text-align: center; margin-bottom: 24px; }
 .app-icon {
   width: 56px;
   height: 56px;
-  margin: 0 auto 16px;
+  margin: 0 auto 14px;
   border-radius: 18px;
-  background: rgba(220, 38, 38, 0.1);
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  color: #dc2626;
+  background: var(--login-icon-bg);
+  border: 1px solid var(--login-icon-border);
+  box-shadow: var(--login-icon-shadow);
   display: grid;
   place-items: center;
+  padding: 9px;
 }
-.app-icon i { width: 28px; height: 28px; }
-.login-title { margin: 0; font-size: 1.8rem; font-weight: 750; letter-spacing: -0.02em; color: var(--login-title); }
-.login-subtitle { margin: 10px 0 0; color: var(--login-subtitle); font-size: 0.95rem; }
+.app-icon-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.login-title { margin: 0; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; color: var(--login-title); font-family: Inter, Segoe UI, Roboto, Arial, sans-serif; }
+.login-subtitle { margin: 11px 0 0; color: var(--login-subtitle); font-size: 0.95rem; line-height: 1.5; font-weight: 500; font-family: Inter, Segoe UI, Roboto, Arial, sans-serif; }
 
 .btn-social {
   width: 100%; min-height: 46px; border-radius: 12px; border: 1px solid var(--login-social-border);
@@ -170,6 +179,9 @@ body {
   --login-error-bg: color-mix(in srgb, var(--danger, #ef4444) 22%, #1f2937 78%);
   --login-error-border: color-mix(in srgb, var(--danger, #f87171) 46%, var(--line, #334155) 54%);
   --login-error-text: color-mix(in srgb, #fecaca 74%, var(--text, #e2e8f0) 26%);
+  --login-icon-bg: color-mix(in srgb, #0f172a 76%, #1f2937 24%);
+  --login-icon-border: color-mix(in srgb, var(--line, #334155) 78%, #475569 22%);
+  --login-icon-shadow: 0 10px 20px rgba(2, 6, 23, 0.35);
 }
 
 @media (max-width: 640px) {
