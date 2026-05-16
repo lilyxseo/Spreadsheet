@@ -132,3 +132,6 @@ export async function onRequestPost(context) {
     return jsonResponse({ success: false, error: error?.message || 'Terjadi kesalahan server.' }, 500);
   }
 }
+export async function onRequestGet() {
+  return new Response("API OK", { status: 200 });
+}
