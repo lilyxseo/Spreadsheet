@@ -10,47 +10,53 @@
 </head>
 <body>
   <main class="login-page">
-    <section class="login-card" aria-labelledby="loginTitle">
-      <header class="login-head">
-        <div class="app-icon" aria-hidden="true">
-          <i data-lucide="boxes"></i>
+    <section class="login-shell" aria-labelledby="loginTitle">
+      <aside class="login-banner" aria-hidden="true">
+        <div class="banner-inner">
+          <p>Area gambar / ilustrasi</p>
         </div>
-        <h1 id="loginTitle" class="login-title">Sign In</h1>
-        <p class="login-subtitle">Masuk ke Dashboard WMS</p>
-      </header>
+      </aside>
 
-      <form id="loginForm" novalidate>
-        <div class="form-field">
-          <label for="email">Email Address</label>
-          <div class="input-wrap">
-            <i data-lucide="mail" class="input-icon" aria-hidden="true"></i>
-            <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@company.com" />
+      <div class="login-form-panel">
+        <header class="login-head">
+          <div class="app-icon" aria-hidden="true">
+            <i data-lucide="boxes"></i>
           </div>
-        </div>
+          <h1 id="loginTitle" class="login-title">Sign In</h1>
+          <p class="login-subtitle">Masuk ke Dashboard WMS</p>
+        </header>
 
-        <div class="form-field">
-          <label for="password">Password</label>
-          <div class="input-wrap">
-            <i data-lucide="lock" class="input-icon" aria-hidden="true"></i>
-            <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Masukkan password" />
-            <button id="togglePassword" class="toggle-password" type="button" aria-label="Tampilkan password" aria-pressed="false">
-              <i data-lucide="eye"></i>
-            </button>
+        <form id="loginForm" novalidate>
+          <div class="form-field">
+            <label for="email">Email Address</label>
+            <div class="input-wrap">
+              <i data-lucide="mail" class="input-icon" aria-hidden="true"></i>
+              <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@company.com" />
+            </div>
           </div>
-        </div>
 
-        <button id="loginBtn" class="btn-primary login-btn" type="submit">
-          <span>Sign In</span>
-          <i data-lucide="arrow-right"></i>
-        </button>
+          <div class="form-field">
+            <label for="password">Password</label>
+            <div class="input-wrap">
+              <i data-lucide="lock" class="input-icon" aria-hidden="true"></i>
+              <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Masukkan password" />
+              <button id="togglePassword" class="toggle-password" type="button" aria-label="Tampilkan password" aria-pressed="false">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+          </div>
 
-        <p id="errorMsg" class="form-error" role="alert" aria-live="polite" hidden>
-          <i data-lucide="alert-circle" aria-hidden="true"></i>
-          <span></span>
-        </p>
-      </form>
+          <button id="loginBtn" class="btn-primary login-btn" type="submit">
+            <span>Sign In</span>
+            <i data-lucide="arrow-right"></i>
+          </button>
 
-      <p class="signup-link">Don’t have an account? <a href="#" aria-disabled="true" tabindex="-1">Sign Up</a></p>
+          <p id="errorMsg" class="form-error" role="alert" aria-live="polite" hidden>
+            <i data-lucide="alert-circle" aria-hidden="true"></i>
+            <span></span>
+          </p>
+        </form>
+      </div>
     </section>
   </main>
 
