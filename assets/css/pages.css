@@ -346,7 +346,7 @@ body.dark .insight-card strong{color:#5eead4}
 #page-cycle-count .cc-grid,
 #page-cycle-count .cc-card{min-width:0}
 .cc-grid{display:grid;grid-template-columns:320px 1fr;gap:16px}
-.cc-card{border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.cc-card{border:1px solid var(--line);background:var(--panel);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
 .cc-section{margin-top:18px}
 #page-cycle-count .cc-section:first-child{margin-top:0}
 .cc-session-list{display:flex;flex-direction:column;gap:8px;max-height:70vh;overflow:auto}
@@ -369,18 +369,19 @@ body.dark .insight-card strong{color:#5eead4}
 #page-cycle-count .cc-main-header{justify-content:flex-end}
 #page-cycle-count .cc-action-stack{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 #page-cycle-count .cc-empty-state{
-  border:1px dashed #d7dee8;
+  border:1px dashed var(--line);
   border-radius:14px;
   padding:28px 18px;
   text-align:center;
-  color:#4b5563;
+  color:var(--muted);
+  background:var(--panel-soft);
   display:flex;
   flex-direction:column;
   align-items:center;
   gap:8px;
 }
-#page-cycle-count .cc-empty-state i{width:28px;height:28px;color:#64748b}
-#page-cycle-count .cc-empty-state h4{margin:0;font-size:16px;color:#111827}
+#page-cycle-count .cc-empty-state i{width:28px;height:28px;color:var(--muted)}
+#page-cycle-count .cc-empty-state h4{margin:0;font-size:16px;color:var(--text)}
 #page-cycle-count .cc-empty-state p{margin:0;font-size:13px}
 #page-cycle-count .table-wrap{
   max-width:100%;
@@ -394,7 +395,9 @@ body.dark .insight-card strong{color:#5eead4}
   position:sticky;
   top:0;
   z-index:2;
-  background:var(--card,#fff);
+  background:var(--panel);
+  color:var(--text);
+  border-bottom:1px solid var(--line);
 }
 #page-cycle-count .table-wrap table{min-width:760px}
 #page-cycle-count th,
@@ -403,6 +406,21 @@ body.dark .insight-card strong{color:#5eead4}
   font-size:12px;
   padding:12px 14px;
   line-height:1.55;
+  color:var(--text);
+  border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+#page-cycle-count .table-wrap tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--panel) 88%, var(--bg) 12%)}
+#page-cycle-count .cc-state.state-error{
+  color:var(--danger);
+  background:color-mix(in srgb,var(--danger) 8%, var(--panel) 92%);
+  border-color:color-mix(in srgb,var(--danger) 32%, var(--line) 68%);
+}
+#page-cycle-count .cc-session-wrap input,
+#page-cycle-count .cc-session-wrap textarea{
+  background:var(--panel);
+  color:var(--text);
+  border:1px solid var(--line);
 }
 
 @media (max-width:900px){
