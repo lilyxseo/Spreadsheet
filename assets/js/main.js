@@ -297,6 +297,7 @@ hideInitialLoader();
 async function initAppData(){
 console.log("INIT APP START");
 console.log("CURRENT ROUTE", location.pathname);
+
 if(hasValidData(window.mainDataCache)){
 console.log("[initAppData] data dari window.mainDataCache");
 applyData(window.mainDataCache,{deferRender:true});
@@ -306,6 +307,26 @@ rerenderCurrentPage();
 startAutoSync();
 return;
 }
+
+const cachedData=await loadCache();
+console.log("CACHE DATA", cachedData);
+if(hasValidData(cachedData)){
+applyData(cachedData,{fromCache:true});
+hideInitialLoader();
+rerenderCurrentPage({fromCache:true});
+startAutoSync();
+if(window.mainDataPromise){
+window.mainDataPromise.then(async (preloadedData)=>{
+if(!hasValidData(preloadedData))return;
+console.log("[initAppData] refresh dari window.mainDataPromise setelah cache");
+applyData(preloadedData,{deferRender:true});
+await saveCache(preloadedData);
+rerenderCurrentPage();
+}).catch(err=>console.warn("Preload utama gagal setelah cache",err));
+}
+return;
+}
+
 if(window.mainDataPromise){
 try{
 const preloadedData=await window.mainDataPromise;
@@ -322,15 +343,7 @@ return;
 console.warn("Preload utama gagal, lanjut cache/fetch biasa",err);
 }
 }
-const cachedData=await loadCache();
-console.log("CACHE DATA", cachedData);
-if(hasValidData(cachedData)){
-applyData(cachedData,{fromCache:true});
-hideInitialLoader();
-rerenderCurrentPage({fromCache:true});
-startAutoSync();
-return;
-}
+
 try{
 await syncData({force:true,silent:false});
 }catch(err){
