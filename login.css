@@ -632,3 +632,42 @@ body.dark .app-icon {
     flex-basis: 52px;
   }
 }
+
+
+.login-btn {
+  transition: filter .18s ease, background-color .18s ease, opacity .18s ease;
+}
+
+.login-btn .login-btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in srgb, var(--panel, #ffffff) 78%, transparent);
+  border-top-color: var(--panel, #ffffff);
+  border-radius: 50%;
+  display: none;
+  animation: login-btn-spin .7s linear infinite;
+}
+
+.login-btn.is-loading {
+  background: color-mix(in srgb, var(--primary-color, var(--primary-2)) 86%, #000000 14%);
+  border-color: color-mix(in srgb, var(--primary-2) 86%, #000000 14%);
+  cursor: not-allowed;
+}
+
+.login-btn.is-loading:hover {
+  background: color-mix(in srgb, var(--primary-color, var(--primary-2)) 86%, #000000 14%);
+}
+
+.login-btn.is-loading .login-btn-spinner {
+  display: inline-block;
+}
+
+.login-btn:disabled {
+  cursor: not-allowed;
+}
+
+@keyframes login-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -66,7 +66,9 @@ function clearError() {
 function setLoading(isLoading) {
   loginBtn.disabled = isLoading;
   loginBtn.classList.toggle('is-loading', isLoading);
-  loginBtn.querySelector('span').textContent = isLoading ? 'Signing In...' : 'Login';
+  const loginBtnText = loginBtn.querySelector('.login-btn-text');
+  if (loginBtnText) loginBtnText.textContent = isLoading ? 'Memproses' : 'Login';
+  loginBtn.setAttribute('aria-busy', String(isLoading));
 }
 
 
