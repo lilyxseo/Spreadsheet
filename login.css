@@ -578,24 +578,24 @@ body.dark .remember-checkbox {
 
 .login-head-main {
   gap: 14px;
-  margin-bottom: 28px;
 }
 
 .app-icon {
   width: 54px;
   height: 54px;
   flex: 0 0 54px;
-  padding: 10px;
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,.9), transparent 45%),
-    color-mix(in srgb, var(--primary-2) 8%, var(--panel) 92%);
-  border: 1px solid color-mix(in srgb, var(--primary-2) 18%, var(--line) 82%);
-  box-shadow:
-    0 10px 24px color-mix(in srgb, var(--primary-2) 18%, transparent),
-    inset 0 1px 0 rgba(255,255,255,.55);
-}
 
+  display: grid;
+  place-items: center;
+
+  border-radius: 14px;
+  padding: 10px;
+
+  background: var(--panel); /* clean */
+  border: 1px solid var(--login-card-border);
+
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
 .app-icon-image {
   width: 100%;
   height: 100%;
@@ -604,22 +604,17 @@ body.dark .remember-checkbox {
 
 .login-title {
   font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .login-subtitle {
   font-size: 13px;
-  margin-top: 4px;
+  opacity: 0.8;
+  margin-top: 2px;
 }
-
 body.dark .app-icon {
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,.12), transparent 45%),
-    color-mix(in srgb, var(--primary-2) 14%, var(--panel) 86%);
   border-color: color-mix(in srgb, var(--primary-2) 28%, var(--line) 72%);
-  box-shadow:
-    0 12px 26px rgba(0,0,0,.35),
-    0 0 22px color-mix(in srgb, var(--primary-2) 14%, transparent);
-}
 
 @media (max-width: 640px) {
   .login-shell {
