@@ -27,7 +27,17 @@
     * { box-sizing: border-box; }
     
     body { margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden; }
-    .app{display:block;min-height:100vh}
+    .app{display:none;min-height:100vh}
+    .app .sidebar,
+    .app .content,
+    .app #menuWrap{display:none}
+    .login-page{display:none}
+    .app.is-auth-checking{display:none}
+    .app.is-logged-out{display:none}
+    .app.is-logged-in{display:block}
+    .app.is-logged-in .sidebar{display:flex}
+    .app.is-logged-in .content{display:block}
+    .app.is-logged-in #menuWrap{display:block}
     .sidebar-overlay{position:fixed;inset:0;background:rgba(2,6,23,.55);opacity:0;pointer-events:none;transition:.25s;z-index:65}
     .sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(165deg,#7f1d1d 0%,#991b1b 52%,#111827 100%);color:#ffe4e6;padding:18px 14px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid rgba(255,255,255,.14);z-index:70;transform:translateX(-100%);transition:transform .28s ease;overflow:hidden;padding-bottom:20px;gap: 3px;}
     .brand{display:flex;align-items:center;gap:10px}.brand-logo-placeholder{width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.96);border:1px solid rgba(255,255,255,.42);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;flex-shrink:0}.brand h2{margin:0;font-size:16px;color:#fff}.brand p{margin:2px 0 0;font-size:11px;color:rgba(255,228,230,.82)}
