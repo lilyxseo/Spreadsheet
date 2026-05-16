@@ -131,7 +131,6 @@ console.log("PARSED DATA", sheet, freshData[sheet].length);
 applyData(freshData,{deferRender:true});
 await saveCache(freshData);
 setStatus("ok","");
-toast("Data diperbarui","success");
 return true;
 }catch(err){
 apiConnected=false;updateApiState();
