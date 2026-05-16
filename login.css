@@ -65,14 +65,14 @@ body {
   position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
   width: 18px; height: 18px; color: #9ca3af; pointer-events: none;
 }
-.input-wrap input {
+.input-wrap .form-input {
   width: 100%; background: transparent; border: 0; height: 48px;
   color: #111827; padding: 0 14px 0 42px;
 }
-.input-wrap input::placeholder { color: #9ca3af; }
-.input-wrap input:focus { outline: none; box-shadow: none; }
+.input-wrap .form-input::placeholder { color: #9ca3af; }
+.input-wrap .form-input:focus { outline: none; box-shadow: none; }
 
-.password-wrap input { padding-right: 46px; }
+.password-wrap .form-input { padding-right: 46px; }
 .toggle-password {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   border: 0; background: transparent; color: #6b7280;
@@ -83,11 +83,16 @@ body {
 .toggle-password:active { transform: translateY(-50%); }
 .toggle-password[aria-pressed="true"] { color: #6b7280; background: transparent; }
 
-.remember-row { margin-top: 4px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #4b5563; font-size: 0.88rem; cursor: pointer; }
-input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
+.remember-row { margin-top: 4px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: #4b5563; font-size: 0.88rem; cursor: pointer; }
+.remember-checkbox {
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  padding: 0;
+  margin: 0;
+  border-radius: 4px;
   accent-color: var(--primary-color);
 }
 
@@ -116,8 +121,8 @@ body.dark-mode .divider::before, body.dark-mode .divider::after, body.dark .divi
 body.dark-mode .form-field label, body.dark .form-field label { color: #d1d5db; }
 body.dark-mode .input-wrap, body.dark .input-wrap { border-color: #374151; background: #0f172a; }
 body.dark-mode .input-icon, body.dark .input-icon { color: #9ca3af; }
-body.dark-mode .input-wrap input, body.dark .input-wrap input { color: #f9fafb; }
-body.dark-mode .input-wrap input::placeholder, body.dark .input-wrap input::placeholder { color: #6b7280; }
+body.dark-mode .input-wrap .form-input, body.dark .input-wrap .form-input { color: #f9fafb; }
+body.dark-mode .input-wrap .form-input::placeholder, body.dark .input-wrap .form-input::placeholder { color: #6b7280; }
 body.dark-mode .toggle-password, body.dark .toggle-password { color: #9ca3af; }
 body.dark-mode .remember-row, body.dark .remember-row { color: #cbd5e1; }
 body.dark-mode .form-error, body.dark .form-error { border-color: rgba(248, 113, 113, 0.45); background: rgba(127, 29, 29, 0.35); color: #fecaca; }

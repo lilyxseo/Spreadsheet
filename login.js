@@ -50,18 +50,21 @@ async function handleGoogleLogin() {
   }
 }
 
-function setPasswordVisibility(isVisible) {
-  passwordEl.type = isVisible ? 'text' : 'password';
+function setPasswordVisibility() {
+  passwordEl.type = passwordEl.type === 'password' ? 'text' : 'password';
+  const isVisible = passwordEl.type === 'text';
+
   togglePasswordBtn.setAttribute('aria-pressed', String(isVisible));
   togglePasswordBtn.setAttribute('aria-label', isVisible ? 'Sembunyikan password' : 'Tampilkan password');
-  const icon = togglePasswordBtn.querySelector('i');
-  if (icon) icon.setAttribute('data-lucide', isVisible ? 'eye' : 'eye-off');
+  togglePasswordBtn.innerHTML = `<i data-lucide="${isVisible ? 'eye' : 'eye-off'}" aria-hidden="true"></i>`;
+
   if (window.lucide) window.lucide.createIcons();
 }
 
 async function init() {
   clearError();
-  setPasswordVisibility(false);
+  passwordEl.type = 'password';
+  togglePasswordBtn.innerHTML = '<i data-lucide="eye-off" aria-hidden="true"></i>';
   togglePasswordBtn?.setAttribute('type', 'button');
   if (window.lucide) window.lucide.createIcons();
   const existingSession = await getSession();
@@ -72,10 +75,15 @@ async function init() {
 
   googleLoginBtn?.addEventListener('click', handleGoogleLogin);
 
+  const rememberCheckbox = document.getElementById('rememberMe');
+  rememberCheckbox?.classList.add('remember-checkbox');
+
+  const formInputs = form?.querySelectorAll('input:not([type="checkbox"])');
+  formInputs?.forEach((input) => input.classList.add('form-input'));
+
   togglePasswordBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    const nextVisible = passwordEl.type === 'password';
-    setPasswordVisibility(nextVisible);
+    setPasswordVisibility();
   });
 
   form.addEventListener('submit', async (e) => {
