@@ -296,8 +296,32 @@
 
 .btn-social {
   border: 1px solid var(--login-social-border);
-  background: var(--login-social-bg);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--login-social-bg) 92%, #ffffff 8%) 0%,
+    var(--login-social-bg) 100%
+  );
   color: var(--login-social-text);
+  transition: transform .15s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text, #111827) 10%, transparent);
+}
+
+.btn-social:hover {
+  border-color: var(--login-social-hover-border);
+  background: var(--login-social-hover-bg);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--text, #111827) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.btn-social:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text, #111827) 14%, transparent);
+}
+
+.btn-social:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary-2, #dc2626) 58%, var(--login-social-border) 42%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-2, #dc2626) 20%, transparent);
 }
 
 .divider::before,
@@ -349,7 +373,8 @@
 }
 
 
-.btn-social svg {
+.btn-social svg,
+.btn-social i {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
