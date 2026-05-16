@@ -16,27 +16,38 @@ const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResul
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
 let authChecking=true;
 let user=null;
-let mainDataCache=null;
-let mainDataPromise=null;
+window.mainDataCache=window.mainDataCache||null;
+window.mainDataPromise=window.mainDataPromise||null;
 let appInitialized=false;
 
 function preloadMainData(){
-if(mainDataPromise)return mainDataPromise;
-mainDataPromise=(async()=>{
+if(window.mainDataCache){
+console.log("[preloadData] gunakan cache global yang sudah ada");
+return Promise.resolve(window.mainDataCache);
+}
+if(window.mainDataPromise){
+console.log("[preloadData] gunakan promise global yang sedang berjalan");
+return window.mainDataPromise;
+}
+console.time("preloadData");
+window.mainDataPromise=(async()=>{
 const freshData={};
 for(const sheet of SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=parseSheet(raw, sheet);
 }
-mainDataCache=freshData;
+window.mainDataCache=freshData;
+console.log("[preloadData] selesai fetch baru");
 return freshData;
 })().catch(err=>{
-mainDataCache=null;
-mainDataPromise=null;
+window.mainDataCache=null;
+window.mainDataPromise=null;
 throw err;
+}).finally(()=>{
+console.timeEnd("preloadData");
 });
-return mainDataPromise;
+return window.mainDataPromise;
 }
 
 async function fetchUserProfile(authUserId){
@@ -277,17 +288,19 @@ hideInitialLoader();
 async function initAppData(){
 console.log("INIT APP START");
 console.log("CURRENT ROUTE", location.pathname);
-if(hasValidData(mainDataCache)){
-applyData(mainDataCache,{deferRender:true});
-await saveCache(mainDataCache);
+if(hasValidData(window.mainDataCache)){
+console.log("[initAppData] data dari window.mainDataCache");
+applyData(window.mainDataCache,{deferRender:true});
+await saveCache(window.mainDataCache);
 hideInitialLoader();
 rerenderCurrentPage();
 startAutoSync();
 return;
 }
-if(mainDataPromise){
+if(window.mainDataPromise){
 try{
-const preloadedData=await mainDataPromise;
+const preloadedData=await window.mainDataPromise;
+console.log("[initAppData] data dari window.mainDataPromise");
 if(hasValidData(preloadedData)){
 applyData(preloadedData,{deferRender:true});
 await saveCache(preloadedData);
