@@ -3,6 +3,20 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+async function parseJsonResponse(resp, fallbackMessage) {
+  const contentType = resp.headers.get("content-type") || "";
+  if (contentType.toLowerCase().includes("application/json")) {
+    return resp.json();
+  }
+  const rawText = await resp.text();
+  const trimmed = String(rawText || "").trim();
+  const isHtml = trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html");
+  const message = isHtml
+    ? `${fallbackMessage} (HTTP ${resp.status} ${resp.statusText})`
+    : `${fallbackMessage}: ${trimmed || "Respons tidak valid"}`;
+  throw new Error(message);
+}
+
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -35,7 +49,7 @@ export async function loginWithEmailPassword(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  const data = await resp.json();
+  const data = await parseJsonResponse(resp, "Endpoint login tidak ditemukan");
   if (!resp.ok) throw new Error(data?.error || "Login gagal.");
 
   if (data?.mode === "dev") {
