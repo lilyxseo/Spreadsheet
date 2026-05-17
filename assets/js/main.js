@@ -633,9 +633,9 @@ async function clearSystemCache(){
 function showCopyButtonFeedback(btn){if(!btn)return;const label=btn.querySelector('span:last-child');if(!label)return;const prev=label.textContent;btn.classList.add('is-copied');label.textContent='Copied';clearTimeout(btn._copyTimer);btn._copyTimer=setTimeout(()=>{label.textContent=prev;btn.classList.remove('is-copied');},1200);}
 function copySku(sku,btn){navigator.clipboard.writeText(sku||"").then(()=>{showCopyButtonFeedback(btn);toast(`SKU ${sku} disalin`);});}
 function copyText(value,message,btn){navigator.clipboard.writeText(value||"").then(()=>{showCopyButtonFeedback(btn);toast(message);});}
-function applyTheme(){const saved=localStorage.getItem("theme");if(saved==="dark")document.body.classList.add("dark");syncThemeButton();syncRefreshButton();}
-function toggleDark(){document.body.classList.toggle("dark");localStorage.setItem("theme",document.body.classList.contains("dark")?"dark":"light");syncThemeButton();}
-function syncThemeButton(){const dark=document.body.classList.contains("dark");darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i>`;if(window.lucide)lucide.createIcons();}
+function applyTheme(){const saved=localStorage.getItem("theme");const theme=saved||"dark";document.documentElement.setAttribute("data-theme",theme);document.body.classList.toggle("dark",theme==="dark");syncThemeButton();syncRefreshButton();}
+function toggleDark(){const nextTheme=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",nextTheme);document.body.classList.toggle("dark",nextTheme==="dark");localStorage.setItem("theme",nextTheme);syncThemeButton();}
+function syncThemeButton(){if(!darkBtnHeader)return;const dark=document.documentElement.getAttribute("data-theme")==="dark";darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i>`;if(window.lucide)lucide.createIcons();}
 
 async function triggerManualRefresh(){if(isSyncing)return;await loadAllData(true);}
 function syncRefreshButton(){if(!refreshToggleHeader)return;refreshToggleHeader.innerHTML=`<i data-lucide="refresh-cw"></i>`;refreshToggleHeader.title="Refresh data manual";refreshToggleHeader.setAttribute("aria-label","Refresh data manual");if(window.lucide)lucide.createIcons();}
