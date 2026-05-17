@@ -444,6 +444,37 @@ textarea{resize:vertical;min-height:96px}
 .account-menu-item i{width:16px;height:16px}
 .account-menu-item:hover{background:rgba(239,68,68,.08)}
 
+.logout-btn {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+  border-radius: 12px !important;
+  min-height: 36px !important;
+  height: auto !important;
+  width: auto !important;
+  max-width: 160px !important;
+}
+
+.logout-btn svg,
+.logout-btn i {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+@media (max-width: 768px) {
+  .logout-btn {
+    padding: 5px 9px !important;
+    font-size: 12px !important;
+    min-height: 34px !important;
+    max-width: 140px !important;
+  }
+
+  .logout-btn svg,
+  .logout-btn i {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+
 body.dark .sidebar{
   background: linear-gradient(180deg, #0f172a 0%, #0b1a34 60%, #081224 100%);
   border-right: 0;
