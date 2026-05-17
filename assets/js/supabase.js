@@ -16,8 +16,9 @@ export async function ensureAuthSession() {
   if (raw) {
     try {
       const dev = JSON.parse(raw);
-      if (dev?.expires_at && Number(dev.expires_at) > Math.floor(Date.now() / 1000)) {
-        return { isDeveloper: true, user: dev.user, ...dev.session };
+      const expiresAt = Number(dev?.session?.expires_at || dev?.expires_at || 0);
+      if (expiresAt > Math.floor(Date.now() / 1000) && dev?.session?.access_token) {
+        return { isDeveloper: true, user: dev.user || null, ...dev.session };
       }
       localStorage.removeItem(DEV_SESSION_KEY);
     } catch (_err) {
