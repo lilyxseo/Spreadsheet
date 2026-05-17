@@ -517,6 +517,7 @@ body.dark #locationsFilters #locSkuSearchInput{
 
 /* Login view styles */
 :root {
+  --danger-color: #ef4444;
   --login-bg: var(--bg, #f3f4f6);
   --login-text: var(--text, #111827);
   --login-card-bg: var(--panel, #ffffff);
@@ -550,6 +551,7 @@ body.dark #locationsFilters #locSkuSearchInput{
 }
 
 body.dark {
+  --danger-color: #f87171;
   --login-bg: var(--bg, #020617);
   --login-text: #f8fafc;
   --login-card-bg: color-mix(in srgb, var(--panel, #0f172a) 92%, #020617 8%);
@@ -1030,11 +1032,25 @@ body.dark .app-icon {
   display:inline-block !important;
   opacity:1 !important;
   visibility:visible !important;
-  accent-color:#22c55e !important;
+  accent-color:var(--danger-color, #ef4444) !important;
   margin:0 auto !important;
   cursor:pointer;
   position:relative;
   z-index:2;
+  transition:transform .16s ease;
+}
+body.dark #page-balikan-store .balikan-check{
+  accent-color:#f87171 !important;
+}
+body.light #page-balikan-store .balikan-check{
+  accent-color:#dc2626 !important;
+}
+#page-balikan-store .balikan-check:hover{
+  transform:scale(1.05);
+}
+#page-balikan-store .balikan-check:focus{
+  outline:2px solid var(--danger-color, #ef4444);
+  outline-offset:2px;
 }
 #page-balikan-store .balikan-check::before,
 #page-balikan-store .balikan-check::after{
