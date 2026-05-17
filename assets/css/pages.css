@@ -923,19 +923,46 @@ body.dark .app-icon {
 #page-movement #movementApp,
 #page-movement .cc-grid,
 #page-movement .cc-card{min-width:0}
+#page-movement .cc-main-header{justify-content:space-between;align-items:center}
 #page-movement .cc-action-stack{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
-#page-movement .cc-empty-state{display:grid;place-items:center;text-align:center;gap:8px;padding:24px;border:1px dashed var(--line);border-radius:12px;background:var(--panel-soft)}
+#page-movement .cc-empty-state{
+  border:1px dashed var(--line);
+  border-radius:14px;
+  padding:28px 18px;
+  text-align:center;
+  color:var(--muted);
+  background:var(--panel-soft);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
 #page-movement .cc-empty-state i{width:28px;height:28px;color:var(--muted)}
-#page-movement .table-wrap{display:block;overflow-x:auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-left:0}
+#page-movement .cc-empty-state h4{margin:0;font-size:16px;color:var(--text)}
+#page-movement .cc-empty-state p{margin:0;font-size:13px}
+#page-movement .table-wrap{max-width:100%;overflow:auto;-webkit-overflow-scrolling:touch}
 #page-movement .cc-table-wrap{max-height:360px}
 #page-movement .cc-search-wrap,
 #page-movement .cc-session-wrap{max-height:340px}
+#page-movement .cc-table-wrap thead th{position:sticky;top:0;z-index:2}
 #page-movement .table-wrap table{min-width:760px}
 #page-movement th,
-#page-movement td{white-space:nowrap;text-overflow:clip;overflow:visible}
+#page-movement td{
+  white-space:nowrap;
+  font-size:12px;
+  padding:12px 14px;
+  line-height:1.55;
+  color:var(--text);
+  border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+#page-movement .table-wrap tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--panel) 88%, var(--bg) 12%)}
 #page-movement .cc-session-wrap input{min-width:120px}
+#page-movement .mv-history-section{margin-top:24px}
 @media (max-width:760px){
   #page-movement{padding:16px}
+  #page-movement .cc-main-header{align-items:stretch}
+  #page-movement .cc-main-header .page-title{margin:0}
   #page-movement .cc-action-stack{width:100%;flex-direction:column}
   #page-movement .cc-action-stack button{width:100%}
 }
