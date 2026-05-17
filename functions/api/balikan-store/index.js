@@ -1,6 +1,6 @@
 import { json, getAccessToken, escSheet } from './_utils';
 
-const COLUMNS = ['Centang', 'No', 'SKU', 'Nama Barang', 'Qty', 'Rak tujuan', 'Lokasi', 'Stok Bulky', 'Stok Retail', 'Status', 'Keterangan'];
+const TRIP_DATA_START_ROW = 6;
 
 export async function onRequestGet({ request, env }) {
   try {
@@ -13,14 +13,27 @@ export async function onRequestGet({ request, env }) {
     const data = await res.json();
     if (!res.ok) return json({ message: data.error?.message || 'Gagal membaca data sheet' }, res.status);
     const rows = data.values || [];
-    const header = rows[0] || [];
-    const idx = Object.fromEntries(COLUMNS.map(c => [c, header.indexOf(c)]));
     const out = [];
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows[i];
-      const get = (c) => (idx[c] >= 0 ? (r[idx[c]] || '') : '');
-      out.push({ rowNumber: i + 1, checked: String(get('Centang')).toUpperCase() === 'TRUE', no: get('No'), sku: get('SKU'), namaBarang: get('Nama Barang'), qty: get('Qty'), rakTujuan: get('Rak tujuan'), lokasi: get('Lokasi'), stokBulky: get('Stok Bulky'), stokRetail: get('Stok Retail'), status: get('Status'), keterangan: get('Keterangan') });
+    for (let i = TRIP_DATA_START_ROW - 1; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const sku = String(r[2] || '').trim();
+      const namaBarang = String(r[3] || '').trim();
+      if (!sku && !namaBarang) continue;
+      out.push({
+        rowNumber: i + 1,
+        checked: String(r[0] || '').toUpperCase() === 'TRUE',
+        no: String(r[1] || ''),
+        sku,
+        namaBarang,
+        qty: String(r[4] || ''),
+        rakTujuan: String(r[5] || ''),
+        lokasi: String(r[6] || ''),
+        stokBulky: String(r[7] || ''),
+        stokRetail: String(r[8] || ''),
+        status: String(r[9] || ''),
+        keterangan: String(r[10] || '')
+      });
     }
-    return json({ sheetName, columns: COLUMNS, rows: out });
+    return json({ sheetName, rows: out });
   } catch (err) { return json({ message: err?.message || 'Internal server error' }, 500); }
 }
