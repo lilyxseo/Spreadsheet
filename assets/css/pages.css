@@ -923,7 +923,7 @@ body.dark .app-icon {
 #page-movement #movementApp,
 #page-movement .cc-grid,
 #page-movement .cc-card{min-width:0}
-#page-movement .cc-main-header{justify-content:space-between;align-items:center}
+#page-movement .cc-main-header{justify-content:flex-end;align-items:center}
 #page-movement .cc-action-stack{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 #page-movement .cc-empty-state{
   border:1px dashed var(--line);
