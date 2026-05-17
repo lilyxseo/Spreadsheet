@@ -16,9 +16,10 @@ const ALLOWED_ACTIONS = new Set([
   "DELETE_MOVEMENT",
   "SCAN_BARCODE_SKU",
   "REGISTER_SUCCESS",
+  "CHECK_BALIKAN_STORE",
 ]);
 
-const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search"]);
+const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search", "Balikan Store"]);
 const ALLOWED_STATUS = new Set(["SUCCESS", "FAILED"]);
 
 function sanitizeText(value, max = 500) {
