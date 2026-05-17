@@ -13,6 +13,12 @@ export async function onRequestGet({ request, env }) {
     const rows = data.values || [];
     const headerInfo = buildHeaderInfo(rows);
     if (!headerInfo) return json({ message: 'Header tidak valid. Pastikan ada kolom SKU, Nama Barang, dan Qty.' }, 400);
+    const headers = rows[headerInfo.headerRowIndex] || [];
+    console.log("headers", headers);
+    console.log("columnMap", headerInfo.columnMap);
+    if (headerInfo.columnMap.checked === undefined) {
+      return json({ message: 'Kolom Centang tidak ditemukan' }, 400);
+    }
 
     const getCell = (row, field) => {
       const colIndex = headerInfo.columnMap[field];
@@ -29,6 +35,7 @@ export async function onRequestGet({ request, env }) {
       if (!sku && !namaBarang) continue;
       out.push({
         rowNumber: i + 1,
+        checkedRaw: (r || [])[headerInfo.columnMap.checked],
         checked: (r || [])[headerInfo.columnMap.checked],
         no: getCell(r, 'no'),
         sku,
