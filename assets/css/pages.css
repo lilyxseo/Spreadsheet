@@ -347,6 +347,52 @@ body.dark .insight-card strong{color:#5eead4}
 #stokMinusTable .stokminus-track-btn{padding:7px 12px}
 #stokMinusTable .stokminus-pagination{margin-top:auto;padding-top:4px}
 
+/* Balikan Store */
+#page-balikan-store .balikan-table-wrapper{
+  width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  border:1px solid var(--line);
+  border-radius:14px;
+  -webkit-overflow-scrolling:touch;
+}
+#page-balikan-store .balikan-table{
+  width:100%;
+  min-width:1100px;
+  border-collapse:collapse;
+  font-size:13px;
+}
+#page-balikan-store .balikan-table thead th{position:sticky;top:0;z-index:3}
+#page-balikan-store .balikan-table th,
+#page-balikan-store .balikan-table td{
+  padding:11px 12px;
+  font-size:13px;
+  line-height:1.45;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-table .col-check{
+  width:80px;
+  text-align:center;
+}
+#page-balikan-store .balikan-table td.col-check{
+  display:table-cell;
+}
+#page-balikan-store .balikan-table td.col-check input[type="checkbox"]{
+  width:20px;
+  height:20px;
+  accent-color:var(--accent-color);
+  cursor:pointer;
+  vertical-align:middle;
+}
+#page-balikan-store .balikan-table .col-name{min-width:280px}
+#page-balikan-store .balikan-table td.col-name{
+  min-width:280px;
+  max-width:420px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 @media (max-width: 899px){
   #page-stok-minus{min-height:calc(100dvh - 100px)}
   #stokMinusTable .stokminus-card{padding:12px;gap:10px}
@@ -357,6 +403,11 @@ body.dark .insight-card strong{color:#5eead4}
   #stokMinusTable .stokminus-table-wrap .col-nama{min-width:240px}
   #stokMinusTable .stokminus-badge{font-size:11px}
   #stokMinusTable .stokminus-pagination{flex-direction:column;align-items:flex-start;gap:10px}
+  #page-balikan-store .balikan-table{min-width:1000px;font-size:12px}
+  #page-balikan-store .balikan-table th,#page-balikan-store .balikan-table td{padding:9px 10px;font-size:12px}
+  #page-balikan-store .balikan-table td.col-check input[type="checkbox"]{width:18px;height:18px}
+  #page-balikan-store .balikan-table .col-name,
+  #page-balikan-store .balikan-table td.col-name{min-width:240px}
 }
 
 
