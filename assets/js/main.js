@@ -30,6 +30,7 @@ const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResul
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
 let authChecking=true;
 let user=null;
+let devProfile=null;
 window.mainDataCache=window.mainDataCache||null;
 window.mainDataPromise=window.mainDataPromise||null;
 let appInitialized=false;
@@ -137,10 +138,14 @@ renderAuthState();
 try{
 const session=await ensureAuthSession();
 if(session){
+if(session?.isDeveloper){
+user={id:"developer"};
+devProfile=session.user||null;
+}else{
 const {data:userData,error:userErr}=await supabase.auth.getUser();
 if(userErr)throw userErr;
 user=userData?.user||null;
-console.log("Auth user id:",user?.id||null);
+}
 }else{
 user=null;
 }
@@ -152,7 +157,7 @@ authChecking=false;
 renderAuthState();
 }
 if(!user){bindLoginView();if(window.lucide)lucide.createIcons();return;}
-const profile=await fetchUserProfile(user.id);
+const profile=devProfile||await fetchUserProfile(user.id);
 console.log("Profile public.users:",profile);
 if(!profile){
 console.warn("Profile tidak ditemukan / tidak bisa diakses. Pastikan RLS public.users mengizinkan select untuk user id sendiri.");
@@ -180,7 +185,7 @@ const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const email=await resolveEmailFromLoginInput(emailEl.value.trim());const {error}=await loginWithEmailPassword(email,passwordEl.value);if(error)throw error;const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;authChecking=false;renderAuthState();if(user){const profile=await fetchUserProfile(user.id);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));await initAppData();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"User"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
 form.dataset.bound="1";
