@@ -34,8 +34,12 @@ export async function onRequestPost({ request, env }) {
     const normalizedUsername = String(username).trim();
     const normalizedPassword = String(password);
 
-    const devEnabled = String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true";
-    if (devEnabled) {
+    const devLoginReady =
+      String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true" &&
+      String(env.DEV_USERNAME || "") &&
+      String(env.DEV_PASSWORD || "");
+
+    if (devLoginReady) {
       const devUsername = String(env.DEV_USERNAME || "");
       const devPassword = String(env.DEV_PASSWORD || "");
       if (safeEquals(normalizedUsername, devUsername) && safeEquals(normalizedPassword, devPassword)) {
@@ -77,7 +81,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({ email: normalizedUsername, password: normalizedPassword }),
     });
     const data = await resp.json();
-    if (!resp.ok) return json({ error: data.error_description || data.msg || "Login gagal." }, 401);
+    if (!resp.ok) return json({ error: "Username atau password salah" }, 401);
 
     return json({
       mode: "supabase",
