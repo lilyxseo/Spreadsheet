@@ -198,6 +198,7 @@ function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFil
 searchInput?.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
 document.getElementById("btnScanSku")?.addEventListener("click",()=>{openBarcodeScanner("searchInput",handleSearchScanResult);});
 document.getElementById("scannerCloseBtn")?.addEventListener("click",closeScannerModal);
+document.getElementById("scannerCloseBtnText")?.addEventListener("click",closeScannerModal);
 document.querySelector("[data-scanner-close]")?.addEventListener("click",closeScannerModal);
 window.addEventListener("keydown",handleSearchShortcuts);
 const clearHistoryBtn=document.getElementById("clearSearchHistory");
@@ -431,12 +432,18 @@ lastResults=nextResults;
 renderResults(lastResults,qRaw);}
 
 function getScannerConfig(){
-const mobile=window.matchMedia("(max-width: 768px)").matches;
 return {
-fps:mobile?15:20,
-qrbox:{width:mobile?300:420,height:mobile?180:220},
-aspectRatio:1.777,
+fps:20,
+qrbox:(viewfinderWidth,viewfinderHeight)=>{
+const isMobile=window.matchMedia("(max-width: 768px)").matches;
+const minEdge=Math.min(viewfinderWidth,viewfinderHeight);
+const preferred=isMobile?260:320;
+const size=Math.min(Math.floor(minEdge*0.75),preferred);
+return {width:size,height:size};
+},
+aspectRatio:1,
 disableFlip:false,
+useBarCodeDetectorIfSupported:true,
 formatsToSupport:[
 window.Html5QrcodeSupportedFormats.QR_CODE,
 window.Html5QrcodeSupportedFormats.CODE_128,
@@ -444,8 +451,7 @@ window.Html5QrcodeSupportedFormats.EAN_13,
 window.Html5QrcodeSupportedFormats.EAN_8,
 window.Html5QrcodeSupportedFormats.UPC_A,
 window.Html5QrcodeSupportedFormats.UPC_E
-],
-experimentalFeatures:{useBarCodeDetectorIfSupported:true}
+]
 };
 }
 function sanitizeScanResult(raw){
@@ -460,9 +466,8 @@ searchInput.value=cleaned;
 SEARCH_STATE.inputValue=cleaned;
 SEARCH_STATE.filterValue=cleaned;
 runSearch();
-toast("Barcode berhasil discan","success");
-if(lastResults.length){showDetail(lastResults[0].sku);navigateTo(`/sku/${encodeURIComponent(lastResults[0].sku)}`);}
-else toast("SKU tidak ditemukan.","error");
+toast("Barcode/QR berhasil discan","success");
+if(!lastResults.length)toast("SKU tidak ditemukan.","error");
 }
 async function openBarcodeScanner(targetInputId="searchInput",onResult=handleSearchScanResult){
 SCANNER_STATE.targetInputId=targetInputId;
