@@ -15,6 +15,7 @@ const ALLOWED_ACTIONS = new Set([
   "EDIT_MOVEMENT",
   "DELETE_MOVEMENT",
   "SCAN_BARCODE_SKU",
+  "REGISTER_SUCCESS",
 ]);
 
 const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search"]);
@@ -61,6 +62,24 @@ async function supabaseInsertLog(env, payload) {
   return body;
 }
 
+
+async function getUserProfile(env, userId) {
+  const id = sanitizeText(userId, 100);
+  if (!id || id === "developer") return null;
+  const { url, key } = getSupabaseConfig(env);
+  const params = new URLSearchParams({
+    select: "role",
+    id: `eq.${id}`,
+    limit: "1",
+  });
+  const res = await fetch(`${url}/rest/v1/users?${params.toString()}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return null;
+  const body = await res.json().catch(() => []);
+  return Array.isArray(body) ? body[0] || null : null;
+}
+
 async function supabaseGetLogs(env, query) {
   const { url, key } = getSupabaseConfig(env);
   const params = new URLSearchParams();
@@ -95,10 +114,13 @@ export async function onRequestPost({ request, env }) {
     if (!ALLOWED_MODULES.has(module)) return json({ success: false, message: "module tidak valid" }, 400);
     if (!ALLOWED_STATUS.has(status)) return json({ success: false, message: "status tidak valid" }, 400);
 
+    const userId = sanitizeText(body?.user_id, 100) || null;
+    const sessionRole = sanitizeText(body?.role, 120) || null;
+    const profile = userId === "developer" ? null : await getUserProfile(env, userId);
     const payload = {
-      user_id: sanitizeText(body?.user_id, 100) || null,
+      user_id: userId,
       user_name: sanitizeText(body?.user_name, 120) || null,
-      role: sanitizeText(body?.role, 120) || null,
+      role: userId === "developer" ? "Development Mode" : sanitizeText(profile?.role, 120) || sessionRole || "User",
       action,
       module,
       detail: sanitizeText(body?.detail, 1000) || null,
