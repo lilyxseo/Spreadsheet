@@ -2,17 +2,16 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase 
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity } from "./activity-log.js";
-(function () {
-  const KEY = "wms_first_load_refreshed";
-  const alreadyRefreshed = sessionStorage.getItem(KEY);
+(function forceRefreshOnceOnFirstOpen() {
+  const key = "app_first_refresh_done";
+  const alreadyRefreshed = sessionStorage.getItem(key);
 
   if (!alreadyRefreshed) {
-    sessionStorage.setItem(KEY, "1");
+    sessionStorage.setItem(key, "true");
 
-    const url = new URL(window.location.href);
-    url.searchParams.set("v", Date.now());
-
-    window.location.replace(url.toString());
+    setTimeout(() => {
+      window.location.reload();
+    }, 300);
   }
 })();
 
