@@ -900,3 +900,25 @@ body.dark .app-icon {
 .sheet-submit-btn .btn-spinner{width:16px;height:16px;border:2px solid color-mix(in srgb,var(--text) 30%, transparent);border-top-color:var(--text);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:899px){.sheet-grid{grid-template-columns:1fr}}
+
+/* Movement */
+#page-movement{min-width:0}
+#page-movement #movementApp,
+#page-movement .cc-grid,
+#page-movement .cc-card{min-width:0}
+#page-movement .cc-action-stack{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+#page-movement .cc-empty-state{display:grid;place-items:center;text-align:center;gap:8px;padding:24px;border:1px dashed var(--line);border-radius:12px;background:var(--panel-soft)}
+#page-movement .cc-empty-state i{width:28px;height:28px;color:var(--muted)}
+#page-movement .table-wrap{display:block;overflow-x:auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-left:0}
+#page-movement .cc-table-wrap{max-height:360px}
+#page-movement .cc-search-wrap,
+#page-movement .cc-session-wrap{max-height:340px}
+#page-movement .table-wrap table{min-width:760px}
+#page-movement th,
+#page-movement td{white-space:nowrap;text-overflow:clip;overflow:visible}
+#page-movement .cc-session-wrap input{min-width:120px}
+@media (max-width:760px){
+  #page-movement{padding:16px}
+  #page-movement .cc-action-stack{width:100%;flex-direction:column}
+  #page-movement .cc-action-stack button{width:100%}
+}
