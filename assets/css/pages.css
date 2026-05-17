@@ -1022,15 +1022,27 @@ body.dark .app-icon {
   border-bottom:1px solid var(--line);
   backdrop-filter:none !important;
 }
-#page-balikan-store .balikan-table input[type="checkbox"]{
-  width:22px;
-  height:22px;
-  accent-color:#22c55e;
+#page-balikan-store .balikan-check{
+  appearance:auto !important;
+  -webkit-appearance:checkbox !important;
+  width:18px !important;
+  height:18px !important;
+  display:inline-block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  accent-color:#22c55e !important;
+  margin:0 auto !important;
   cursor:pointer;
-  display:inline-block;
+  position:relative;
+  z-index:2;
+}
+#page-balikan-store .balikan-check::before,
+#page-balikan-store .balikan-check::after{
+  content:none !important;
 }
 #page-balikan-store .col-check{
-  text-align:center;
+  text-align:center !important;
+  vertical-align:middle !important;
   width:80px;
 }
 #page-balikan-store .balikan-controls{
@@ -1053,8 +1065,8 @@ body.dark .app-icon {
     font-size:12px;
   }
   #page-balikan-store .balikan-table td{height:40px}
-  #page-balikan-store .balikan-table input[type="checkbox"]{
-    width:18px;
-    height:18px;
+  #page-balikan-store .balikan-check{
+    width:18px !important;
+    height:18px !important;
   }
 }
