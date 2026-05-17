@@ -34,31 +34,34 @@ export async function onRequestPost({ request, env }) {
     const normalizedUsername = String(username).trim();
     const normalizedPassword = String(password);
 
-    const devEnabled = String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true";
-    if (devEnabled) {
-      const devUsername = String(env.DEV_USERNAME || "");
-      const devPassword = String(env.DEV_PASSWORD || "");
-      if (safeEquals(normalizedUsername, devUsername) && safeEquals(normalizedPassword, devPassword)) {
-        const secret = String(env.DEV_SESSION_SECRET || env.SUPABASE_ANON_KEY || "dev-secret");
-        const accessToken = createDevToken(secret, normalizedUsername);
-        const expiresAt = Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
-        return json({
-          mode: "dev",
-          session: {
-            access_token: accessToken,
-            refresh_token: null,
-            token_type: "bearer",
-            expires_in: DEV_SESSION_TTL_SECONDS,
-            expires_at: expiresAt,
-          },
-          user: {
-            id: "developer",
-            name: "Developer",
-            role: "Development Mode",
-            isDeveloper: true,
-          },
-        });
-      }
+    const devLoginReady =
+      String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true" &&
+      String(env.DEV_USERNAME || "") &&
+      String(env.DEV_PASSWORD || "");
+
+    const devUsername = String(env.DEV_USERNAME || "");
+    const devPassword = String(env.DEV_PASSWORD || "");
+
+    if (devLoginReady && safeEquals(normalizedUsername, devUsername) && safeEquals(normalizedPassword, devPassword)) {
+      const secret = String(env.DEV_SESSION_SECRET || env.SUPABASE_ANON_KEY || "dev-secret");
+      const accessToken = createDevToken(secret, normalizedUsername);
+      const expiresAt = Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
+      return json({
+        mode: "dev",
+        session: {
+          access_token: accessToken,
+          refresh_token: null,
+          token_type: "bearer",
+          expires_in: DEV_SESSION_TTL_SECONDS,
+          expires_at: expiresAt,
+        },
+        user: {
+          id: "developer",
+          name: "Developer",
+          role: "Development Mode",
+          isDeveloper: true,
+        },
+      });
     }
 
     const supabaseUrl = String(env.SUPABASE_URL || "").trim();
@@ -77,7 +80,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({ email: normalizedUsername, password: normalizedPassword }),
     });
     const data = await resp.json();
-    if (!resp.ok) return json({ error: data.error_description || data.msg || "Login gagal." }, 401);
+    if (!resp.ok) return json({ success: false, error: "Username atau password salah", message: "Username atau password salah" }, 401);
 
     return json({
       mode: "supabase",
