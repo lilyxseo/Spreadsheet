@@ -11,6 +11,10 @@ let html = fs.readFileSync(filePath, "utf8");
 
 html = html.replaceAll("__APP_VERSION__", version);
 
+if (html.includes("__APP_VERSION__")) {
+  throw new Error("APP_VERSION injection failed");
+}
+
 fs.writeFileSync(filePath, html);
 
 console.log("Version injected:", version);
