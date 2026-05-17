@@ -437,11 +437,11 @@ textarea{resize:vertical;min-height:96px}
   background:#fff;border:1px solid rgba(239,68,68,.16);box-shadow:0 10px 20px rgba(0,0,0,.12);
 }
 .account-menu-item{
-  width:100%;display:flex;align-items:center;gap:8px;
-  padding:8px 10px;border:0;border-radius:8px;background:transparent;
-  color:#991b1b;font-weight:600;cursor:pointer;
+  width:100%;display:flex;align-items:center;gap:7px;
+  padding:6px 9px;border:0;border-radius:8px;background:transparent;
+  color:#991b1b;font-weight:600;font-size:12px;cursor:pointer;
 }
-.account-menu-item i{width:16px;height:16px}
+.account-menu-item i{width:14px;height:14px}
 .account-menu-item:hover{background:rgba(239,68,68,.08)}
 
 body.dark .sidebar{
