@@ -28,7 +28,7 @@ const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
-const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,feedbackPlayed:false,targetInputId:"searchInput",resultHandler:null};
+const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
 let authChecking=true;
 let user=null;
 let devProfile=null;
@@ -480,13 +480,8 @@ window.Html5QrcodeSupportedFormats.UPC_E
 
 function playScanSuccessFeedback(){
 if(navigator.vibrate){
-navigator.vibrate(120);
+navigator.vibrate(100);
 }
-if(SCANNER_STATE.feedbackPlayed)return;
-SCANNER_STATE.feedbackPlayed=true;
-const audio=new Audio("/assets/beep.mp3");
-audio.volume=0.5;
-audio.play().catch(()=>{});
 }
 function cleanScannedSku(text){
 const raw=String(text||"").trim();
@@ -528,7 +523,6 @@ const input=document.getElementById("searchInput");
 if(input)input.value=sku;
 triggerSearchSku(sku);
 const found=openSkuDetailIfFound(sku);
-playScanSuccessFeedback();
 toast(found?`Barcode berhasil: ${sku}`:`Barcode berhasil: ${sku}. SKU tidak ditemukan.`,"success");
 }
 async function openBarcodeScanner(targetInputId="searchInput",onResult=handleSearchScanResult){
@@ -549,11 +543,11 @@ SCANNER_STATE.instance=new window.Html5Qrcode(readerId);
 SCANNER_STATE.isScannerRunning=true;
 SCANNER_STATE.isClosing=false;
 SCANNER_STATE.hasScanned=false;
-SCANNER_STATE.feedbackPlayed=false;
 const config=getScannerConfig();
 const onSuccess=async(decodedText)=>{
 if(SCANNER_STATE.isClosing||SCANNER_STATE.hasScanned||!decodedText)return;
 SCANNER_STATE.hasScanned=true;
+playScanSuccessFeedback();
 await closeScannerModal();
 await SCANNER_STATE.resultHandler?.(decodedText);
 };
@@ -590,7 +584,6 @@ if(SCANNER_STATE.instance){try{await SCANNER_STATE.instance.clear();}catch(_){}}
 SCANNER_STATE.instance=null;
 SCANNER_STATE.isScannerRunning=false;
 SCANNER_STATE.hasScanned=false;
-SCANNER_STATE.feedbackPlayed=false;
 SCANNER_STATE.isClosing=false;
 modal.hidden=true;
 document.body.classList.remove("scanner-modal-open");
