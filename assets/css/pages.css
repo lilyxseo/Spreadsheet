@@ -1002,21 +1002,25 @@ body.dark .app-icon {
   width:100%;
   min-width:1100px;
   border-collapse:collapse;
+  background:var(--card-bg);
 }
 #page-balikan-store .balikan-table th,
 #page-balikan-store .balikan-table td{
   padding:10px 12px;
-  border-bottom:1px solid var(--border-color);
+  border-bottom:1px solid var(--line);
   white-space:nowrap;
   height:42px;
+  background:var(--card-bg);
 }
 #page-balikan-store .balikan-table th{
   font-weight:700;
-  color:var(--danger-color,#ff5b6b);
+  color:var(--primary) !important;
   position:sticky;
   top:0;
-  z-index:2;
-  background:var(--table-header-bg);
+  z-index:5;
+  background:var(--panel-soft) !important;
+  border-bottom:1px solid var(--line);
+  backdrop-filter:none !important;
 }
 #page-balikan-store .balikan-table input[type="checkbox"]{
   width:22px;
