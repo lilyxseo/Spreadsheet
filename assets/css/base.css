@@ -275,10 +275,10 @@ textarea{resize:vertical;min-height:96px}
     @media (max-width: 899px){.mobile-only{display:grid}.content{padding-top:calc(var(--header-height) + 12px)}.dashboard-sections{grid-template-columns:1fr}.dashboard-section{margin:12px 0}.dashboard-section .card{padding:12px}.section-header{flex-wrap:wrap}.header{position:fixed;top:0;left:0;right:0;z-index:120;margin:0;border-bottom:1px solid var(--line)}.header-card{padding:0 12px;gap:10px}.header-actions{gap:6px}.header-title{font-size:15px}.title{font-size:16px}.side-link{font-size:13px;padding:9px 10px}}
 
 .brand-logo-placeholder {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
 
   display: flex;
   align-items: center;
