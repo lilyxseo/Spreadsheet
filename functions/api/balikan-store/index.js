@@ -27,9 +27,10 @@ export async function onRequestGet({ request, env }) {
       const sku = getCell(r, 'sku');
       const namaBarang = getCell(r, 'namaBarang');
       if (!sku && !namaBarang) continue;
+      const checked = (r || [])[headerInfo.columnMap.checked];
       out.push({
         rowNumber: i + 1,
-        checked: (r || [])[headerInfo.columnMap.checked],
+        checked,
         no: getCell(r, 'no'),
         sku,
         namaBarang,
