@@ -472,9 +472,24 @@ showDetail(exact.sku);
 navigateTo('/sku/'+encodeURIComponent(exact.sku));
 return true;
 }
-function handleSearchScanResult(decodedText){
+async function handleSearchScanResult(decodedText){
 const sku=cleanScannedSku(decodedText);
 if(!sku)return;
+try{
+await logActivity({
+...currentUserIdentity(),
+action:"SCAN_BARCODE_SKU",
+module:"Search",
+detail:`User scan barcode SKU: ${sku}`,
+reference:sku,
+status:"SUCCESS",
+metadata:{
+sku,
+barcode:sku,
+source:"barcode_scanner"
+}
+});
+}catch(_){}
 const input=document.getElementById("searchInput");
 if(input)input.value=sku;
 triggerSearchSku(sku);
@@ -504,7 +519,7 @@ const onSuccess=async(decodedText)=>{
 if(SCANNER_STATE.isClosing||SCANNER_STATE.hasScanned||!decodedText)return;
 SCANNER_STATE.hasScanned=true;
 await closeScannerModal();
-SCANNER_STATE.resultHandler?.(decodedText);
+await SCANNER_STATE.resultHandler?.(decodedText);
 };
 try{
 await SCANNER_STATE.instance.start({facingMode:{exact:"environment"}},config,onSuccess,()=>{});
