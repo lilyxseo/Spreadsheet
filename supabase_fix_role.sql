@@ -1,8 +1,8 @@
 alter table public.users
-alter column role set default 'User';
+alter column role set default 'Warga KST';
 
 update public.users
-set role = 'User'
+set role = 'Warga KST'
 where role is null
    or role = ''
-   or role = 'Warga KST';
+   or role = 'User';
