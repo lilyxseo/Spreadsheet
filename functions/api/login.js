@@ -10,8 +10,12 @@ function json(data, status = 200) {
 function safeEquals(a, b) {
   if (typeof a !== "string" || typeof b !== "string") return false;
   if (a.length !== b.length) return false;
+
   let out = 0;
-  for (let i = 0; i < a.length; i += 1) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < a.length; i += 1) {
+    out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
   return out === 0;
 }
 
@@ -23,25 +27,51 @@ function createDevToken(secret, username) {
     isDeveloper: true,
     exp: Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS,
   };
+
   const base = btoa(JSON.stringify(payload));
   const sig = btoa(`${base}.${secret}`).replace(/=+$/g, "");
+
   return `${base}.${sig}`;
 }
 
 export async function onRequestPost({ request, env }) {
   try {
-    const { username = "", password = "" } = await request.json();
-    const normalizedUsername = String(username).trim();
-    const normalizedPassword = String(password);
+    const body = await request.json();
 
-    const devEnabled = String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true";
-    if (devEnabled) {
+    const normalizedUsername = String(body.username || "").trim();
+    const normalizedPassword = String(body.password || "");
+
+    if (!normalizedUsername || !normalizedPassword) {
+      return json({ error: "Username dan password wajib diisi." }, 400);
+    }
+
+    /**
+     * OPTIONAL DEVELOPER LOGIN
+     * Tidak boleh mengganggu login Supabase/database normal.
+     */
+    const devLoginReady =
+      String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true" &&
+      env.DEV_USERNAME &&
+      env.DEV_PASSWORD;
+
+    if (devLoginReady) {
       const devUsername = String(env.DEV_USERNAME || "");
       const devPassword = String(env.DEV_PASSWORD || "");
-      if (safeEquals(normalizedUsername, devUsername) && safeEquals(normalizedPassword, devPassword)) {
-        const secret = String(env.DEV_SESSION_SECRET || env.SUPABASE_ANON_KEY || "dev-secret");
+
+      if (
+        safeEquals(normalizedUsername, devUsername) &&
+        safeEquals(normalizedPassword, devPassword)
+      ) {
+        const secret = String(
+          env.DEV_SESSION_SECRET ||
+            env.SUPABASE_ANON_KEY ||
+            "dev-secret"
+        );
+
         const accessToken = createDevToken(secret, normalizedUsername);
-        const expiresAt = Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
+        const expiresAt =
+          Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
+
         return json({
           mode: "dev",
           session: {
@@ -53,6 +83,7 @@ export async function onRequestPost({ request, env }) {
           },
           user: {
             id: "developer",
+            email: normalizedUsername,
             name: "Developer",
             role: "Development Mode",
             isDeveloper: true,
@@ -61,23 +92,49 @@ export async function onRequestPost({ request, env }) {
       }
     }
 
+    /**
+     * NORMAL DATABASE LOGIN VIA SUPABASE
+     */
     const supabaseUrl = String(env.SUPABASE_URL || "").trim();
     const supabaseAnonKey = String(env.SUPABASE_ANON_KEY || "").trim();
+
     if (!supabaseUrl || !supabaseAnonKey) {
-      return json({ error: "Konfigurasi auth belum lengkap." }, 500);
+      return json(
+        {
+          error:
+            "SUPABASE_URL atau SUPABASE_ANON_KEY belum diatur di Cloudflare ENV.",
+        },
+        500
+      );
     }
 
-    const resp = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: normalizedUsername, password: normalizedPassword }),
-    });
-    const data = await resp.json();
-    if (!resp.ok) return json({ error: data.error_description || data.msg || "Login gagal." }, 401);
+    const resp = await fetch(
+      `${supabaseUrl}/auth/v1/token?grant_type=password`,
+      {
+        method: "POST",
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedUsername,
+          password: normalizedPassword,
+        }),
+      }
+    );
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok) {
+      return json(
+        {
+          error: "Username atau password salah.",
+          detail: data.error_description || data.msg || data.error || null,
+        },
+        401
+      );
+    }
 
     return json({
       mode: "supabase",
@@ -90,7 +147,7 @@ export async function onRequestPost({ request, env }) {
       },
       user: data.user || null,
     });
-  } catch (_err) {
+  } catch (err) {
     return json({ error: "Payload login tidak valid." }, 400);
   }
 }
