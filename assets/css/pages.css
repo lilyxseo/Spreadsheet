@@ -1069,6 +1069,26 @@ body.light #page-balikan-store .balikan-check{
 }
 #page-balikan-store .balikan-controls select{min-width:200px}
 #page-balikan-store .balikan-controls input{flex:1 1 260px;min-width:220px}
+
+#page-balikan-store .editable-cell{
+  cursor:pointer;
+  transition:background .2s;
+}
+#page-balikan-store .editable-cell:hover{
+  background:rgba(255,0,0,.08);
+}
+#page-balikan-store .editable-cell.editing{
+  background:rgba(255,0,0,.15);
+}
+#page-balikan-store .inline-edit-input{
+  width:100%;
+  padding:6px 8px;
+  border:1px solid var(--danger-color,#ef4444);
+  border-radius:8px;
+  background:var(--card-bg);
+  color:var(--text-primary);
+  font-size:13px;
+}
 #page-balikan-store .balikan-row-highlight{
   background:color-mix(in srgb, var(--success-color) 14%, transparent);
 }
