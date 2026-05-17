@@ -29,7 +29,7 @@ export async function onRequestGet({ request, env }) {
       if (!sku && !namaBarang) continue;
       out.push({
         rowNumber: i + 1,
-        checked: getCell(r, 'checked').toUpperCase() === 'TRUE',
+        checked: (r || [])[headerInfo.columnMap.checked],
         no: getCell(r, 'no'),
         sku,
         namaBarang,
