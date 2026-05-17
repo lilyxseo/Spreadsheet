@@ -617,12 +617,12 @@ body.dark {
 }
 
 .app-icon {
-  width: 54px;
-  height: 54px;
-  flex: 0 0 54px;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
   display: grid;
   place-items: center;
-  padding: 10px;
+  padding: 6px;
   border-radius: 14px;
   background: #ffffff;
   border: 1px solid var(--login-card-border);
