@@ -38,6 +38,24 @@ function sanitizeMetadata(raw) {
   return out;
 }
 
+
+function decodeJwtPayload(token) {
+  try {
+    const part = String(token || "").split(".")[0];
+    if (!part) return null;
+    return JSON.parse(atob(part));
+  } catch (_err) {
+    return null;
+  }
+}
+
+function isDeveloperRequest(request) {
+  const auth = String(request.headers.get("authorization") || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const payload = decodeJwtPayload(token);
+  return payload?.isDeveloper === true;
+}
+
 function getSupabaseConfig(env) {
   const url = String(env.SUPABASE_URL || "").trim();
   const key = String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
@@ -138,6 +156,7 @@ export async function onRequestPost({ request, env }) {
 
 export async function onRequestGet({ request, env }) {
   try {
+    if (!isDeveloperRequest(request)) return json({ success: false, error: "Akses ditolak" }, 403);
     const url = new URL(request.url);
     const data = await supabaseGetLogs(env, Object.fromEntries(url.searchParams.entries()));
     return json({ success: true, data });
