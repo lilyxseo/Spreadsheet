@@ -28,6 +28,7 @@ const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
+const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
 let authChecking=true;
 let user=null;
 let devProfile=null;
@@ -195,6 +196,9 @@ document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventLis
 }
 function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFilter(e.target?.value||""));sortSearch?.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter?.addEventListener("change",updateStats);darkBtnHeader?.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>{document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu));document.querySelectorAll(".mv-columns.open").forEach(panel=>positionColumnMenu(panel.id.replace("mv-cols-","")));});document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);ensureColumnFilterState(mode);TABLE_STATE[mode].columnFilters[col]=selected;TABLE_STATE[mode].openFilterCol=col;TABLE_STATE[mode].page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});document.addEventListener("click",e=>{const btn=e.target.closest("[data-search-page]");if(!btn)return;changeSearchPage(Number(btn.dataset.searchPage)||0);});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
 searchInput?.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
+document.getElementById("btnScanSku")?.addEventListener("click",()=>{openBarcodeScanner("searchInput",handleSearchScanResult);});
+document.getElementById("scannerCloseBtn")?.addEventListener("click",closeScannerModal);
+document.querySelector("[data-scanner-close]")?.addEventListener("click",closeScannerModal);
 window.addEventListener("keydown",handleSearchShortcuts);
 const clearHistoryBtn=document.getElementById("clearSearchHistory");
 clearHistoryBtn?.addEventListener("click",clearSearchHistory);
@@ -212,7 +216,7 @@ const toggle=e.target.closest("[data-col-filter-toggle]");if(toggle){const mode=
 if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const st=TABLE_STATE[mode];ensureColumnFilterState(mode);if(e.target.matches("[data-col-filter-clear]")){st.columnFilters[col]=[];st.openFilterCol=col;st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}if(e.target.matches("[data-col-filter-all]")){st.columnFilters[col]=getUniqueOptions(applyTableFilters(st.rows,mode,col),col);st.openFilterCol=col;st.page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}return;}
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);});}
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
@@ -425,6 +429,93 @@ const nextResults=out.sort((a,b)=>a.rank-b.rank||a.sku.localeCompare(b.sku));
 if(nextResults.length!==lastResults.length||clean(prevQuery)!==clean(qRaw))SEARCH_STATE.page=1;
 lastResults=nextResults;
 renderResults(lastResults,qRaw);}
+
+function getScannerConfig(){
+const mobile=window.matchMedia("(max-width: 768px)").matches;
+return {
+fps:mobile?15:20,
+qrbox:{width:mobile?300:420,height:mobile?180:220},
+aspectRatio:1.777,
+disableFlip:false,
+formatsToSupport:[
+window.Html5QrcodeSupportedFormats.QR_CODE,
+window.Html5QrcodeSupportedFormats.CODE_128,
+window.Html5QrcodeSupportedFormats.EAN_13,
+window.Html5QrcodeSupportedFormats.EAN_8,
+window.Html5QrcodeSupportedFormats.UPC_A,
+window.Html5QrcodeSupportedFormats.UPC_E
+],
+experimentalFeatures:{useBarCodeDetectorIfSupported:true}
+};
+}
+function sanitizeScanResult(raw){
+const text=String(raw||"").trim();
+const digitsOnly=text.replace(/\D/g,"");
+return digitsOnly.length>=8?digitsOnly:text;
+}
+function handleSearchScanResult(decodedText){
+const cleaned=sanitizeScanResult(decodedText);
+if(!cleaned)return;
+searchInput.value=cleaned;
+SEARCH_STATE.inputValue=cleaned;
+SEARCH_STATE.filterValue=cleaned;
+runSearch();
+toast("Barcode berhasil discan","success");
+if(lastResults.length){showDetail(lastResults[0].sku);navigateTo(`/sku/${encodeURIComponent(lastResults[0].sku)}`);}
+else toast("SKU tidak ditemukan.","error");
+}
+async function openBarcodeScanner(targetInputId="searchInput",onResult=handleSearchScanResult){
+SCANNER_STATE.targetInputId=targetInputId;
+SCANNER_STATE.resultHandler=typeof onResult==="function"?onResult:handleSearchScanResult;
+return openScannerModal();
+}
+async function openScannerModal(){
+if(location.pathname!=="/search")return;
+if(typeof window.Html5Qrcode!=="function")return toast("Scanner belum tersedia.","error");
+const modal=document.getElementById("scannerModal"),readerId="scannerReader";
+if(!modal||SCANNER_STATE.isScannerRunning)return;
+modal.hidden=false;
+document.body.classList.add("scanner-modal-open");
+if(window.lucide)window.lucide.createIcons();
+try{
+SCANNER_STATE.instance=new window.Html5Qrcode(readerId);
+SCANNER_STATE.isScannerRunning=true;
+SCANNER_STATE.isClosing=false;
+SCANNER_STATE.hasScanned=false;
+const config=getScannerConfig();
+const onSuccess=async(decodedText)=>{
+if(SCANNER_STATE.isClosing||SCANNER_STATE.hasScanned||!decodedText)return;
+SCANNER_STATE.hasScanned=true;
+SCANNER_STATE.resultHandler?.(decodedText);
+await closeScannerModal();
+};
+try{
+await SCANNER_STATE.instance.start({facingMode:{exact:"environment"}},config,onSuccess,()=>{});
+}catch(_cameraErr){
+await SCANNER_STATE.instance.start({facingMode:"environment"},config,onSuccess,()=>{});
+}
+}catch(err){
+SCANNER_STATE.isScannerRunning=false;
+SCANNER_STATE.hasScanned=false;
+SCANNER_STATE.instance=null;
+modal.hidden=true;
+document.body.classList.remove("scanner-modal-open");
+toast(err?.message||"Gagal membuka kamera scanner.","error");
+}
+}
+async function closeScannerModal(){
+const modal=document.getElementById("scannerModal");
+if(!modal)return;
+SCANNER_STATE.isClosing=true;
+if(SCANNER_STATE.instance&&SCANNER_STATE.isScannerRunning){try{await SCANNER_STATE.instance.stop();}catch(_){}}
+if(SCANNER_STATE.instance){try{await SCANNER_STATE.instance.clear();}catch(_){}}
+SCANNER_STATE.instance=null;
+SCANNER_STATE.isScannerRunning=false;
+SCANNER_STATE.hasScanned=false;
+SCANNER_STATE.isClosing=false;
+modal.hidden=true;
+document.body.classList.remove("scanner-modal-open");
+}
 function changeSearchPage(delta){if(!delta)return;const totalPage=Math.max(1,Math.ceil(lastResults.length/SEARCH_STATE.pageSize));SEARCH_STATE.page=Math.max(1,Math.min(totalPage,SEARCH_STATE.page+delta));renderResults(lastResults,lastQuery);}
 function renderResults(items,query){if(sortSearch.value==="sku")items=[...items].sort((a,b)=>a.sku.localeCompare(b.sku));if(sortSearch.value==="name")items=[...items].sort((a,b)=>a.nama.localeCompare(b.nama));if(!items.length) return renderState("results","Data tidak ditemukan.");const total=items.length;const totalPage=Math.max(1,Math.ceil(total/SEARCH_STATE.pageSize));if(SEARCH_STATE.page>totalPage)SEARCH_STATE.page=totalPage;const startIdx=(SEARCH_STATE.page-1)*SEARCH_STATE.pageSize;const pageItems=items.slice(startIdx,startIdx+SEARCH_STATE.pageSize);const start=total?startIdx+1:0,end=Math.min(startIdx+SEARCH_STATE.pageSize,total);const resultsNode=document.getElementById("results");if(!resultsNode)return;resultsNode.innerHTML=`<div class='subtitle'>${total} hasil.</div><div class='result-list'></div><div class='mv-pagination'><span>Menampilkan ${start}–${end} dari ${total} data</span><div class='row'><button class='btn-ghost' data-search-page='-1'>Prev</button><button class='btn-ghost' data-search-page='1'>Next</button></div></div>`;const listNode=resultsNode.querySelector(".result-list");pageItems.forEach(r=>{const card=document.createElement("div");card.className="result-card";const badgesHtml=r.sources.filter(s=>!['Barang Masuk','Barang Keluar'].includes(s)).map(s=>`<span class='badge ${badgeClass(s)}'>${esc(s)}</span>`).join(" ");card.innerHTML=`<div class='result-head'><div><strong data-highlight='nama'></strong><div>SKU: <span data-highlight='sku'></span></div></div><div>${badgesHtml}</div></div><div class='row'><button class='btn-ghost copy-mini-btn' data-copy-sku onclick="copySku(decodeURIComponent('${encAttr(r.sku)}'),this)"><span aria-hidden='true'>⧉</span><span>Copy SKU</span></button><button class='btn-primary' onclick="showDetail(decodeURIComponent('${encAttr(r.sku)}'));navigateTo('/sku/'+encodeURIComponent(decodeURIComponent('${encAttr(r.sku)}')))">Lihat Detail</button></div>`;const namaEl=card.querySelector("[data-highlight='nama']");const skuEl=card.querySelector("[data-highlight='sku']");highlightText(r.nama,query).forEach(node=>namaEl.append(node));highlightText(r.sku,query).forEach(node=>skuEl.append(node));listNode?.append(card);});}
 function showDetail(identifier){const key=clean(identifier);const sel=[...CACHE_SKU.values()].find(r=>clean(r.sku)===key||clean(r.nama)===key);if(!sel) return renderState("detail","Detail tidak tersedia.");
