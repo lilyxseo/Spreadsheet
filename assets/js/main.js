@@ -435,10 +435,8 @@ function getScannerConfig(){
 return {
 fps:20,
 qrbox:(viewfinderWidth,viewfinderHeight)=>{
-const isMobile=window.matchMedia("(max-width: 768px)").matches;
 const minEdge=Math.min(viewfinderWidth,viewfinderHeight);
-const preferred=isMobile?260:320;
-const size=Math.min(Math.floor(minEdge*0.75),preferred);
+const size=Math.floor(minEdge*0.7);
 return {width:size,height:size};
 },
 aspectRatio:1,
@@ -454,20 +452,32 @@ window.Html5QrcodeSupportedFormats.UPC_E
 ]
 };
 }
-function sanitizeScanResult(raw){
-const text=String(raw||"").trim();
-const digitsOnly=text.replace(/\D/g,"");
-return digitsOnly.length>=8?digitsOnly:text;
+function cleanScannedSku(text){
+const raw=String(text||"").trim();
+const match=raw.match(/\d{8,20}/);
+return match?match[0]:raw;
+}
+function triggerSearchSku(sku){
+SEARCH_STATE.inputValue=sku;
+SEARCH_STATE.filterValue=sku;
+runSearch();
+}
+function openSkuDetailIfFound(sku){
+const key=clean(sku);
+const exact=lastResults.find(r=>clean(r.sku)===key);
+if(!exact)return false;
+showDetail(exact.sku);
+navigateTo('/sku/'+encodeURIComponent(exact.sku));
+return true;
 }
 function handleSearchScanResult(decodedText){
-const cleaned=sanitizeScanResult(decodedText);
-if(!cleaned)return;
-searchInput.value=cleaned;
-SEARCH_STATE.inputValue=cleaned;
-SEARCH_STATE.filterValue=cleaned;
-runSearch();
-toast("Barcode/QR berhasil discan","success");
-if(!lastResults.length)toast("SKU tidak ditemukan.","error");
+const sku=cleanScannedSku(decodedText);
+if(!sku)return;
+const input=document.getElementById("searchInput");
+if(input)input.value=sku;
+triggerSearchSku(sku);
+const found=openSkuDetailIfFound(sku);
+toast(found?`Barcode berhasil: ${sku}`:`Barcode berhasil: ${sku}. SKU tidak ditemukan.`,found?"success":"error");
 }
 async function openBarcodeScanner(targetInputId="searchInput",onResult=handleSearchScanResult){
 SCANNER_STATE.targetInputId=targetInputId;
@@ -477,7 +487,7 @@ return openScannerModal();
 async function openScannerModal(){
 if(location.pathname!=="/search")return;
 if(typeof window.Html5Qrcode!=="function")return toast("Scanner belum tersedia.","error");
-const modal=document.getElementById("scannerModal"),readerId="scannerReader";
+const modal=document.getElementById("scannerModal"),readerId="barcode-reader";
 if(!modal||SCANNER_STATE.isScannerRunning)return;
 modal.hidden=false;
 document.body.classList.add("scanner-modal-open");
@@ -491,14 +501,24 @@ const config=getScannerConfig();
 const onSuccess=async(decodedText)=>{
 if(SCANNER_STATE.isClosing||SCANNER_STATE.hasScanned||!decodedText)return;
 SCANNER_STATE.hasScanned=true;
-SCANNER_STATE.resultHandler?.(decodedText);
 await closeScannerModal();
+SCANNER_STATE.resultHandler?.(decodedText);
 };
 try{
 await SCANNER_STATE.instance.start({facingMode:{exact:"environment"}},config,onSuccess,()=>{});
 }catch(_cameraErr){
 await SCANNER_STATE.instance.start({facingMode:"environment"},config,onSuccess,()=>{});
 }
+setTimeout(()=>{
+const video=document.querySelector("#barcode-reader video");
+if(video){
+video.setAttribute("playsinline",true);
+video.setAttribute("webkit-playsinline",true);
+video.muted=true;
+video.autoplay=true;
+video.play().catch(()=>{});
+}
+},300);
 }catch(err){
 SCANNER_STATE.isScannerRunning=false;
 SCANNER_STATE.hasScanned=false;

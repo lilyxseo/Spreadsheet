@@ -980,3 +980,7 @@ body.dark .app-icon {
 .scanner-modal-hint{margin:10px 0 2px;color:var(--muted);font-size:12px}
 .scanner-modal-open{overflow:hidden}
 :root.dark .scanner-modal-content{background:#10151f;border-color:#2b3a55;box-shadow:0 16px 36px rgba(0,0,0,.55)}
+
+#barcode-reader video{width:100% !important;height:100% !important;object-fit:cover;background:black}
+#barcode-reader button,
+#barcode-reader img{display:none !important}
