@@ -161,7 +161,7 @@ textarea{resize:vertical;min-height:96px}
 
 @media (max-width: 899px){
   :where(input,select,textarea,.search-lg,[type="search"],.search-input,.dropdown-trigger){
-    min-height:42px;
+    /* min-height:42px; */
   }
 }
     .state{border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted)}
