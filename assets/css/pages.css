@@ -975,6 +975,7 @@ body.dark .app-icon {
 .scanner-modal-content{position:relative;z-index:1;width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 12px 28px rgba(0,0,0,.35)}
 .scanner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;color:var(--text)}
 .scanner-reader{border-radius:12px;overflow:hidden;background:#000;min-height:220px;outline:2px solid color-mix(in srgb,var(--primary) 32%, #fff 68%);outline-offset:-2px}
+.scanner-modal-actions{display:flex;justify-content:flex-end;margin-top:10px}
 @media (max-width:768px){.scanner-reader{min-height:190px}}
 .scanner-modal-hint{margin:10px 0 2px;color:var(--muted);font-size:12px}
 .scanner-modal-open{overflow:hidden}
