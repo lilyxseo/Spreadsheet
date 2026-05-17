@@ -35,9 +35,15 @@ export async function onRequestPost({ request, env }) {
     const normalizedPassword = String(password);
 
     const devEnabled = String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true";
-    if (devEnabled) {
-      const devUsername = String(env.DEV_USERNAME || "");
-      const devPassword = String(env.DEV_PASSWORD || "");
+    const devUsername = String(env.DEV_USERNAME || "");
+    const devPassword = String(env.DEV_PASSWORD || "");
+    const canUseDevLogin = devEnabled && devUsername && devPassword;
+
+    if (devEnabled && !canUseDevLogin) {
+      console.warn("DEV_LOGIN_ENABLED=true but DEV_USERNAME/DEV_PASSWORD is incomplete. Falling back to normal login.");
+    }
+
+    if (canUseDevLogin) {
       if (safeEquals(normalizedUsername, devUsername) && safeEquals(normalizedPassword, devPassword)) {
         const secret = String(env.DEV_SESSION_SECRET || env.SUPABASE_ANON_KEY || "dev-secret");
         const accessToken = createDevToken(secret, normalizedUsername);
@@ -77,7 +83,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({ email: normalizedUsername, password: normalizedPassword }),
     });
     const data = await resp.json();
-    if (!resp.ok) return json({ error: data.error_description || data.msg || "Login gagal." }, 401);
+    if (!resp.ok) return json({ error: "Username atau password salah" }, 401);
 
     return json({
       mode: "supabase",
