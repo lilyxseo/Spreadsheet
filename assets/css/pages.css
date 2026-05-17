@@ -1053,6 +1053,10 @@ body.dark .app-icon {
 }
 #page-balikan-store .balikan-controls select{min-width:200px}
 #page-balikan-store .balikan-controls input{flex:1 1 260px;min-width:220px}
+
+#page-balikan-store .editable-cell{cursor:pointer}
+#page-balikan-store .editable-cell:hover{background:var(--hover-bg)}
+#page-balikan-store .inline-edit-input{width:100%;min-width:90px;padding:6px 8px;border:1px solid var(--accent-color);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font-size:13px}
 #page-balikan-store .balikan-row-highlight{
   background:color-mix(in srgb, var(--success-color) 14%, transparent);
 }
