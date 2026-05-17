@@ -984,3 +984,55 @@ body.dark .app-icon {
 #barcode-reader video{width:100% !important;height:100% !important;object-fit:cover;background:black}
 #barcode-reader button,
 #barcode-reader img{display:none !important}
+
+/* Balikan Store */
+#page-balikan-store,
+#page-balikan-store #balikanTable{
+  width:100%;
+  max-width:100%;
+}
+#page-balikan-store .balikan-table-wrapper{
+  width:100%;
+  overflow-x:auto;
+  border:1px solid var(--line);
+  border-radius:12px;
+}
+#page-balikan-store .balikan-table{
+  width:max-content;
+  min-width:100%;
+  border-collapse:collapse;
+}
+#page-balikan-store .balikan-table th,
+#page-balikan-store .balikan-table td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border-color);
+  white-space:nowrap;
+  height:42px;
+}
+#page-balikan-store .balikan-table th{
+  font-weight:700;
+  color:var(--danger-color,#ff5b6b);
+  background:var(--table-header-bg);
+}
+#page-balikan-store .balikan-table input[type="checkbox"]{
+  width:22px;
+  height:22px;
+  accent-color:#22c55e;
+  cursor:pointer;
+  display:inline-block;
+}
+#page-balikan-store .col-check{
+  text-align:center;
+  width:80px;
+}
+@media (max-width: 768px){
+  #page-balikan-store .balikan-table{
+    min-width:1100px;
+    font-size:12px;
+  }
+  #page-balikan-store .balikan-table td{height:40px}
+  #page-balikan-store .balikan-table input[type="checkbox"]{
+    width:18px;
+    height:18px;
+  }
+}
