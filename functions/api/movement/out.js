@@ -84,10 +84,29 @@ async function createAccessToken(env) {
   return tokenData.access_token;
 }
 
-async function appendToSheet({ accessToken, sheetId, range, values }) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+async function readSheetValues({ accessToken, sheetId, range }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`;
   const res = await fetch(url, {
-    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
+}
+
+function findFirstEmptyRowIndex(values) {
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i] || [];
+    const tanggal = sanitize(row[0]);
+    const sku = sanitize(row[3]);
+    if (!tanggal && !sku) return i;
+  }
+  return -1;
+}
+
+async function updateSheetRow({ accessToken, sheetId, range, values }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: "PUT",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ values }),
   });
@@ -134,22 +153,24 @@ export async function onRequestPost({ request, env }) {
     const accessToken = await createAccessToken(env);
     const row = [[tanggal, from, to, sku, namaBarang, qty, "Barang Keluar", pic, "INTERNAL STOCK TRANSFER"]];
 
-    let { res, data } = await appendToSheet({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE, values: row });
+    const readResult = await readSheetValues({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE });
+    let { res, data } = readResult;
     if (!res.ok && isPermissionError(data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
     }
+    if (!res.ok) return json({ success: false, message: data?.error?.message || "Gagal membaca Google Sheet", detail: data }, res.status);
 
-    if (!res.ok) {
-      const msg = String(data?.error?.message || "").toLowerCase();
-      if (msg.includes("unable to parse range") || msg.includes("range") || msg.includes("not found")) {
-        ({ res, data } = await appendToSheet({ accessToken, sheetId: spreadsheetId, range: FALLBACK_SHEET_RANGE, values: row }));
-      }
-    }
+    const values = Array.isArray(data?.values) ? data.values : [];
+    const emptyIndex = findFirstEmptyRowIndex(values);
+    const targetIndex = emptyIndex === -1 ? values.length : emptyIndex;
+    const rowNumber = Math.max(2, targetIndex + 1);
+    const targetRange = `Barang Keluar!A${rowNumber}:I${rowNumber}`;
+    ({ res, data } = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: targetRange, values: row }));
 
     if (!res.ok && isPermissionError(data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
     }
-    if (!res.ok) return json({ success: false, message: data?.error?.message || "Gagal append ke Google Sheet", detail: data }, res.status);
+    if (!res.ok) return json({ success: false, message: data?.error?.message || "Gagal update Google Sheet", detail: data }, res.status);
     return json({ success: true });
   } catch (err) {
     return json({ success: false, message: err?.message || "Internal server error" }, 500);
@@ -185,7 +206,7 @@ export async function onRequestGet({ request, env }) {
     let appendResult = { skipped: true };
     if (appendDummy) {
       const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Keluar", "ABI", "INTERNAL STOCK TRANSFER"]];
-      const appended = await appendToSheet({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE, values: dummyRow });
+      const appended = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: "Barang Keluar!A2:I2", values: dummyRow });
       if (!appended.res.ok && isPermissionError(appended.data)) {
         return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
       }
