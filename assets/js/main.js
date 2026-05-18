@@ -82,6 +82,15 @@ appRoot.classList.remove("is-auth-checking","is-logged-out","is-logged-in");
 appRoot.classList.add(state);
 }
 
+const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
+function normalizeBackendRows(payload){
+if(Array.isArray(payload?.data))return payload.data;
+if(Array.isArray(payload?.rows))return payload.rows;
+if(Array.isArray(payload?.values))return payload.values;
+return [];
+}
+
+function preloadInventoryData(){return preloadMainData();}
 function preloadMainData(){
 if(window.mainDataCache){
 console.log("[preloadData] gunakan cache global yang sudah ada");
@@ -94,7 +103,7 @@ return window.mainDataPromise;
 console.time("preloadData");
 window.mainDataPromise=(async()=>{
 const freshData={};
-for(const sheet of SHEETS){
+for(const sheet of INVENTORY_PRELOAD_SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=parseSheet(raw, sheet);
@@ -213,8 +222,13 @@ bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisib
 }else{
 syncDeveloperMenuVisibility();
 }
-preloadMainData().catch(err=>console.warn("Main sheet preload gagal",err));
+await preloadInventoryData();
+await Promise.all([
+loadBarangMasuk({ mode: "latest", limit: 1000, forceRefresh: true }),
+loadBarangKeluar({ mode: "latest", limit: 1000, forceRefresh: true })
+]);
 await initAppData();
+renderDashboard();
 await loadBalikanSheets();
 if(window.lucide)lucide.createIcons();
 });
@@ -304,14 +318,14 @@ try{
 const db=await openCacheDb();
 const rows=await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readonly");const rq=tx.objectStore(IDB_STORE).getAll();rq.onsuccess=()=>resolve(rq.result||[]);rq.onerror=()=>reject(rq.error);});
 const parsed={};
-for(const sheet of SHEETS){const hit=rows.find(r=>r.sheet===sheet);parsed[sheet]=Array.isArray(hit?.rows)?hit.rows:[];}
+for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){const hit=rows.find(r=>r.sheet===sheet);parsed[sheet]=Array.isArray(hit?.rows)?hit.rows:[];}
 return parsed;
 }catch(err){console.warn("IndexedDB load failed, fallback ke fetch API langsung", err);return null;}
 }
 async function saveCache(data){
 try{
 const db=await openCacheDb();
-await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of SHEETS){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
+await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
 localStorage.setItem(CACHE_KEYS.lastSync,String(Date.now()));
 localStorage.setItem(CACHE_KEYS.version,CACHE_VERSION);
 updateSyncTime();
@@ -326,8 +340,20 @@ try{const db=await openCacheDb();await new Promise((resolve,reject)=>{const tx=d
 localStorage.removeItem(CACHE_KEYS.lastSync);localStorage.removeItem(CACHE_KEYS.version);
 }
 function applyData(newData,{fromCache=false,deferRender=true}={}){
-for(const sheet of SHEETS)DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
+window.APP_STATE=window.APP_STATE||{};
+const preservedMasuk=Array.isArray(window.APP_STATE.barangMasuk)?window.APP_STATE.barangMasuk:(Array.isArray(DATA["Barang Masuk"])?DATA["Barang Masuk"]:[]);
+const preservedKeluar=Array.isArray(window.APP_STATE.barangKeluar)?window.APP_STATE.barangKeluar:(Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[]);
+for(const sheet of SHEETS){
+if(sheet==="Barang Masuk"){DATA[sheet]=Array.isArray(newData?.[sheet])&&newData[sheet].length?newData[sheet]:preservedMasuk;continue;}
+if(sheet==="Barang Keluar"){DATA[sheet]=Array.isArray(newData?.[sheet])&&newData[sheet].length?newData[sheet]:preservedKeluar;continue;}
+DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
+}
+window.APP_STATE.barangMasuk=Array.isArray(DATA["Barang Masuk"])?DATA["Barang Masuk"]:[];
+window.APP_STATE.barangKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
+window.APP_STATE.data={...(newData||{}),barangMasuk:window.APP_STATE.barangMasuk,barangKeluar:window.APP_STATE.barangKeluar};
 console.log("STATE DATA", DATA);
+console.log("STATE DATA barangMasuk", window.APP_STATE.barangMasuk?.length||0);
+console.log("STATE DATA barangKeluar", window.APP_STATE.barangKeluar?.length||0);
 const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
 window.__isDataReady = hasAnyData;
 console.log("DATA READY", window.__isDataReady);
@@ -350,6 +376,7 @@ function getActivePage(){
 const active=document.querySelector(".page:not(.hidden)");
 return active?.id?.replace("page-","")||"dashboard";
 }
+function renderDashboard(){updateDashboard();}
 function rerenderCurrentPage({fromCache=false}={}){
 setMainContentLoading(false);
 const page=getActivePage();
@@ -376,14 +403,17 @@ if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat da
 if(silent)setStatus("loading","Sinkronisasi...");
 const freshData={};
 try{
-for(const sheet of SHEETS){
+for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=parseSheet(raw, sheet);
+if(sheet==="Barang Masuk"){window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangMasuk=freshData[sheet];console.log("DASHBOARD BARANG MASUK", window.APP_STATE.barangMasuk?.length);}
+if(sheet==="Barang Keluar"){window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangKeluar=freshData[sheet];console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);}
 console.log("FETCH RESULT", sheet, raw);
 console.log("PARSED DATA", sheet, freshData[sheet].length);
 }
 applyData(freshData,{deferRender:true});
+renderDashboard();
 await saveCache(freshData);
 setStatus("ok","");
 return true;
@@ -471,10 +501,39 @@ setInterval(maybeAutoSync,AUTO_SYNC_CHECK_INTERVAL_MS);
 }
 
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
-async function fetchSheet(sheetName){const range=`${sheetName}!A1:ZZ`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);return json.values||[];}
+async function loadBarangMasuk(_opts={}){
+const res=await fetch('/api/barang-masuk');
+const json=await res.json();
+if(!res.ok||!json?.success)throw new Error(`Barang Masuk: ${(json&&json.message)||res.statusText}`);
+const barangMasukRows=normalizeBackendRows(json);
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangMasuk=barangMasukRows;
+console.log("DASHBOARD BARANG MASUK", window.APP_STATE.barangMasuk?.length);
+return barangMasukRows;
+}
+async function loadBarangKeluar(_opts={}){
+const res=await fetch('/api/barang-keluar');
+const json=await res.json();
+if(!res.ok||!json?.success)throw new Error(`Barang Keluar: ${(json&&json.message)||res.statusText}`);
+const barangKeluarRows=normalizeBackendRows(json);
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangKeluar=barangKeluarRows;
+console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);
+return barangKeluarRows;
+}
+async function fetchSheet(sheetName){
+if(sheetName==='Barang Masuk')return loadBarangMasuk();
+if(sheetName==='Barang Keluar')return loadBarangKeluar();
+const range=`${sheetName}!A1:ZZ`;
+const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+const res=await fetch(url);
+const json=await res.json();
+if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);
+return json.values||[];
+}
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
 function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
-function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of SHEETS){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[]});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}}
+function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[]});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}}
 function scheduleSearchFilter(nextValue){
 SEARCH_STATE.inputValue=String(nextValue||"");
 clearTimeout(SEARCH_STATE.debounceTimer);
@@ -638,7 +697,7 @@ const sourceList=Array.isArray(sel.sources)?sel.sources:[...sel.sources||[]];
 let html=`<div class='detail-profile'><div class='detail-hero'><div class='detail-top'><div><div class='detail-name'>${esc(nama)}</div><div class='detail-sku'>SKU: <strong>${esc(sku)}</strong> <button class='btn-ghost copy-mini-btn' data-copy-sku onclick="copySku(decodeURIComponent('${encAttr(sku)}'),this)"><span aria-hidden='true'>⧉</span><span>Copy SKU</span></button></div></div><button class='btn-primary' onclick="goBackToPreviousPage()"><span aria-hidden='true'>←</span><span>Kembali ke hasil pencarian</span></button></div><div class='source-row'>${sourceList.map(s=>`<span class='badge ${badgeClass(s)}'>${esc(s)}</span>`).join(" ")}</div></div>`;
 html+=`<div class='summary-grid'>${summary.map(([k,v])=>`<div class='summary-card'><div class='k'>${k}</div><div class='v'>${esc(v)}</div></div>`).join("")}</div>`;
 html+=`<div class='detail-note'><div class='note-box'><div class='note-title'>Lokasi</div><div class='note-value'>${locationSet.size?[...locationSet].slice(0,12).map(esc).join(", "):"-"}</div></div></div>`;
-for(const sheet of SHEETS){const rows=bySheet[sheet];html+=`<details class='source-card' ${rows.length?'open':''}><summary><span><span class='badge ${badgeClass(sheet)}'>${sheet}</span></span><span>${rows.length} baris</span></summary><div class='source-body'>${renderTable(rows)}</div></details>`;}
+for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){const rows=bySheet[sheet];html+=`<details class='source-card' ${rows.length?'open':''}><summary><span><span class='badge ${badgeClass(sheet)}'>${sheet}</span></span><span>${rows.length} baris</span></summary><div class='source-body'>${renderTable(rows)}</div></details>`;}
 html+="</div>";detail.innerHTML=html;}
 function renderTable(rows){if(!rows.length) return `<div class='empty-card'><strong>Data kosong</strong><div>Tidak ada baris untuk sumber ini.</div></div>`;const headers=Object.keys(rows[0]);let h=`<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${esc(String(x).toUpperCase())}</th>`).join("")}</tr></thead><tbody>`;rows.forEach(r=>h+=`<tr>${headers.map(k=>`<td>${esc(r[k])}</td>`).join("")}</tr>`);h+=`</tbody></table></div><div class='mv-pagination'><span>Menampilkan ${rows.length} dari ${rows.length} data</span></div>`;return h;}
 
