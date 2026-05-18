@@ -7,6 +7,7 @@ ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
+const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
 const AUTO_SYNC_CHECK_INTERVAL_MS=30*1000;
@@ -88,6 +89,22 @@ if(Array.isArray(payload?.data))return payload.data;
 if(Array.isArray(payload?.rows))return payload.rows;
 if(Array.isArray(payload?.values))return payload.values;
 return [];
+}
+function mergeLatestRows(oldRows=[],latestRows=[]){
+const map=new Map();
+oldRows.forEach(row=>map.set(Number(row?.rowNumber),row));
+latestRows.forEach(row=>map.set(Number(row?.rowNumber),row));
+return Array.from(map.values()).sort((a,b)=>Number(a?.rowNumber)-Number(b?.rowNumber));
+}
+function removeDeletedRows(oldRows=[],deletedRowNumbers=[]){
+const deletedSet=new Set((deletedRowNumbers||[]).map(Number));
+return (oldRows||[]).filter(row=>!deletedSet.has(Number(row?.rowNumber)));
+}
+function setModuleCache(key,rows){
+localStorage.setItem(key,JSON.stringify(Array.isArray(rows)?rows:[]));
+}
+function getModuleCache(key){
+try{return JSON.parse(localStorage.getItem(key)||"[]");}catch(_err){return [];}
 }
 
 function preloadInventoryData(){return preloadMainData();}
@@ -223,14 +240,6 @@ bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisib
 syncDeveloperMenuVisibility();
 }
 await preloadInventoryData();
-const [barangMasuk, barangKeluar] = await Promise.all([
-loadBarangMasuk({ mode: "latest", limit: 1000, forceRefresh: true }),
-loadBarangKeluar({ mode: "latest", limit: 1000, forceRefresh: true })
-]);
-window.APP_STATE=window.APP_STATE||{};
-window.APP_STATE.barangMasuk=barangMasuk||[];
-window.APP_STATE.barangKeluar=barangKeluar||[];
-console.log("INIT DATA RESULT",{barangMasuk:window.APP_STATE.barangMasuk.length,barangKeluar:window.APP_STATE.barangKeluar.length});
 await initAppData();
 renderDashboard();
 await loadBalikanSheets();
@@ -251,7 +260,7 @@ const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await preloadInventoryData();const [barangMasuk, barangKeluar] = await Promise.all([loadBarangMasuk({ mode: "latest", limit: 1000, forceRefresh: true }),loadBarangKeluar({ mode: "latest", limit: 1000, forceRefresh: true })]);window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangMasuk=barangMasuk||[];window.APP_STATE.barangKeluar=barangKeluar||[];console.log("INIT DATA RESULT",{barangMasuk:window.APP_STATE.barangMasuk.length,barangKeluar:window.APP_STATE.barangKeluar.length});await initAppData();renderDashboard();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await preloadInventoryData();await initAppData();renderDashboard();
 await loadBalikanSheets();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"User"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"User",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
@@ -260,7 +269,12 @@ form.dataset.bound="1";
 function bindNav(){
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
 }
-async function refreshMovementTableData(mode){if(typeof syncData==='function')await syncData({force:true,silent:true});TABLE_STATE[mode].selected.clear();renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',false);}
+async function refreshMovementTableData(mode,{deletedRowNumbers=[]}={}){
+const sheetName=mode==='in'?'Barang Masuk':'Barang Keluar';
+await refreshSheetByLatestMerge(sheetName,{deletedRowNumbers});
+TABLE_STATE[mode].selected.clear();
+renderDataTablePage(mode,sheetName,false);
+}
 
 function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFilter(e.target?.value||""));sortSearch?.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter?.addEventListener("change",updateStats);darkBtnHeader?.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>{document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu));document.querySelectorAll(".mv-columns.open").forEach(panel=>positionColumnMenu(panel.id.replace("mv-cols-","")));});document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);ensureColumnFilterState(mode);TABLE_STATE[mode].columnFilters[col]=selected;TABLE_STATE[mode].openFilterCol=col;TABLE_STATE[mode].page=1;renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});document.addEventListener("click",e=>{const btn=e.target.closest("[data-search-page]");if(!btn)return;changeSearchPage(Number(btn.dataset.searchPage)||0);});anomalySeverity?.addEventListener("change",()=>renderAnomalyPage());
 searchInput?.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
@@ -280,8 +294,8 @@ bindSheetInputForm();
 bindArchiveEvents();
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-mv-action]");if(btn){const mode=btn.dataset.mvMode;const action=btn.dataset.mvAction;if(action==="reset")return resetMovementFilter(mode);if(action==="export")return exportFilteredCsv(mode);if(action==="prev"||action==="next")return paginateRows(mode,action);if(action==="toggle-filter"){document.getElementById(`mv-filters-${mode}`)?.classList.toggle("open");}if(action==="columns"){toggleColumnMenu(mode);return;}return;}
 const mvCell=e.target.closest('[data-mv-cell]');if(mvCell){const mode=mvCell.dataset.mode,row=Number(mvCell.dataset.row),field=mvCell.dataset.field;const item=TABLE_STATE[mode].rows.find(r=>r.rowNumber===row);if(item)startInlineEdit(mvCell,item,field,item[field],{onSave:async({value,oldValue})=>{const res=await fetch(mode==='in'?'/api/barang-masuk/bulk-update':'/api/barang-keluar/bulk-update',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rowNumbers:[row],updates:{[field]:value}})});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal update');item[field]=value;renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);logActivitySafe({action:mode==='in'?'EDIT_BARANG_MASUK':'EDIT_BARANG_KELUAR',module:mode==='in'?'Barang Masuk':'Barang Keluar',detail:`Edit ${field} row ${row}`,status:'SUCCESS'});}});return;}
-const mvDelete=e.target.closest('[data-mv-delete]');if(mvDelete){const mode=mvDelete.dataset.mvDelete,row=Number(mvDelete.dataset.row);showConfirmModal({title:'Hapus Data',message:'Yakin ingin hapus data ini?',confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{const st=TABLE_STATE[mode];st.deletingRows.add(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);try{const res=await fetch(mode==='in'?`/api/barang-masuk/${row}`:`/api/barang-keluar/${row}`,{method:'DELETE'});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal hapus');await refreshMovementTableData(mode);toast('Data berhasil dihapus','success');logActivitySafe({action:mode==='in'?'DELETE_BARANG_MASUK':'DELETE_BARANG_KELUAR',module:mode,status:'SUCCESS'});}catch(err){toast('Gagal menghapus data','error');}finally{st.deletingRows.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}}});return;}
-const bulkDelete=e.target.closest('[data-mv-bulk-delete]');if(bulkDelete){const mode=bulkDelete.dataset.mvBulkDelete,selectedSet=getSelectedSet(mode),rows=[...selectedSet];if(!rows.length)return;showConfirmModal({title:'Bulk Delete',message:`Hapus ${rows.length} item?`,confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{const st=TABLE_STATE[mode];st.bulkDeleting=true;renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);try{const res=await fetch(mode==='in'?'/api/barang-masuk/bulk-delete':'/api/barang-keluar/bulk-delete',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rowNumbers:rows})});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal bulk delete');await refreshMovementTableData(mode);toast('Data berhasil dihapus','success');}catch(err){toast('Gagal menghapus data','error');}finally{st.bulkDeleting=false;renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}}});return;}
+const mvDelete=e.target.closest('[data-mv-delete]');if(mvDelete){const mode=mvDelete.dataset.mvDelete,row=Number(mvDelete.dataset.row);showConfirmModal({title:'Hapus Data',message:'Yakin ingin hapus data ini?',confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{const st=TABLE_STATE[mode];st.deletingRows.add(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);try{const res=await fetch(mode==='in'?`/api/barang-masuk/${row}`:`/api/barang-keluar/${row}`,{method:'DELETE'});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal hapus');await refreshMovementTableData(mode,{deletedRowNumbers:[row]});toast('Data berhasil dihapus','success');logActivitySafe({action:mode==='in'?'DELETE_BARANG_MASUK':'DELETE_BARANG_KELUAR',module:mode,status:'SUCCESS'});}catch(err){toast('Gagal menghapus data','error');}finally{st.deletingRows.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}}});return;}
+const bulkDelete=e.target.closest('[data-mv-bulk-delete]');if(bulkDelete){const mode=bulkDelete.dataset.mvBulkDelete,selectedSet=getSelectedSet(mode),rows=[...selectedSet];if(!rows.length)return;showConfirmModal({title:'Bulk Delete',message:`Hapus ${rows.length} item?`,confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{const st=TABLE_STATE[mode];st.bulkDeleting=true;renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);try{const res=await fetch(mode==='in'?'/api/barang-masuk/bulk-delete':'/api/barang-keluar/bulk-delete',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rowNumbers:rows})});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal bulk delete');await refreshMovementTableData(mode,{deletedRowNumbers:rows});toast('Data berhasil dihapus','success');}catch(err){toast('Gagal menghapus data','error');}finally{st.bulkDeleting=false;renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}}});return;}
 const bulkEdit=e.target.closest('[data-mv-bulk-edit]');if(bulkEdit){const mode=bulkEdit.dataset.mvBulkEdit,selectedSet=getSelectedSet(mode),rows=[...selectedSet];if(!rows.length)return;const formHtml=`<div class='mv-bulk-edit-modal'><div class='subtitle'>${rows.length} item dipilih</div><div class='mv-bulk-edit-grid'><label>Tanggal<input id='mvBulkTanggal' class='search-lg' placeholder='Tanggal'></label><label>From<input id='mvBulkFrom' class='search-lg' placeholder='From'></label><label>To<input id='mvBulkTo' class='search-lg' placeholder='To'></label><label>SKU<input id='mvBulkSku' class='search-lg' placeholder='SKU'></label><label>Nama Barang<input id='mvBulkNamaBarang' class='search-lg' placeholder='Nama Barang'></label><label>Qty<input id='mvBulkQty' class='search-lg' placeholder='Qty' type='number'></label><label>Status<input id='mvBulkStatus' class='search-lg' placeholder='Status'></label><label>PIC<input id='mvBulkPic' class='search-lg' placeholder='PIC'></label><label>Keterangan<input id='mvBulkKeterangan' class='search-lg' placeholder='Keterangan'></label></div></div>`;showConfirmModal({title:'Bulk Edit',message:formHtml,allowHtmlMessage:true,confirmText:'Simpan Perubahan',cancelText:'Batal',onConfirm:()=>{const updates={};const map=[['tanggal','mvBulkTanggal'],['from','mvBulkFrom'],['to','mvBulkTo'],['sku','mvBulkSku'],['namaBarang','mvBulkNamaBarang'],['qty','mvBulkQty'],['status','mvBulkStatus'],['pic','mvBulkPic'],['keterangan','mvBulkKeterangan']];for(const [key,id] of map){const raw=(document.getElementById(id)?.value??'');const value=String(raw).trim();if(value!=="")updates[key]=key==='qty'?Number(value):value;}if(!Object.keys(updates).length){toast('Isi minimal 1 field untuk update','error');return;}fetch(mode==='in'?'/api/barang-masuk/bulk-update':'/api/barang-keluar/bulk-update',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rowNumbers:rows,updates})}).then(async r=>({ok:r.ok,out:await r.json()})).then(({ok,out})=>{if(!ok||!out?.success)throw new Error(out?.message||'Gagal bulk edit');TABLE_STATE[mode].rows.forEach(r=>{if(selectedSet.has(r.rowNumber))Object.assign(r,updates);});selectedSet.clear();renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);toast('Bulk edit berhasil','success');}).catch(err=>toast(err?.message||'Gagal bulk edit','error'));}});return;}
 const accountToggle=e.target.closest("[data-account-menu-toggle]"),accountMenu=document.querySelector("[data-account-menu]");
 if(accountToggle){if(accountMenu)accountMenu.hidden=!accountMenu.hidden;return;}
@@ -511,22 +525,28 @@ setInterval(maybeAutoSync,AUTO_SYNC_CHECK_INTERVAL_MS);
 
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function loadBarangMasuk(_opts={}){
-const res=await fetch('/api/barang-masuk');
+const {mode="full",limit=1000}=_opts||{};
+const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
+const res=await fetch(`/api/barang-masuk${qs}`);
 const json=await res.json();
 if(!res.ok||!json?.success)throw new Error(`Barang Masuk: ${(json&&json.message)||res.statusText}`);
 const barangMasukRows=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasukRows;
+setModuleCache(MODULE_CACHE_KEYS.barangMasuk,window.APP_STATE.barangMasuk);
 console.log("DASHBOARD BARANG MASUK", window.APP_STATE.barangMasuk?.length);
 return barangMasukRows;
 }
 async function loadBarangKeluar(_opts={}){
-const res=await fetch('/api/barang-keluar');
+const {mode="full",limit=1000}=_opts||{};
+const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
+const res=await fetch(`/api/barang-keluar${qs}`);
 const json=await res.json();
 if(!res.ok||!json?.success)throw new Error(`Barang Keluar: ${(json&&json.message)||res.statusText}`);
 const barangKeluarRows=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangKeluar=barangKeluarRows;
+setModuleCache(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
 console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);
 return barangKeluarRows;
 }
@@ -1343,3 +1363,14 @@ async function renderActivityLogPage(){const root=document.getElementById("activ
 window.showToast=(message,type="success")=>toast(message,type);
 
 function formatDateTime(value){if(!value)return"-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(value));}
+async function refreshSheetByLatestMerge(sheetName,{deletedRowNumbers=[]}={}){
+const isMasuk=sheetName==="Barang Masuk";
+const latestRows=isMasuk?await loadBarangMasuk({mode:"latest",limit:1000}):await loadBarangKeluar({mode:"latest",limit:1000});
+const prevRows=isMasuk?getBarangMasukRows():getBarangKeluarRows();
+const cleanedRows=deletedRowNumbers.length?removeDeletedRows(prevRows,deletedRowNumbers):prevRows;
+const mergedRows=mergeLatestRows(cleanedRows,latestRows);
+if(isMasuk){window.APP_STATE.barangMasuk=mergedRows;DATA["Barang Masuk"]=mergedRows;setModuleCache(MODULE_CACHE_KEYS.barangMasuk,mergedRows);}
+else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;setModuleCache(MODULE_CACHE_KEYS.barangKeluar,mergedRows);}
+await saveCache(DATA);
+rebuildSkuCache();
+}
