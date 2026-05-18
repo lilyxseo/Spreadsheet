@@ -1090,3 +1090,18 @@ body.light #page-balikan-store .balikan-check{
     height:18px !important;
   }
 }
+
+#page-cycle-count .editable-cell,
+#page-movement .editable-cell{cursor:pointer}
+#page-cycle-count .editable-cell:hover,
+#page-movement .editable-cell:hover{background:rgba(239,68,68,.08)}
+#page-cycle-count .editable-cell.editing,
+#page-movement .editable-cell.editing{background:rgba(239,68,68,.14)}
+#page-cycle-count .inline-edit-input,
+#page-movement .inline-edit-input{width:100%;padding:6px 8px;border:1px solid var(--danger-color,#ef4444);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font-size:13px}
+#page-cycle-count .icon-btn,
+#page-movement .icon-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border-color);background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+#page-cycle-count .icon-btn.danger,
+#page-movement .icon-btn.danger{color:var(--danger-color,#ef4444)}
+#page-cycle-count .icon-btn.danger:hover,
+#page-movement .icon-btn.danger:hover{background:rgba(239,68,68,.12)}
