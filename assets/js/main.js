@@ -526,33 +526,91 @@ if(page==="activity-log")renderActivityLogPage();
 if(page==="arsip")renderArchivePage();
 if(fromCache)setStatus("ready","");
 }
+async function refreshInventoryFull(){
+setStatus("loading","Inventory refreshing...");
+const freshData={};
+for(const sheet of INVENTORY_PRELOAD_SHEETS){
+const raw=await fetchSheet(sheet);
+await new Promise(resolve=>scheduleUIWork(resolve));
+freshData[sheet]=parseSheet(raw,sheet);
+console.log("FETCH RESULT",sheet,Array.isArray(raw)?raw.length:0);
+console.log("PARSED DATA",sheet,freshData[sheet].length);
+}
+return freshData;
+}
+async function refreshRplFull(){
+if(Array.isArray(DATA["RPL"])&&DATA["RPL"].length)return DATA["RPL"];
+const raw=await fetchSheet("RPL");
+const rows=parseSheet(raw,"RPL");
+return rows;
+}
+async function refreshBulkyFull(){
+if(Array.isArray(DATA["BULKY"])&&DATA["BULKY"].length)return DATA["BULKY"];
+const raw=await fetchSheet("BULKY");
+const rows=parseSheet(raw,"BULKY");
+console.log("FETCH RESULT BULKY",Array.isArray(raw)?raw.length:0);
+return rows;
+}
+async function refreshBarangMasukFull(){
+setStatus("loading","Barang Masuk refreshing...");
+const {res,data:json}=await fetchJsonSafe('/api/barang-masuk?mode=full');
+if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Masuk');
+const data=normalizeBackendRows(json);
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangMasuk=data;
+setCacheSafe("barangMasukCache",data);
+return data;
+}
+async function refreshBarangKeluarFull(){
+setStatus("loading","Barang Keluar refreshing...");
+const {res,data:json}=await fetchJsonSafe('/api/barang-keluar?mode=full');
+if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Keluar');
+const data=normalizeBackendRows(json);
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangKeluar=data;
+setCacheSafe("barangKeluarCache",data);
+return data;
+}
 async function syncData({force=false,silent=true}={}){
 if(isSyncing)return false;
 isSyncing=true;
 updateSyncUI();
 if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat data dari Google Sheets...");setMainContentLoading(true);}
 if(silent)setStatus("loading","Sinkronisasi...");
-const freshData={};
 try{
-for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){
-const raw=await fetchSheet(sheet);
-await new Promise(resolve=>scheduleUIWork(resolve));
-freshData[sheet]=parseSheet(raw, sheet);
-if(sheet==="Barang Masuk"){window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangMasuk=freshData[sheet];console.log("DASHBOARD BARANG MASUK", window.APP_STATE.barangMasuk?.length);}
-if(sheet==="Barang Keluar"){window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangKeluar=freshData[sheet];console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);}
-console.log("FETCH RESULT", sheet, raw);
-console.log("PARSED DATA", sheet, freshData[sheet].length);
+const results=await Promise.allSettled([
+refreshInventoryFull(),
+refreshRplFull(),
+refreshBulkyFull(),
+refreshBarangMasukFull(),
+refreshBarangKeluarFull()
+]);
+const [inventoryRes,rplRes,bulkyRes,barangMasukRes,barangKeluarRes]=results;
+const inventoryData=inventoryRes.status==='fulfilled'?inventoryRes.value:{};
+if(inventoryRes.status==='fulfilled')applyData(inventoryData,{deferRender:true});
+if(rplRes.status==='rejected')console.error('REFRESH ERROR RPL',rplRes.reason);
+if(bulkyRes.status==='rejected')console.error('REFRESH ERROR BULKY',bulkyRes.reason);
+if(barangMasukRes.status==='fulfilled'){
+window.APP_STATE.barangMasuk=barangMasukRes.value;
+DATA['Barang Masuk']=barangMasukRes.value;
+setCacheSafe('barangMasukCache',barangMasukRes.value);
 }
-applyData(freshData,{deferRender:true});
+if(barangKeluarRes.status==='fulfilled'){
+window.APP_STATE.barangKeluar=barangKeluarRes.value;
+DATA['Barang Keluar']=barangKeluarRes.value;
+setCacheSafe('barangKeluarCache',barangKeluarRes.value);
+}
+if(barangMasukRes.status==='rejected')console.error('REFRESH ERROR BARANG MASUK',barangMasukRes.reason);
+if(barangKeluarRes.status==='rejected')console.error('REFRESH ERROR BARANG KELUAR',barangKeluarRes.reason);
 renderDashboard();
-await saveCache(freshData);
-setStatus("ok","");
+await saveCache(DATA);
+setStatus('ok','');
 return true;
 }catch(err){
 apiConnected=false;updateApiState();
 const hasCache=!!(await loadCache());
-if(hasCache){setStatus("error","Gagal sync, memakai cache");return false;}
-setStatus("error","Gagal memuat data: "+err.message);renderError("results","Data belum berhasil dimuat");renderState("dashboardCards","Data belum berhasil dimuat");throw err;
+if(hasCache){setStatus('error','Gagal sync, memakai cache');return false;}
+setStatus('error','Gagal memuat data: '+err.message);renderError('results','Data belum berhasil dimuat');renderState('dashboardCards','Data belum berhasil dimuat');throw err;
 }finally{
 isSyncing=false;
 updateSyncUI();
