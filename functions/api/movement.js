@@ -39,6 +39,24 @@ function toPositiveNumber(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+
+function formatDateMDYYYY(date = new Date()) {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const y = date.getFullYear();
+  return `${m}/${d}/${y}`;
+}
+
+function normalizeTanggal(value) {
+  const raw = sanitize(value);
+  if (!raw) return formatDateMDYYYY();
+  const mdyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mdyyyy) return `${Number(mdyyyy[1])}/${Number(mdyyyy[2])}/${mdyyyy[3]}`;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return formatDateMDYYYY(parsed);
+}
+
 function isPermissionError(data) {
   const text = String(data?.error?.message || data?.message || "").toLowerCase();
   return text.includes("permission") || text.includes("forbidden") || text.includes("insufficient") || text.includes("caller does not have permission");
@@ -119,7 +137,7 @@ export async function onRequestPost({ request, env }) {
     const sku = sanitize(body?.sku);
     const namaBarang = sanitize(body?.namaBarang);
     const qty = toPositiveNumber(body?.qty);
-    const tanggal = sanitize(body?.tanggal || new Date().toISOString());
+    const tanggal = normalizeTanggal(body?.tanggal);
     const from = sanitize(body?.from);
     const to = sanitize(body?.to);
     const pic = sanitize(body?.pic) || "ABI";
@@ -184,7 +202,7 @@ export async function onRequestGet({ request, env }) {
     const appendDummy = sanitize(url.searchParams.get("appendDummy")).toLowerCase() === "1";
     let appendResult = { skipped: true };
     if (appendDummy) {
-      const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Masuk", "ABI", "INTERNAL STOCK TRANSFER"]];
+      const dummyRow = [[formatDateMDYYYY(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Masuk", "ABI", "INTERNAL STOCK TRANSFER"]];
       const appended = await appendToSheet({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE, values: dummyRow });
       if (!appended.res.ok && isPermissionError(appended.data)) {
         return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
