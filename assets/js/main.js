@@ -223,9 +223,10 @@ bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisib
 syncDeveloperMenuVisibility();
 }
 await preloadInventoryData();
+await loadDashboardSummary({ forceRefresh: true });
 const [barangMasuk, barangKeluar] = await Promise.all([
-loadBarangMasuk({ mode: "latest", limit: 1000, forceRefresh: true }),
-loadBarangKeluar({ mode: "latest", limit: 1000, forceRefresh: true })
+loadBarangMasuk({ mode: "preview", limit: 50, forceRefresh: true }),
+loadBarangKeluar({ mode: "preview", limit: 50, forceRefresh: true })
 ]);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasuk||[];
@@ -251,7 +252,7 @@ const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await preloadInventoryData();const [barangMasuk, barangKeluar] = await Promise.all([loadBarangMasuk({ mode: "latest", limit: 1000, forceRefresh: true }),loadBarangKeluar({ mode: "latest", limit: 1000, forceRefresh: true })]);window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangMasuk=barangMasuk||[];window.APP_STATE.barangKeluar=barangKeluar||[];console.log("INIT DATA RESULT",{barangMasuk:window.APP_STATE.barangMasuk.length,barangKeluar:window.APP_STATE.barangKeluar.length});await initAppData();renderDashboard();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await preloadInventoryData();await loadDashboardSummary({ forceRefresh: true });const [barangMasuk, barangKeluar] = await Promise.all([loadBarangMasuk({ mode: "preview", limit: 50, forceRefresh: true }),loadBarangKeluar({ mode: "preview", limit: 50, forceRefresh: true })]);window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangMasuk=barangMasuk||[];window.APP_STATE.barangKeluar=barangKeluar||[];console.log("INIT DATA RESULT",{barangMasuk:window.APP_STATE.barangMasuk.length,barangKeluar:window.APP_STATE.barangKeluar.length});await initAppData();renderDashboard();
 await loadBalikanSheets();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"User"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"User",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
@@ -386,6 +387,7 @@ function renderDashboard(){updateDashboard();}
 
 function getBarangMasukRows(){return Array.isArray(window.APP_STATE?.barangMasuk)?window.APP_STATE.barangMasuk:[];}
 function getBarangKeluarRows(){return Array.isArray(window.APP_STATE?.barangKeluar)?window.APP_STATE.barangKeluar:[];}
+async function ensureMovementDetailLoaded(mode){try{if(mode==="in"){await loadBarangMasuk({mode:"latest",limit:1000});}else{await loadBarangKeluar({mode:"latest",limit:1000});}}catch(err){console.warn("Gagal load detail movement",mode,err);}}
 function rerenderCurrentPage({fromCache=false}={}){
 setMainContentLoading(false);
 const page=getActivePage();
@@ -394,8 +396,8 @@ if(page==="stats")updateStats();
 if(page==="locations")renderLocationsPage();
 if(page==="detail"&&currentSku)showDetail(currentSku);
 if(page==="search"&&String(lastQuery||"").trim()){SEARCH_STATE.filterValue=lastQuery;runSearch();}
-if(page==="barang-masuk")renderDataTablePage("in","Barang Masuk",true);
-if(page==="barang-keluar")renderDataTablePage("out","Barang Keluar",true);
+if(page==="barang-masuk"){ensureMovementDetailLoaded("in");renderDataTablePage("in","Barang Masuk",true);}
+if(page==="barang-keluar"){ensureMovementDetailLoaded("out");renderDataTablePage("out","Barang Keluar",true);}
 if(page==="anomaly")renderAnomalyPage();
 if(page==="stok-minus")renderStokMinusPage();
 if(page==="cycle-count")renderCycleCountPage();
@@ -509,24 +511,37 @@ maybeAutoSync();
 setInterval(maybeAutoSync,AUTO_SYNC_CHECK_INTERVAL_MS);
 }
 
+const MODULE_CACHE={barangMasuk:new Map(),barangKeluar:new Map(),dashboardSummary:null};
+function buildModuleCacheKey(mode,limit){return `${String(mode||"latest").toLowerCase()}:${Number(limit)||0}`;}
+async function loadDashboardSummary({forceRefresh=false}={}){if(!forceRefresh&&MODULE_CACHE.dashboardSummary)return MODULE_CACHE.dashboardSummary;const res=await fetch("/api/dashboard-summary");const json=await res.json();if(!res.ok||!json?.success)throw new Error(`Dashboard Summary: ${(json&&json.message)||res.statusText}`);MODULE_CACHE.dashboardSummary=json;window.APP_STATE=window.APP_STATE||{};window.APP_STATE.dashboardSummary=json;return json;}
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function loadBarangMasuk(_opts={}){
-const res=await fetch('/api/barang-masuk');
+const mode=String(_opts?.mode||'latest').toLowerCase();
+const limit=Number(_opts?.limit||(mode==='preview'?50:1000));
+const cacheKey=buildModuleCacheKey(mode,limit);
+if(!_opts?.forceRefresh&&MODULE_CACHE.barangMasuk.has(cacheKey))return MODULE_CACHE.barangMasuk.get(cacheKey);
+const res=await fetch(`/api/barang-masuk?mode=${encodeURIComponent(mode)}&limit=${encodeURIComponent(limit)}`);
 const json=await res.json();
 if(!res.ok||!json?.success)throw new Error(`Barang Masuk: ${(json&&json.message)||res.statusText}`);
 const barangMasukRows=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasukRows;
+MODULE_CACHE.barangMasuk.set(cacheKey,barangMasukRows);
 console.log("DASHBOARD BARANG MASUK", window.APP_STATE.barangMasuk?.length);
 return barangMasukRows;
 }
 async function loadBarangKeluar(_opts={}){
-const res=await fetch('/api/barang-keluar');
+const mode=String(_opts?.mode||'latest').toLowerCase();
+const limit=Number(_opts?.limit||(mode==='preview'?50:1000));
+const cacheKey=buildModuleCacheKey(mode,limit);
+if(!_opts?.forceRefresh&&MODULE_CACHE.barangKeluar.has(cacheKey))return MODULE_CACHE.barangKeluar.get(cacheKey);
+const res=await fetch(`/api/barang-keluar?mode=${encodeURIComponent(mode)}&limit=${encodeURIComponent(limit)}`);
 const json=await res.json();
 if(!res.ok||!json?.success)throw new Error(`Barang Keluar: ${(json&&json.message)||res.statusText}`);
 const barangKeluarRows=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangKeluar=barangKeluarRows;
+MODULE_CACHE.barangKeluar.set(cacheKey,barangKeluarRows);
 console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);
 return barangKeluarRows;
 }
@@ -724,7 +739,7 @@ const uniqueStatuses=[...new Set(normalizedRows.map(row=>normalizeStatus(getVal(
 console.table([{source:label,totalRawRows:normalizedRows.length,totalStatusBarangMasuk:included.length,totalExcludedRows:normalizedRows.length-included.length,uniqueStatusSamples:uniqueStatuses.join(", ")}]);
 return included;
 }
-function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{const sourceRows=s==="Barang Masuk"?getBarangMasukRows():s==="Barang Keluar"?getBarangKeluarRows():(DATA[s]||[]);totals[s]=sourceRows.length;if(s==="Barang Masuk")totals[s]=sourceRows.filter(r=>clean(getVal(r,["sku"]))).length;sourceRows.forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
+function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{const sourceRows=s==="Barang Masuk"?getBarangMasukRows():s==="Barang Keluar"?getBarangKeluarRows():(DATA[s]||[]);const summary=window.APP_STATE?.dashboardSummary||{};totals[s]=sourceRows.length;if(s==="Barang Masuk")totals[s]=Number(summary.totalBarangMasuk)||sourceRows.filter(r=>clean(getVal(r,["sku"]))).length;if(s==="Barang Keluar")totals[s]=Number(summary.totalBarangKeluar)||sourceRows.filter(r=>clean(getVal(r,["sku"]))).length;sourceRows.forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
 const barangMasukRows=debugBarangMasukRows(getBarangMasukRows(),"Dashboard",isBarangMasukCountRow);
