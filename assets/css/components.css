@@ -27,3 +27,7 @@
 #refreshToggleHeader.is-syncing i,#refreshToggleHeader.is-syncing svg{animation:spin-refresh .65s linear infinite;transform-origin:center;}
 @keyframes spin-theme{to{transform:rotate(360deg);}}
 @keyframes spin-refresh{to{transform:rotate(360deg);}}
+
+.search-with-scan{display:flex;align-items:center;gap:8px;}
+.search-with-scan .search-lg{flex:1;}
+
