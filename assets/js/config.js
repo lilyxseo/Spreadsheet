@@ -8,7 +8,9 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 export const APP_CONFIG = {
   PIC_BY_ROLE: {
     inventory: "ABI",
-    admin: "ADMIN",
-    gudang: "GUDANG"
+    inbound: "ZEGA",
+    outbound: "EPRIL",
+    picker: "WINDI",
+    developer: "ABI"
   }
 };
