@@ -1,7 +1,23 @@
 import { API_KEY, SPREADSHEET_ID, SHEETS } from './config.js';
 import { parseSheet } from './parser.js';
 
+const BACKEND_SHEET_ENDPOINT = {
+  'Barang Masuk': '/api/barang-masuk',
+  'Barang Keluar': '/api/barang-keluar'
+};
+
+async function fetchSheetViaBackend(sheetName){
+  const endpoint = BACKEND_SHEET_ENDPOINT[sheetName];
+  const res = await fetch(endpoint);
+  const json = await res.json();
+  if(!res.ok || !json?.success){
+    throw new Error(`${sheetName}: ${json?.message || res.statusText}`);
+  }
+  return Array.isArray(json.values) ? json.values : [];
+}
+
 export async function fetchSheet(sheetName){
+  if(BACKEND_SHEET_ENDPOINT[sheetName]) return fetchSheetViaBackend(sheetName);
   const range = `${sheetName}!A1:ZZ20000`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
   const res = await fetch(url);
@@ -12,6 +28,7 @@ export async function fetchSheet(sheetName){
   }
   return json.values || [];
 }
+
 
 export async function fetchAllSheets(){
   const DATA = {};
