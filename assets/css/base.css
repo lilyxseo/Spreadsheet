@@ -654,7 +654,7 @@ body.dark .metric-delta--out{color:#f87171}
 .confirm-modal-confirm.danger{background:var(--danger,#dc2626);border-color:var(--danger,#dc2626);color:#fff}
 .confirm-modal-confirm.danger:hover{filter:brightness(.95)}
 @media (max-width:640px){
-  .confirm-modal{align-items:flex-end}
+  .confirm-modal{place-items:center}
   .confirm-modal-card{width:100%;border-radius:16px 16px 12px 12px}
   .confirm-modal-actions{flex-direction:column-reverse}
   .confirm-modal-actions .btn-ghost,.confirm-modal-actions .btn-primary{width:100%}
