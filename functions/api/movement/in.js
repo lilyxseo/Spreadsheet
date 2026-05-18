@@ -1,5 +1,6 @@
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const INVENTORY_MOVEMENT_RANGE = "Movement!A:I";
 const PRIMARY_SHEET_RANGE = "Barang Masuk!A:I";
 const FALLBACK_SHEET_RANGE = "Barang Masuk!A:I";
 
@@ -37,6 +38,11 @@ function sanitize(value) {
 function toPositiveNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function toNonNegativeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 function isPermissionError(data) {
@@ -82,6 +88,18 @@ async function createAccessToken(env) {
     throw new Error(tokenData.error_description || tokenData.error || "Gagal membuat access token");
   }
   return tokenData.access_token;
+}
+
+
+async function appendToSheet({ accessToken, sheetId, range, values }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
 }
 
 async function readSheetValues({ accessToken, sheetId, range }) {
@@ -130,7 +148,9 @@ async function readSheetBarangMasuk({ accessToken, sheetId }) {
 
 export async function onRequestPost({ request, env }) {
   try {
+    const inventorySpreadsheetId = sanitize(env.SHEET_ID_INVENTORY);
     const spreadsheetId = sanitize(env.SHEET_ID_2026);
+    if (!inventorySpreadsheetId) return json({ success: false, message: "SHEET_ID_INVENTORY belum diset" }, 500);
     if (!spreadsheetId) return json({ success: false, message: "SHEET_ID_2026 belum diset" }, 500);
     if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) return json({ success: false, message: "Environment variable belum lengkap" }, 500);
 
@@ -138,6 +158,8 @@ export async function onRequestPost({ request, env }) {
     const sku = sanitize(body?.sku);
     const namaBarang = sanitize(body?.namaBarang);
     const qty = toPositiveNumber(body?.qty);
+    const stokDiLokasiAwal = toNonNegativeNumber(body?.stokDiLokasiAwal);
+    const stokAktual = toNonNegativeNumber(body?.stokAktual);
     const tanggal = sanitize(body?.tanggal || new Date().toISOString());
     const from = sanitize(body?.from);
     const to = sanitize(body?.to);
@@ -149,9 +171,18 @@ export async function onRequestPost({ request, env }) {
     if (!sku) return json({ success: false, message: "sku wajib diisi" }, 400);
     if (!namaBarang) return json({ success: false, message: "namaBarang wajib diisi" }, 400);
     if (qty === null) return json({ success: false, message: "qty harus angka > 0" }, 400);
+    if (stokDiLokasiAwal === null) return json({ success: false, message: "stokDiLokasiAwal harus angka >= 0" }, 400);
+    if (stokAktual === null) return json({ success: false, message: "stokAktual harus angka >= 0" }, 400);
 
     const accessToken = await createAccessToken(env);
-    const row = [[tanggal, from, to, sku, namaBarang, qty, "Barang Masuk", pic, "INTERNAL STOCK TRANSFER"]];
+    const inventoryRow = [[tanggal, from, to, sku, namaBarang, stokDiLokasiAwal, stokAktual]];
+    const barangMasukRow = [[tanggal, from, to, sku, namaBarang, qty, "Barang Masuk", pic, "INTERNAL STOCK TRANSFER"]];
+
+    let inventoryWrite = await appendToSheet({ accessToken, sheetId: inventorySpreadsheetId, range: INVENTORY_MOVEMENT_RANGE, values: inventoryRow });
+    if (!inventoryWrite.res.ok && isPermissionError(inventoryWrite.data)) {
+      return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet Inventory" }, 403);
+    }
+    if (!inventoryWrite.res.ok) return json({ success: false, message: inventoryWrite.data?.error?.message || "Gagal menulis history Movement", detail: inventoryWrite.data }, inventoryWrite.res.status);
 
     const readResult = await readSheetValues({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE });
     let { res, data } = readResult;
@@ -165,7 +196,7 @@ export async function onRequestPost({ request, env }) {
     const targetIndex = emptyIndex === -1 ? values.length : emptyIndex;
     const rowNumber = Math.max(2, targetIndex + 1);
     const targetRange = `Barang Masuk!A${rowNumber}:I${rowNumber}`;
-    ({ res, data } = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: targetRange, values: row }));
+    ({ res, data } = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: targetRange, values: barangMasukRow }));
 
     if (!res.ok && isPermissionError(data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
@@ -185,7 +216,9 @@ export async function onRequestGet({ request, env }) {
 
     if (sanitize(env.MOVEMENT_TEST_MODE) !== "1") return json({ success: false, message: "Mode test tidak aktif" }, 403);
 
+    const inventorySpreadsheetId = sanitize(env.SHEET_ID_INVENTORY);
     const spreadsheetId = sanitize(env.SHEET_ID_2026);
+    if (!inventorySpreadsheetId) return json({ success: false, message: "SHEET_ID_INVENTORY belum diset" }, 500);
     if (!spreadsheetId) return json({ success: false, message: "SHEET_ID_2026 belum diset" }, 500);
     if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) return json({ success: false, message: "Environment variable belum lengkap" }, 500);
 

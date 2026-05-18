@@ -1,6 +1,6 @@
 const TOKEN_URL="https://oauth2.googleapis.com/token";
 const SCOPE="https://www.googleapis.com/auth/spreadsheets";
-const SHEET_MAP={movement:env=>env.SHEET_ID_2026,cycle_count:env=>env.SHEET_ID_INVENTORY};
+const SHEET_MAP={movement:env=>env.SHEET_ID_INVENTORY,cycle_count:env=>env.SHEET_ID_INVENTORY};
 const SHEET_WHITELIST=new Set(["Movement","Cycle Count"]);
 const GRID_SHEET_ID={"Movement":0,"Cycle Count":0};
 const toB64=(i)=>btoa(typeof i==="string"?i:JSON.stringify(i)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
