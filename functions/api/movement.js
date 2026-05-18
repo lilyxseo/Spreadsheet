@@ -2,6 +2,7 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const PRIMARY_SHEET_RANGE = "Barang Masuk!A:I";
 const FALLBACK_SHEET_RANGE = "Movement!A:I";
+const MOVEMENT_DATA_RANGE = "Movement!A1:Z";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -121,6 +122,25 @@ async function readSheetBarangMasuk({ accessToken, sheetId }) {
   const data = await res.json().catch(() => ({}));
   return { res, data };
 }
+async function readSheetValues({ accessToken, sheetId, range }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
+}
+function normalizeHeader(v) {
+  return String(v || "").trim().toLowerCase().replace(/\s+/g, "_");
+}
+function parseRows(values = []) {
+  if (!Array.isArray(values) || !values.length) return [];
+  const header = Array.isArray(values[0]) ? values[0] : [];
+  const keys = header.map((h, i) => normalizeHeader(h) || `col_${i + 1}`);
+  return values.slice(1).map((row, idx) => {
+    const obj = { rowNumber: idx + 2 };
+    keys.forEach((k, i) => { obj[k] = row?.[i] ?? ""; });
+    return obj;
+  }).filter((row) => Object.values(row).some((v, i) => i === 0 || String(v).trim() !== ""));
+}
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -174,13 +194,22 @@ export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
     const mode = sanitize(url.searchParams.get("mode")).toLowerCase();
-    if (mode !== "test") return new Response("API OK", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    const spreadsheetId = sanitize(env.SHEET_ID_INVENTORY) || sanitize(env.SHEET_ID_2026);
+    if (!spreadsheetId) return json({ success: false, message: "SHEET_ID_INVENTORY/SHEET_ID_2026 belum diset" }, 500);
+    if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) return json({ success: false, message: "Environment variable belum lengkap" }, 500);
+
+    if (mode !== "test") {
+      const accessToken = await createAccessToken(env);
+      const read = await readSheetValues({ accessToken, sheetId: spreadsheetId, range: MOVEMENT_DATA_RANGE });
+      if (!read.res.ok && isPermissionError(read.data)) return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet Movement" }, 403);
+      if (!read.res.ok) return json({ success: false, message: read.data?.error?.message || "Gagal baca sheet Movement" }, read.res.status);
+      const rows = parseRows(read.data?.values || []);
+      const limit = Math.max(1, Number(url.searchParams.get("limit")) || 1000);
+      const data = mode === "latest" ? rows.slice(-limit) : rows;
+      return json({ success: true, data });
+    }
 
     if (sanitize(env.MOVEMENT_TEST_MODE) !== "1") return json({ success: false, message: "Mode test tidak aktif" }, 403);
-
-    const spreadsheetId = sanitize(env.SHEET_ID_2026);
-    if (!spreadsheetId) return json({ success: false, message: "SHEET_ID_2026 belum diset" }, 500);
-    if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) return json({ success: false, message: "Environment variable belum lengkap" }, 500);
 
     const accessToken = await createAccessToken(env);
     const metadata = await readSpreadsheetMetadata({ accessToken, sheetId: spreadsheetId });
