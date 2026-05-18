@@ -1177,7 +1177,7 @@ document.addEventListener('click',async e=>{const mvCell=e.target.closest('[data
 
 const ACTIVITY_LOG_STATE={rows:[],error:"",pageSize:10,page:1,filters:{module:"",action:"",user:"",status:""}};
 function currentUserIdentity(){
- const role=user?.id==="developer"?"Mode Development":String(devProfile?.role||"User");
+ const role=user?.id==="developer"?"Development Mode":String(devProfile?.role||"User");
  const name=String(devProfile?.name||devProfile?.username||devProfile?.email||user?.email||"Unknown");
  return {user_id:user?.id||null,user_name:name,role};
 }
