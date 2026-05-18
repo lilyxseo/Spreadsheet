@@ -191,7 +191,7 @@ export async function onRequestPost({ request, env }) {
 
     const accessToken = await createAccessToken(env);
     const inventoryRow = [[tanggal, from, to, sku, namaBarang, stokDiLokasiAwal, stokAktual]];
-    const barangMasukRow = [[tanggalBarangMasuk, from, to, sku, namaBarang, qty, "Barang Masuk", pic, "INTERNAL STOCK TRANSFER"]];
+    const barangMasukRow = [[tanggalBarangMasuk, from, to, sku, namaBarang, qty, "Movement", pic, "INTERNAL STOCK TRANSFER"]];
 
     let inventoryWrite = await appendToSheet({ accessToken, sheetId: inventorySpreadsheetId, range: INVENTORY_MOVEMENT_RANGE, values: inventoryRow });
     if (!inventoryWrite.res.ok && isPermissionError(inventoryWrite.data)) {
@@ -253,7 +253,7 @@ export async function onRequestGet({ request, env }) {
     const appendDummy = sanitize(url.searchParams.get("appendDummy")).toLowerCase() === "1";
     let appendResult = { skipped: true };
     if (appendDummy) {
-      const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Masuk", "ABI", "INTERNAL STOCK TRANSFER"]];
+      const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Movement", "ABI", "INTERNAL STOCK TRANSFER"]];
       const appended = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: "Barang Masuk!A2:I2", values: dummyRow });
       if (!appended.res.ok && isPermissionError(appended.data)) {
         return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
