@@ -1,7 +1,8 @@
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
-const PRIMARY_SHEET_RANGE = "Barang Keluar!A:I";
-const FALLBACK_SHEET_RANGE = "Barang Keluar!A:I";
+const SHEET_BARANG_KELUAR = "Barang KeIuar";
+const PRIMARY_SHEET_RANGE = `${SHEET_BARANG_KELUAR}!A:I`;
+const FALLBACK_SHEET_RANGE = `${SHEET_BARANG_KELUAR}!A:I`;
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -122,7 +123,7 @@ async function readSpreadsheetMetadata({ accessToken, sheetId }) {
 }
 
 async function readSheetBarangKeluar({ accessToken, sheetId }) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent("Barang Keluar!A1:I5")}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(`${SHEET_BARANG_KELUAR}!A1:I5`)}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   const data = await res.json().catch(() => ({}));
   return { res, data };
@@ -164,7 +165,7 @@ export async function onRequestPost({ request, env }) {
     const emptyIndex = findFirstEmptyRowIndex(values);
     const targetIndex = emptyIndex === -1 ? values.length : emptyIndex;
     const rowNumber = Math.max(2, targetIndex + 1);
-    const targetRange = `Barang Keluar!A${rowNumber}:I${rowNumber}`;
+    const targetRange = `${SHEET_BARANG_KELUAR}!A${rowNumber}:I${rowNumber}`;
     ({ res, data } = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: targetRange, values: row }));
 
     if (!res.ok && isPermissionError(data)) {
@@ -200,13 +201,17 @@ export async function onRequestGet({ request, env }) {
     if (!sheetRead.res.ok && isPermissionError(sheetRead.data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
     }
-    if (!sheetRead.res.ok) return json({ success: false, message: sheetRead.data?.error?.message || "Gagal baca sheet Barang Keluar", detail: sheetRead.data }, sheetRead.res.status);
+    if (!sheetRead.res.ok) {
+      const msg = String(sheetRead.data?.error?.message || "");
+      if (msg.toLowerCase().includes("unable to parse range")) return json({ success: false, message: "Sheet Barang KeIuar tidak ditemukan di SHEET_ID_2026" }, 404);
+      return json({ success: false, message: sheetRead.data?.error?.message || "Gagal baca sheet Barang KeIuar", detail: sheetRead.data }, sheetRead.res.status);
+    }
 
     const appendDummy = sanitize(url.searchParams.get("appendDummy")).toLowerCase() === "1";
     let appendResult = { skipped: true };
     if (appendDummy) {
       const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Keluar", "ABI", "INTERNAL STOCK TRANSFER"]];
-      const appended = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: "Barang Keluar!A2:I2", values: dummyRow });
+      const appended = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: `${SHEET_BARANG_KELUAR}!A2:I2`, values: dummyRow });
       if (!appended.res.ok && isPermissionError(appended.data)) {
         return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
       }
@@ -218,7 +223,7 @@ export async function onRequestGet({ request, env }) {
       success: true,
       spreadsheetId,
       metadataTitle: metadata.data?.properties?.title || "",
-      hasBarangKeluarSheet: Array.isArray(metadata.data?.sheets) && metadata.data.sheets.some((s) => sanitize(s?.properties?.title).toLowerCase() === "barang keluar"),
+      hasBarangKeluarSheet: Array.isArray(metadata.data?.sheets) && metadata.data.sheets.some((s) => sanitize(s?.properties?.title) === SHEET_BARANG_KELUAR),
       readRows: Array.isArray(sheetRead.data?.values) ? sheetRead.data.values.length : 0,
       appendDummy: appendResult,
     });
