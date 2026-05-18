@@ -543,6 +543,34 @@ setMainContentLoading(false);
 async function initAppData(){
 console.log("INIT APP START");
 console.log("CURRENT ROUTE", location.pathname);
+window.APP_STATE=window.APP_STATE||{};
+
+const cachedBarangMasuk=getCacheData(MODULE_CACHE_KEYS.barangMasuk)||[];
+const cachedBarangKeluar=getCacheData(MODULE_CACHE_KEYS.barangKeluar)||[];
+const cachedInventory=getCacheData(MODULE_CACHE_KEYS.inventory)||[];
+const cachedMovement=getCacheData(MODULE_CACHE_KEYS.movement)||[];
+
+window.APP_STATE.barangMasuk=Array.isArray(cachedBarangMasuk)?cachedBarangMasuk:[];
+window.APP_STATE.barangKeluar=Array.isArray(cachedBarangKeluar)?cachedBarangKeluar:[];
+window.APP_STATE.inventory=Array.isArray(cachedInventory)?cachedInventory:[];
+window.APP_STATE.movement=Array.isArray(cachedMovement)?cachedMovement:[];
+
+console.log("CACHE LOAD",{
+barangMasuk:window.APP_STATE.barangMasuk.length,
+barangKeluar:window.APP_STATE.barangKeluar.length,
+inventory:window.APP_STATE.inventory.length,
+movement:window.APP_STATE.movement.length
+});
+
+if(window.APP_STATE.barangMasuk.length||window.APP_STATE.barangKeluar.length||window.APP_STATE.inventory.length){
+hideInitialLoader();
+setMainContentLoading(false);
+rerenderCurrentPage({fromCache:true});
+refreshDataInBackground();
+startAutoSync();
+return;
+}
+
 if(hasValidData(window.mainDataCache)){
 console.log("[initAppData] data dari window.mainDataCache");
 await hydrateAllDataOnInit({force:false});
@@ -601,6 +629,27 @@ if(!window.__isDataReady){
 setStatus("error","Data belum siap dimuat");
 }
 startAutoSync();
+}
+async function refreshDataInBackground(){
+try{
+const [barangMasuk,barangKeluar]=await Promise.allSettled([
+loadBarangMasuk({mode:"full"}),
+loadBarangKeluar({mode:"full"})
+]);
+if(barangMasuk.status==="fulfilled"&&Array.isArray(barangMasuk.value)&&barangMasuk.value.length){
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangMasuk=barangMasuk.value;
+setCacheSafe(MODULE_CACHE_KEYS.barangMasuk,barangMasuk.value);
+}
+if(barangKeluar.status==="fulfilled"&&Array.isArray(barangKeluar.value)&&barangKeluar.value.length){
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangKeluar=barangKeluar.value;
+setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,barangKeluar.value);
+}
+rerenderCurrentPage();
+}catch(err){
+console.error("Background refresh error",err);
+}
 }
 function getLastSyncTs(){return Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);}
 function shouldAutoSyncNow(){const ts=getLastSyncTs();return !ts||Date.now()-ts>=AUTO_SYNC_INTERVAL_MS;}
