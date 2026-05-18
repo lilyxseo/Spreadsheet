@@ -45,6 +45,19 @@ function toNonNegativeNumber(value) {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function formatDateMDYYYY(date = new Date()) {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const y = date.getFullYear();
+  return `${m}/${d}/${y}`;
+}
+
+function toDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function isPermissionError(data) {
   const text = String(data?.error?.message || data?.message || "").toLowerCase();
   return text.includes("permission") || text.includes("forbidden") || text.includes("insufficient") || text.includes("caller does not have permission");
@@ -160,7 +173,9 @@ export async function onRequestPost({ request, env }) {
     const qty = toPositiveNumber(body?.qty);
     const stokDiLokasiAwal = toNonNegativeNumber(body?.stokDiLokasiAwal);
     const stokAktual = toNonNegativeNumber(body?.stokAktual);
-    const tanggal = sanitize(body?.tanggal || new Date().toISOString());
+    const tanggalInput = sanitize(body?.tanggal);
+    const tanggal = tanggalInput || new Date().toISOString();
+    const tanggalBarangMasuk = formatDateMDYYYY(toDate(tanggalInput) || new Date());
     const from = sanitize(body?.from);
     const to = sanitize(body?.to);
     const pic = sanitize(body?.pic) || "ABI";
@@ -176,7 +191,7 @@ export async function onRequestPost({ request, env }) {
 
     const accessToken = await createAccessToken(env);
     const inventoryRow = [[tanggal, from, to, sku, namaBarang, stokDiLokasiAwal, stokAktual]];
-    const barangMasukRow = [[tanggal, from, to, sku, namaBarang, qty, "Barang Masuk", pic, "INTERNAL STOCK TRANSFER"]];
+    const barangMasukRow = [[tanggalBarangMasuk, from, to, sku, namaBarang, qty, "Barang Masuk", pic, "INTERNAL STOCK TRANSFER"]];
 
     let inventoryWrite = await appendToSheet({ accessToken, sheetId: inventorySpreadsheetId, range: INVENTORY_MOVEMENT_RANGE, values: inventoryRow });
     if (!inventoryWrite.res.ok && isPermissionError(inventoryWrite.data)) {

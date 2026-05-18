@@ -39,6 +39,19 @@ function toPositiveNumber(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function formatDateMDYYYY(date = new Date()) {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const y = date.getFullYear();
+  return `${m}/${d}/${y}`;
+}
+
+function toDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function isPermissionError(data) {
   const text = String(data?.error?.message || data?.message || "").toLowerCase();
   return text.includes("permission") || text.includes("forbidden") || text.includes("insufficient") || text.includes("caller does not have permission");
@@ -119,7 +132,8 @@ export async function onRequestPost({ request, env }) {
     const sku = sanitize(body?.sku);
     const namaBarang = sanitize(body?.namaBarang);
     const qty = toPositiveNumber(body?.qty);
-    const tanggal = sanitize(body?.tanggal || new Date().toISOString());
+    const tanggalInput = sanitize(body?.tanggal);
+    const tanggal = formatDateMDYYYY(toDate(tanggalInput) || new Date());
     const from = sanitize(body?.from);
     const to = sanitize(body?.to);
     const pic = sanitize(body?.pic) || "ABI";
