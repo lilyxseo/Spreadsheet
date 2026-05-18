@@ -1,7 +1,7 @@
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const PRIMARY_SHEET_RANGE = "Barang Masuk!A:I";
-const FALLBACK_SHEET_RANGE = "Movement!A:I";
+const FALLBACK_SHEET_RANGE = "Barang Masuk!A:I";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
