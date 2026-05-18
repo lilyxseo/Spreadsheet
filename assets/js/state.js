@@ -11,7 +11,10 @@ export const state = {
 
 export const setData = (data) => {
   state.DATA = data && typeof data === "object" ? data : {};
-  console.log("STATE DATA", state.DATA);
+  console.log("STATE SUMMARY", {
+    barangMasuk: Array.isArray(state.DATA?.barangMasuk) ? state.DATA.barangMasuk.length : 0,
+    barangKeluar: Array.isArray(state.DATA?.barangKeluar) ? state.DATA.barangKeluar.length : 0,
+  });
 };
 
 export const setDataReady = (ready) => {
