@@ -1,0 +1,2 @@
+import {json,deleteRows,SHEET_BARANG_KELUAR} from '../_barang-ops.js';
+export async function onRequestDelete({params,env}){try{const rowNumber=Number(params.rowNumber);if(!Number.isInteger(rowNumber)||rowNumber<=1)return json({success:false,message:'rowNumber wajib > 1'},400);await deleteRows({env,sheetName:SHEET_BARANG_KELUAR,rowNumbers:[rowNumber]});return json({success:true});}catch(err){return json({success:false,message:err?.message||'Internal server error'},500);}}
