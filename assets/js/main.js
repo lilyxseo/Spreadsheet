@@ -139,6 +139,61 @@ return {res,data};
 }
 ["barangMasukCache","barangKeluarCache","inventoryCache","movementCache","appDataCache"].forEach(key=>{const raw=localStorage.getItem(key);if(raw==="API OK")localStorage.removeItem(key);});
 
+let preloadPromise=null;
+
+function startBackgroundPreload(){
+if(preloadPromise)return preloadPromise;
+preloadPromise=hydrateAllDataOnInit({allowBeforeLogin:true,useCacheFirst:true}).catch(err=>{
+preloadPromise=null;
+throw err;
+});
+return preloadPromise;
+}
+
+async function hydrateAllDataOnInit({force=false,useCacheFirst=!force}={}){
+const shouldUseCache=!!useCacheFirst&&!force;
+const loadInventoryData=async()=>{
+if(shouldUseCache&&hasValidData(window.mainDataCache))return window.mainDataCache;
+return preloadInventoryData();
+};
+const loadBarangMasukData=async()=>{
+if(shouldUseCache){const cached=getCacheData(MODULE_CACHE_KEYS.barangMasuk);if(cached.length)return cached;}
+return loadBarangMasuk({mode:"full"});
+};
+const loadBarangKeluarData=async()=>{
+if(shouldUseCache){const cached=getCacheData(MODULE_CACHE_KEYS.barangKeluar);if(cached.length)return cached;}
+return loadBarangKeluar({mode:"full"});
+};
+const loadMovementData=async()=>{
+if(shouldUseCache){const cached=getCacheData(MODULE_CACHE_KEYS.movement);if(cached.length)return cached;}
+const {res,data:json}=await fetchJsonSafe('/api/movement?mode=full');
+if(!res.ok||json?.success===false){console.error("INIT ERROR movement",json?.message||res.statusText);return [];}
+const rows=Array.isArray(json?.data)?json.data:(Array.isArray(json?.rows)?json.rows:[]);
+setCacheSafe(MODULE_CACHE_KEYS.movement,rows);return rows;
+};
+
+const results=await Promise.allSettled([
+loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData()
+]);
+results.forEach((res,i)=>{if(res.status==="rejected")console.error("INIT ERROR INDEX",i,res.reason);});
+const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes]=results;
+const inventory=inventoryRes.status==="fulfilled"?inventoryRes.value:{};
+const barangMasukRows=barangMasukRes.status==="fulfilled"?barangMasukRes.value:[];
+const barangKeluarRows=barangKeluarRes.status==="fulfilled"?barangKeluarRes.value:[];
+const movementRows=movementRes.status==="fulfilled"?movementRes.value:[];
+applyData(inventory,{deferRender:true});
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.inventory=inventory;
+window.APP_STATE.barangMasuk=Array.isArray(barangMasukRows)?barangMasukRows:[];
+window.APP_STATE.barangKeluar=Array.isArray(barangKeluarRows)?barangKeluarRows:[];
+window.APP_STATE.movement=Array.isArray(movementRows)?movementRows:[];
+setCacheSafe(MODULE_CACHE_KEYS.barangMasuk,window.APP_STATE.barangMasuk);
+setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
+DATA["Barang Masuk"]=window.APP_STATE.barangMasuk;
+DATA["Barang Keluar"]=window.APP_STATE.barangKeluar;
+await saveCache(DATA);
+return window.APP_STATE;
+}
 function preloadInventoryData(){return preloadMainData();}
 function preloadMainData(){
 if(window.mainDataCache){
@@ -236,6 +291,7 @@ window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 applyTheme();
 renderAuthState();
+startBackgroundPreload().catch(err=>console.warn("Background preload gagal",err));
 try{
 const session=await ensureAuthSession();
 if(session){
@@ -271,7 +327,7 @@ bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisib
 }else{
 syncDeveloperMenuVisibility();
 }
-await preloadInventoryData();
+await startBackgroundPreload();
 await initAppData();
 renderDashboard();
 await loadBalikanSheets();
@@ -292,7 +348,7 @@ const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await preloadInventoryData();await initAppData();renderDashboard();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await startBackgroundPreload();await initAppData();renderDashboard();
 await loadBalikanSheets();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"User"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"User",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
@@ -487,50 +543,6 @@ setMainContentLoading(false);
 async function initAppData(){
 console.log("INIT APP START");
 console.log("CURRENT ROUTE", location.pathname);
-const loadInventoryData=async({force=false}={})=>{
-if(!force&&hasValidData(window.mainDataCache))return window.mainDataCache;
-return preloadInventoryData();
-};
-const loadBarangMasukData=async({force=false}={})=>{
-if(!force){const cached=getCacheData(MODULE_CACHE_KEYS.barangMasuk);if(cached.length)return cached;}
-return loadBarangMasuk({mode:"full"});
-};
-const loadBarangKeluarData=async({force=false}={})=>{
-if(!force){const cached=getCacheData(MODULE_CACHE_KEYS.barangKeluar);if(cached.length)return cached;}
-return loadBarangKeluar({mode:"full"});
-};
-const loadMovementData=async({force=false}={})=>{
-if(!force){const cached=getCacheData(MODULE_CACHE_KEYS.movement);if(cached.length)return cached;}
-const {res,data:json}=await fetchJsonSafe('/api/movement?mode=full');
-if(!res.ok||json?.success===false){console.error("INIT ERROR movement",json?.message||res.statusText);return [];}
-const rows=Array.isArray(json?.data)?json.data:(Array.isArray(json?.rows)?json.rows:[]);
-setCacheSafe(MODULE_CACHE_KEYS.movement,rows);return rows;
-};
-const hydrateAllDataOnInit=async({force=false}={})=>{
-const results=await Promise.allSettled([
-loadInventoryData({force}),loadBarangMasukData({force}),loadBarangKeluarData({force}),loadMovementData({force})
-]);
-results.forEach((res,i)=>{if(res.status==="rejected")console.error("INIT ERROR INDEX",i,res.reason);});
-const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes]=results;
-const inventory=inventoryRes.status==="fulfilled"?inventoryRes.value:{};
-const barangMasukRows=barangMasukRes.status==="fulfilled"?barangMasukRes.value:[];
-const barangKeluarRows=barangKeluarRes.status==="fulfilled"?barangKeluarRes.value:[];
-const movementRows=movementRes.status==="fulfilled"?movementRes.value:[];
-applyData(inventory,{deferRender:true});
-window.APP_STATE=window.APP_STATE||{};
-window.APP_STATE.inventory=inventory;
-window.APP_STATE.barangMasuk=Array.isArray(barangMasukRows)?barangMasukRows:[];
-window.APP_STATE.barangKeluar=Array.isArray(barangKeluarRows)?barangKeluarRows:[];
-window.APP_STATE.movement=Array.isArray(movementRows)?movementRows:[];
-setCacheSafe(MODULE_CACHE_KEYS.barangMasuk,window.APP_STATE.barangMasuk);
-setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
-DATA["Barang Masuk"]=window.APP_STATE.barangMasuk;
-DATA["Barang Keluar"]=window.APP_STATE.barangKeluar;
-await saveCache(DATA);
-console.log("STATE DATA barangMasuk", window.APP_STATE.barangMasuk?.length||0);
-console.log("STATE DATA barangKeluar", window.APP_STATE.barangKeluar?.length||0);
-};
-
 if(hasValidData(window.mainDataCache)){
 console.log("[initAppData] data dari window.mainDataCache");
 await hydrateAllDataOnInit({force:false});
