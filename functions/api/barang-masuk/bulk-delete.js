@@ -1,0 +1,2 @@
+import {json,deleteRows,SHEET_BARANG_MASUK} from '../_barang-ops.js';
+export async function onRequestPost({request,env}){try{const {rowNumbers}=await request.json();if(!Array.isArray(rowNumbers)||!rowNumbers.length)return json({success:false,message:'rowNumbers wajib diisi'},400);await deleteRows({env,sheetName:SHEET_BARANG_MASUK,rowNumbers:rowNumbers.map(Number).filter(n=>Number.isInteger(n)&&n>1)});return json({success:true});}catch(err){return json({success:false,message:err?.message||'Internal server error'},500);}}
