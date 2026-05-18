@@ -1105,3 +1105,5 @@ body.light #page-balikan-store .balikan-check{
 #page-movement .icon-btn.danger{color:var(--danger-color,#ef4444)}
 #page-cycle-count .icon-btn.danger:hover,
 #page-movement .icon-btn.danger:hover{background:rgba(239,68,68,.12)}
+
+#page-movement .movement-scan-bar{border:1px solid var(--line);border-radius:14px;padding:4px;background:var(--panel)}
