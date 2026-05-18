@@ -395,7 +395,7 @@ if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[dat
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);});}
 document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage();}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
@@ -571,6 +571,41 @@ window.APP_STATE.barangKeluar=data;
 setCacheSafe("barangKeluarCache",data);
 return data;
 }
+async function refreshTransaksiFull({render=true}={}){
+const [barangMasukRes,barangKeluarRes]=await Promise.allSettled([
+refreshBarangMasukFull(),
+refreshBarangKeluarFull()
+]);
+if(barangMasukRes.status==='fulfilled'){
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangMasuk=barangMasukRes.value;
+DATA['Barang Masuk']=barangMasukRes.value;
+setCacheSafe('barangMasukCache',barangMasukRes.value);
+}else console.error('REFRESH ERROR BARANG MASUK',barangMasukRes.reason);
+if(barangKeluarRes.status==='fulfilled'){
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.barangKeluar=barangKeluarRes.value;
+DATA['Barang Keluar']=barangKeluarRes.value;
+setCacheSafe('barangKeluarCache',barangKeluarRes.value);
+}else console.error('REFRESH ERROR BARANG KELUAR',barangKeluarRes.reason);
+if(render){
+renderDataTablePage("in","Barang Masuk",true);
+renderDataTablePage("out","Barang Keluar",true);
+renderDashboard();
+}
+return {barangMasukRes,barangKeluarRes};
+}
+async function refreshInventoryGroupFull(){
+const [inventoryRes,rplRes,bulkyRes]=await Promise.allSettled([
+refreshInventoryFull(),
+refreshRplFull(),
+refreshBulkyFull()
+]);
+if(inventoryRes.status==='fulfilled')applyData(inventoryRes.value,{deferRender:true});
+if(rplRes.status==='rejected')console.error('REFRESH ERROR RPL',rplRes.reason);
+if(bulkyRes.status==='rejected')console.error('REFRESH ERROR BULKY',bulkyRes.reason);
+return {inventoryRes,rplRes,bulkyRes};
+}
 async function syncData({force=false,silent=true}={}){
 if(isSyncing)return false;
 isSyncing=true;
@@ -578,30 +613,9 @@ updateSyncUI();
 if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat data dari Google Sheets...");setMainContentLoading(true);}
 if(silent)setStatus("loading","Sinkronisasi...");
 try{
-const results=await Promise.allSettled([
-refreshInventoryFull(),
-refreshRplFull(),
-refreshBulkyFull(),
-refreshBarangMasukFull(),
-refreshBarangKeluarFull()
-]);
-const [inventoryRes,rplRes,bulkyRes,barangMasukRes,barangKeluarRes]=results;
-const inventoryData=inventoryRes.status==='fulfilled'?inventoryRes.value:{};
-if(inventoryRes.status==='fulfilled')applyData(inventoryData,{deferRender:true});
-if(rplRes.status==='rejected')console.error('REFRESH ERROR RPL',rplRes.reason);
-if(bulkyRes.status==='rejected')console.error('REFRESH ERROR BULKY',bulkyRes.reason);
-if(barangMasukRes.status==='fulfilled'){
-window.APP_STATE.barangMasuk=barangMasukRes.value;
-DATA['Barang Masuk']=barangMasukRes.value;
-setCacheSafe('barangMasukCache',barangMasukRes.value);
-}
-if(barangKeluarRes.status==='fulfilled'){
-window.APP_STATE.barangKeluar=barangKeluarRes.value;
-DATA['Barang Keluar']=barangKeluarRes.value;
-setCacheSafe('barangKeluarCache',barangKeluarRes.value);
-}
-if(barangMasukRes.status==='rejected')console.error('REFRESH ERROR BARANG MASUK',barangMasukRes.reason);
-if(barangKeluarRes.status==='rejected')console.error('REFRESH ERROR BARANG KELUAR',barangKeluarRes.reason);
+const inventoryPromise=refreshInventoryGroupFull();
+const transaksiPromise=refreshTransaksiFull({render:true});
+await Promise.allSettled([inventoryPromise,transaksiPromise]);
 renderDashboard();
 await saveCache(DATA);
 setStatus('ok','');
@@ -617,6 +631,10 @@ updateSyncUI();
 hideInitialLoader();
 setMainContentLoading(false);
 }
+}
+function refreshTransaksiPageInBackground(page){
+if(page!=="barang-masuk"&&page!=="barang-keluar")return;
+refreshTransaksiFull({render:true}).catch(err=>console.error("Background transaksi refresh error",err));
 }
 async function initAppData(){
 console.log("INIT APP START");
