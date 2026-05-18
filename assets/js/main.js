@@ -493,7 +493,8 @@ function updateLocalRow(moduleName,rowNumber,field,value){
 const stateKey=moduleName==='barang-masuk'?'barangMasuk':'barangKeluar';
 window.APP_STATE=window.APP_STATE||{};
 const rows=Array.isArray(window.APP_STATE[stateKey])?window.APP_STATE[stateKey]:[];
-const row=rows.find(r=>Number(r.rowNumber)===Number(rowNumber));
+let row=rows.find(r=>Number(r?.rowNumber)===Number(rowNumber));
+if(!row&&Number.isInteger(Number(rowNumber))){const idx=Number(rowNumber)-2;if(idx>=0&&idx<rows.length)row=rows[idx];}
 if(row)row[field]=value;
 window.APP_STATE[stateKey]=rows;
 return rows;
@@ -501,7 +502,8 @@ return rows;
 function updateCacheRow(moduleName,rowNumber,field,value){
 const cacheKey=moduleName==='barang-masuk'?MODULE_CACHE_KEYS.barangMasuk:MODULE_CACHE_KEYS.barangKeluar;
 const rows=getCacheData(cacheKey)||[];
-const row=rows.find(r=>Number(r.rowNumber)===Number(rowNumber));
+let row=rows.find(r=>Number(r?.rowNumber)===Number(rowNumber));
+if(!row&&Number.isInteger(Number(rowNumber))){const idx=Number(rowNumber)-2;if(idx>=0&&idx<rows.length)row=rows[idx];}
 if(row)row[field]=value;
 setCacheSafe(cacheKey,rows);
 setModuleCache(cacheKey,rows);
@@ -1189,7 +1191,7 @@ function positionColumnMenu(mode){
 function toggleColumnMenu(mode){const target=document.getElementById(`mv-cols-${mode}`);if(!target)return;const willOpen=!target.classList.contains("open");closeColumnMenus();if(willOpen){target.classList.add("open");TABLE_STATE[mode].columnMenuOpen=true;positionColumnMenu(mode);}}
 function toggleAllColumns(mode,checked){const root=document.getElementById(`mv-cols-${mode}`);if(!root)return;root.querySelectorAll('input[type="checkbox"]').forEach(c=>{c.checked=!!checked;});toggleColumnVisibility(mode);}
 function exportFilteredCsv(mode){const st=TABLE_STATE[mode];const cols=st.columns||["tanggal","from","to","sku","nama","qty","status","pic","keterangan"];const lines=[cols.join(","),...st.filtered.map(r=>cols.map(c=>`"${String(r[c]??"").replaceAll('"','""')}"`).join(","))];const blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=mode==="in"?"barang-masuk-filtered.csv":"barang-keluar-filtered.csv";a.click();URL.revokeObjectURL(a.href);} 
-function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT").map((r,i)=>({...r,rowNumber:i+2}));const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];st.columns=selectedCols||st.columns||allCols;const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
+function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT").map((r,i)=>({...r,rowNumber:Number(r?.rowNumber)||i+2}));const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];st.columns=selectedCols||st.columns||allCols;const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
 const pageRows=st.filtered.slice((st.page-1)*size,st.page*size);const totalQty=st.filtered.reduce((n,r)=>n+(r._qty||0),0),totalSku=new Set(st.filtered.map(r=>r._sku)).size;
 const totalRowCount=st.filtered.length;
 summaryEl.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Total Row</div><div class='v'>${totalRowCount}</div></div><div class='summary-card'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div><div class='summary-card'><div class='k'>Total SKU</div><div class='v'>${totalSku}</div></div></div>`;
