@@ -2,8 +2,11 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase 
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity } from "./activity-log.js";
+import { exposeDomIds } from "./utils/dom.js";
+import { getCurrentUser, setCurrentUser, clearCurrentUser, isDeveloperUser, renderAuthState as renderAuthStateModule } from "./modules/auth.js";
+import { setupSidebar as setupSidebarModule, closeSidebarMobile } from "./modules/dashboard.js";
 const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan"];
-ids.forEach(id=>window[id]=document.getElementById(id));
+exposeDomIds(ids);
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
@@ -26,111 +29,15 @@ let devProfile=null;
 window.mainDataCache=window.mainDataCache||null;
 window.mainDataPromise=window.mainDataPromise||null;
 let appInitialized=false;
-const CURRENT_USER_KEY="user";
-function getCurrentUser(){
-try{return JSON.parse(localStorage.getItem(CURRENT_USER_KEY)||"{}");}catch(_err){return {};}
-}
-function setCurrentUser(payload){
-const normalized=payload&&typeof payload==="object"?payload:{};
-localStorage.setItem(CURRENT_USER_KEY,JSON.stringify(normalized));
-window.currentUser=normalized;
-syncDeveloperMenuVisibility();
-}
-function clearCurrentUser(){
-localStorage.removeItem(CURRENT_USER_KEY);
-window.currentUser=null;
-syncDeveloperMenuVisibility();
-}
-function isDeveloperUser(){
-return getCurrentUser()?.isDeveloper===true;
-}
 window.currentUser=getCurrentUser();
-function setAppAuthState(state){
-const appRoot=document.getElementById("appRoot");
-if(!appRoot)return;
-appRoot.classList.remove("is-auth-checking","is-logged-out","is-logged-in");
-appRoot.classList.add(state);
-}
-
-function preloadMainData(){
-if(window.mainDataCache){
-console.log("[preloadData] gunakan cache global yang sudah ada");
-return Promise.resolve(window.mainDataCache);
-}
-if(window.mainDataPromise){
-console.log("[preloadData] gunakan promise global yang sedang berjalan");
-return window.mainDataPromise;
-}
-console.time("preloadData");
-window.mainDataPromise=(async()=>{
-const freshData={};
-for(const sheet of SHEETS){
-const raw=await fetchSheet(sheet);
-await new Promise(resolve=>scheduleUIWork(resolve));
-freshData[sheet]=parseSheet(raw, sheet);
-}
-window.mainDataCache=freshData;
-console.log("[preloadData] selesai fetch baru");
-return freshData;
-})().catch(err=>{
-window.mainDataCache=null;
-window.mainDataPromise=null;
-throw err;
-}).finally(()=>{
-console.timeEnd("preloadData");
-});
-return window.mainDataPromise;
-}
-
-async function fetchUserProfile(authUserId){
-if(!authUserId)return null;
-const {data,error}=await supabase.from("users").select("full_name, role, username, email").eq("id",authUserId).maybeSingle();
-if(error){console.error("Gagal mengambil profile user",error);return null;}
-return data||null;
-}
-
-function renderSidebarProfile(profile,authUser){
-const accountMeta=document.querySelector(".account-meta");
-if(!accountMeta)return;
-const nameEl=accountMeta.querySelector("strong");
-const roleEl=accountMeta.querySelector("small");
-const fallbackEmail=String(profile?.email||authUser?.email||"").trim();
-const fallbackUsername=String(profile?.username||"").trim();
-const displayName=String(profile?.full_name||profile?.name||"").trim()||fallbackUsername||fallbackEmail;
-const displayRole=String(profile?.role||"").trim()||"User";
-if(nameEl)nameEl.textContent=displayName||"-";
-if(roleEl)roleEl.textContent=displayRole;
-}
 
 function renderAuthState(){
-const loadingScreen=document.getElementById("authLoadingScreen");
-const appRoot=document.getElementById("appRoot");
-const loginView=document.getElementById("loginView");
-if(authChecking){
-setAppAuthState("is-auth-checking");
-if(loadingScreen){loadingScreen.hidden=false;loadingScreen.style.display="flex";loadingScreen.style.pointerEvents="auto";}
-if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
-if(loginView){loginView.hidden=true;loginView.style.display="none";}
-return;
+renderAuthStateModule({ authChecking, user, clearCurrentUserFn: clearCurrentUser });
+if(user){
+setCurrentUser({id:user?.id||null,isDeveloper:user?.id==="developer"},syncDeveloperMenuVisibility);
 }
-if(!user){
-clearCurrentUser();
-setAppAuthState("is-logged-out");
-if(loadingScreen){loadingScreen.hidden=true;loadingScreen.style.display="none";loadingScreen.style.pointerEvents="none";}
-if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
-if(loginView){loginView.hidden=false;loginView.style.display="grid";}
-return;
 }
-if(loadingScreen){
-loadingScreen.hidden=true;
-loadingScreen.style.display="none";
-loadingScreen.style.pointerEvents="none";
-}
-setAppAuthState("is-logged-in");
-if(loginView){loginView.hidden=true;loginView.style.display="none";}
-if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
-setCurrentUser({id:user?.id||null,isDeveloper:user?.id==="developer"});
-}
+
 async function resolveEmailFromLoginInput(loginInput){
 const trimmedInput=String(loginInput||"").trim();
 if(!trimmedInput)return "";
@@ -249,11 +156,9 @@ bindLoginView();
 
 function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');if(!activityLogMenu)return;activityLogMenu.style.display=isDeveloperUser()?"":"none";}
-function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
-function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
-function handleDesktopSidebarMode(){if(window.innerWidth<900){document.body.classList.remove("sidebar-collapsed");return;}const saved=localStorage.getItem("sidebar_collapsed")==="true";document.body.classList.toggle("sidebar-collapsed",saved);}
+function setupSidebar(){setupSidebarModule({ onClose: null });}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
-function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
+
 async function openCacheDb(){
 return await new Promise((resolve,reject)=>{
 const req=indexedDB.open(IDB_NAME,IDB_VERSION);
