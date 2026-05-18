@@ -1,7 +1,7 @@
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
-const PRIMARY_SHEET_RANGE = "Barang Masuk!A:I";
-const FALLBACK_SHEET_RANGE = "Movement!A:I";
+const PRIMARY_SHEET_RANGE = "Barang Keluar!A:I";
+const FALLBACK_SHEET_RANGE = "Barang Keluar!A:I";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -102,8 +102,8 @@ async function readSpreadsheetMetadata({ accessToken, sheetId }) {
   return { res, data };
 }
 
-async function readSheetBarangMasuk({ accessToken, sheetId }) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent("Barang Masuk!A1:I5")}`;
+async function readSheetBarangKeluar({ accessToken, sheetId }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent("Barang Keluar!A1:I5")}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   const data = await res.json().catch(() => ({}));
   return { res, data };
@@ -132,7 +132,7 @@ export async function onRequestPost({ request, env }) {
     if (qty === null) return json({ success: false, message: "qty harus angka > 0" }, 400);
 
     const accessToken = await createAccessToken(env);
-    const row = [[tanggal, from, to, sku, namaBarang, qty, "Barang Masuk", pic, "INTERNAL STOCK TRANSFER"]];
+    const row = [[tanggal, from, to, sku, namaBarang, qty, "Barang Keluar", pic, "INTERNAL STOCK TRANSFER"]];
 
     let { res, data } = await appendToSheet({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE, values: row });
     if (!res.ok && isPermissionError(data)) {
@@ -175,16 +175,16 @@ export async function onRequestGet({ request, env }) {
     }
     if (!metadata.res.ok) return json({ success: false, message: metadata.data?.error?.message || "Gagal baca metadata spreadsheet", detail: metadata.data }, metadata.res.status);
 
-    const sheetRead = await readSheetBarangMasuk({ accessToken, sheetId: spreadsheetId });
+    const sheetRead = await readSheetBarangKeluar({ accessToken, sheetId: spreadsheetId });
     if (!sheetRead.res.ok && isPermissionError(sheetRead.data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
     }
-    if (!sheetRead.res.ok) return json({ success: false, message: sheetRead.data?.error?.message || "Gagal baca sheet Barang Masuk", detail: sheetRead.data }, sheetRead.res.status);
+    if (!sheetRead.res.ok) return json({ success: false, message: sheetRead.data?.error?.message || "Gagal baca sheet Barang Keluar", detail: sheetRead.data }, sheetRead.res.status);
 
     const appendDummy = sanitize(url.searchParams.get("appendDummy")).toLowerCase() === "1";
     let appendResult = { skipped: true };
     if (appendDummy) {
-      const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Masuk", "ABI", "INTERNAL STOCK TRANSFER"]];
+      const dummyRow = [[new Date().toISOString(), "TEST_FROM", "TEST_TO", "TEST_SKU", "TEST_BARANG", 1, "Barang Keluar", "ABI", "INTERNAL STOCK TRANSFER"]];
       const appended = await appendToSheet({ accessToken, sheetId: spreadsheetId, range: PRIMARY_SHEET_RANGE, values: dummyRow });
       if (!appended.res.ok && isPermissionError(appended.data)) {
         return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
@@ -197,7 +197,7 @@ export async function onRequestGet({ request, env }) {
       success: true,
       spreadsheetId,
       metadataTitle: metadata.data?.properties?.title || "",
-      hasBarangMasukSheet: Array.isArray(metadata.data?.sheets) && metadata.data.sheets.some((s) => sanitize(s?.properties?.title).toLowerCase() === "barang masuk"),
+      hasBarangKeluarSheet: Array.isArray(metadata.data?.sheets) && metadata.data.sheets.some((s) => sanitize(s?.properties?.title).toLowerCase() === "barang keluar"),
       readRows: Array.isArray(sheetRead.data?.values) ? sheetRead.data.values.length : 0,
       appendDummy: appendResult,
     });
