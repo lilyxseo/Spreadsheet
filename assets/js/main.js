@@ -459,9 +459,10 @@ DATA[sheet]=Array.isArray(newData?.[sheet])?newData[sheet]:[];
 window.APP_STATE.barangMasuk=Array.isArray(DATA["Barang Masuk"])?DATA["Barang Masuk"]:[];
 window.APP_STATE.barangKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
 window.APP_STATE.data={...(newData||{}),barangMasuk:window.APP_STATE.barangMasuk,barangKeluar:window.APP_STATE.barangKeluar};
-console.log("STATE DATA", DATA);
-console.log("STATE DATA barangMasuk", window.APP_STATE.barangMasuk?.length||0);
-console.log("STATE DATA barangKeluar", window.APP_STATE.barangKeluar?.length||0);
+console.log("STATE SUMMARY",{
+barangMasuk:window.APP_STATE.barangMasuk?.length||0,
+barangKeluar:window.APP_STATE.barangKeluar?.length||0
+});
 const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
 window.__isDataReady = hasAnyData;
 console.log("DATA READY", window.__isDataReady);
@@ -479,6 +480,11 @@ function scheduleUIWork(cb){
 const runner=()=>setTimeout(cb,16);
 if(typeof window.requestIdleCallback==="function")return window.requestIdleCallback(runner,{timeout:120});
 return setTimeout(cb,16);
+}
+let renderTimer=null;
+function scheduleRenderDashboard(){
+clearTimeout(renderTimer);
+renderTimer=setTimeout(()=>{renderDashboard();},100);
 }
 function getActivePage(){
 const active=document.querySelector(".page:not(.hidden)");
@@ -591,7 +597,7 @@ setCacheSafe('barangKeluarCache',barangKeluarRes.value);
 if(render){
 renderDataTablePage("in","Barang Masuk",true);
 renderDataTablePage("out","Barang Keluar",true);
-renderDashboard();
+scheduleRenderDashboard();
 }
 return {barangMasukRes,barangKeluarRes};
 }
@@ -614,9 +620,11 @@ if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat da
 if(silent)setStatus("loading","Sinkronisasi...");
 try{
 const inventoryPromise=refreshInventoryGroupFull();
-const transaksiPromise=refreshTransaksiFull({render:true});
+const transaksiPromise=refreshTransaksiFull({render:false});
 await Promise.allSettled([inventoryPromise,transaksiPromise]);
-renderDashboard();
+renderDataTablePage("in","Barang Masuk",true);
+renderDataTablePage("out","Barang Keluar",true);
+scheduleRenderDashboard();
 await saveCache(DATA);
 setStatus('ok','');
 return true;
@@ -634,7 +642,11 @@ setMainContentLoading(false);
 }
 function refreshTransaksiPageInBackground(page){
 if(page!=="barang-masuk"&&page!=="barang-keluar")return;
-refreshTransaksiFull({render:true}).catch(err=>console.error("Background transaksi refresh error",err));
+refreshTransaksiFull({render:false}).then(()=>{
+renderDataTablePage("in","Barang Masuk",true);
+renderDataTablePage("out","Barang Keluar",true);
+scheduleRenderDashboard();
+}).catch(err=>console.error("Background transaksi refresh error",err));
 }
 async function initAppData(){
 console.log("INIT APP START");
