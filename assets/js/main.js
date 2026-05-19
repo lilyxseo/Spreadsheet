@@ -84,10 +84,30 @@ appRoot.classList.add(state);
 }
 
 const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
+const BARANG_COLUMNS=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];
+function isBarangHeaderLike(row){
+const values=Array.isArray(row)?row:(row&&typeof row==="object"?BARANG_COLUMNS.map(key=>row[key]):[]);
+const normalized=values.map(v=>String(v??"").trim().toLowerCase().replace(/\s+/g,""));
+return normalized.includes("tanggal")&&normalized.includes("sku")&&(normalized.includes("namabarang")||normalized.includes("nama"));
+}
+function normalizeBarangRows(rows,startRowNumber=2){
+const sourceRows=Array.isArray(rows)?rows:[];
+const headerOffset=sourceRows.length&&isBarangHeaderLike(sourceRows[0])?1:0;
+return sourceRows
+.map((row,index)=>({row,rowNumber:(Number(row?.rowNumber)||startRowNumber+index)-headerOffset}))
+.filter(({row})=>row&&!(Array.isArray(row)?row.every(cell=>!String(cell??"").trim()):false))
+.filter(({row})=>!isBarangHeaderLike(row))
+.map(({row,rowNumber})=>{
+if(row&&typeof row==="object"&&!Array.isArray(row))return {...row,rowNumber:Number(rowNumber)||Number(row.rowNumber)||startRowNumber};
+const item={rowNumber};
+BARANG_COLUMNS.forEach((key,index)=>{item[key]=Array.isArray(row)?row[index]??"":"";});
+return item;
+});
+}
 function normalizeBackendRows(payload){
-if(Array.isArray(payload?.data))return payload.data;
-if(Array.isArray(payload?.rows))return payload.rows;
-if(Array.isArray(payload?.values))return payload.values;
+if(Array.isArray(payload?.data))return normalizeBarangRows(payload.data,Number(payload?.startRow)||2);
+if(Array.isArray(payload?.rows))return normalizeBarangRows(payload.rows,Number(payload?.startRow)||2);
+if(Array.isArray(payload?.values))return normalizeBarangRows(payload.values,Number(payload?.startRow)||2);
 return [];
 }
 function mergeLatestRows(oldRows=[],latestRows=[]){
@@ -157,11 +177,11 @@ if(shouldUseCache&&hasValidData(window.mainDataCache))return window.mainDataCach
 return preloadInventoryData();
 };
 const loadBarangMasukData=async()=>{
-if(shouldUseCache){const cached=getCacheData(MODULE_CACHE_KEYS.barangMasuk);if(cached.length)return cached;}
+if(shouldUseCache){const cached=normalizeBarangRows(getCacheData(MODULE_CACHE_KEYS.barangMasuk));if(cached.length)return cached;}
 return loadBarangMasuk({mode:"full"});
 };
 const loadBarangKeluarData=async()=>{
-if(shouldUseCache){const cached=getCacheData(MODULE_CACHE_KEYS.barangKeluar);if(cached.length)return cached;}
+if(shouldUseCache){const cached=normalizeBarangRows(getCacheData(MODULE_CACHE_KEYS.barangKeluar));if(cached.length)return cached;}
 return loadBarangKeluar({mode:"full"});
 };
 const loadMovementData=async()=>{
@@ -1277,7 +1297,7 @@ function positionColumnMenu(mode){
 function toggleColumnMenu(mode){const target=document.getElementById(`mv-cols-${mode}`);if(!target)return;const willOpen=!target.classList.contains("open");closeColumnMenus();if(willOpen){target.classList.add("open");TABLE_STATE[mode].columnMenuOpen=true;positionColumnMenu(mode);}}
 function toggleAllColumns(mode,checked){const root=document.getElementById(`mv-cols-${mode}`);if(!root)return;root.querySelectorAll('input[type="checkbox"]').forEach(c=>{c.checked=!!checked;});toggleColumnVisibility(mode);}
 function exportFilteredCsv(mode){const st=TABLE_STATE[mode];const cols=st.columns||["tanggal","from","to","sku","nama","qty","status","pic","keterangan"];const lines=[cols.join(","),...st.filtered.map(r=>cols.map(c=>`"${String(r[c]??"").replaceAll('"','""')}"`).join(","))];const blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=mode==="in"?"barang-masuk-filtered.csv":"barang-keluar-filtered.csv";a.click();URL.revokeObjectURL(a.href);} 
-function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT").map((r,i)=>({...r,rowNumber:i+2}));const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];st.columns=selectedCols||st.columns||allCols;const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
+function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT").map((r,i)=>({...r,rowNumber:Number(r.rowNumber)||i+2}));const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];st.columns=selectedCols||st.columns||allCols;const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
 const pageRows=st.filtered.slice((st.page-1)*size,st.page*size);const totalQty=st.filtered.reduce((n,r)=>n+(r._qty||0),0),totalSku=new Set(st.filtered.map(r=>r._sku)).size;
 const totalRowCount=st.filtered.length;
 summaryEl.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Total Row</div><div class='v'>${totalRowCount}</div></div><div class='summary-card'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div><div class='summary-card'><div class='k'>Total SKU</div><div class='v'>${totalSku}</div></div></div>`;
