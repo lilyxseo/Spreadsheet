@@ -23,6 +23,10 @@ export function parseSheet(values, sheetName = "unknown"){
     return [];
   }
 
+  if(values.every(row => row && typeof row === "object" && !Array.isArray(row))){
+    return values;
+  }
+
   let h = detectHeaderIndex(values);
   if(h < 0){
     // fallback: first non-empty row as header

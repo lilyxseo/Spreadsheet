@@ -13,6 +13,8 @@ async function fetchSheetViaBackend(sheetName){
   if(!res.ok || !json?.success){
     throw new Error(`${sheetName}: ${json?.message || res.statusText}`);
   }
+  if(Array.isArray(json.data)) return json.data;
+  if(Array.isArray(json.rows)) return json.rows;
   return Array.isArray(json.values) ? json.values : [];
 }
 
