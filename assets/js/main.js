@@ -19,6 +19,7 @@ const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResul
 const BARCODE_STATE={barcodeToSku:new Map(),barcodeToName:new Map(),loaded:false,updatedAt:0};
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
 const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
+const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],highlightRowNumber:null,sortBy:"default",autoCheckOnScan:true,exactScanSku:""};
 window.BALIKAN_ROWS=[];
 window.currentTripSheet="";
@@ -424,8 +425,8 @@ balikanSearchInput?.addEventListener("input",e=>{window.balikanSearchKeyword=e.t
 balikanSortSelect?.addEventListener("change",e=>{BALIKAN_STATE.sortBy=e.target.value||"default";renderBalikanTable();});
 btnResetBalikanFilter?.addEventListener("click",()=>resetBalikanFilter());
 btnExportBalikanCsv?.addEventListener("click",()=>exportBalikanFilteredCsv());
-balikanAutoCheckToggle?.addEventListener("click",()=>toggleBalikanAutoCheck());
-syncBalikanAutoCheckToggle();
+balikanAutoCheckToggle?.addEventListener("change",e=>toggleBalikanAutoCheck(e.target?.checked===true));
+initBalikanAutoCheckPreference();syncBalikanAutoCheckToggle();
 document.getElementById("scannerCloseBtn")?.addEventListener("click",closeScannerModal);
 document.getElementById("scannerCloseBtnText")?.addEventListener("click",closeScannerModal);
 document.querySelector("[data-scanner-close]")?.addEventListener("click",closeScannerModal);
@@ -1697,8 +1698,9 @@ function ensureBalikanFilterState(){if(!BALIKAN_STATE.filterState)BALIKAN_STATE.
 function applyBalikanTableFilters(rows,mode='balikan',omitCol=''){const st=ensureBalikanFilterState();const q=clean(window.balikanSearchKeyword||'');const exactScanSku=clean(BALIKAN_STATE.exactScanSku||'');return rows.filter(r=>{if(BALIKAN_FILTERABLE_COLUMNS.some(col=>{if(col===omitCol)return false;const selected=st.columnFilters[col]||[];if(!selected.length)return false;return !selected.includes(sanitizeFilterValue(r[col]));}))return false;if(exactScanSku&&clean(r.sku)!==exactScanSku)return false;if(q&&!clean(`${r.sku} ${r.namaBarang} ${r.lokasi} ${r.status} ${r.keterangan} ${r.rakTujuan}`).includes(q))return false;return true;});}
 
 
-function syncBalikanAutoCheckToggle(){if(!balikanAutoCheckToggle)return;const perms=getPermissions();const isOn=BALIKAN_STATE.autoCheckOnScan!==false;balikanAutoCheckToggle.classList.toggle('is-on',isOn);balikanAutoCheckToggle.classList.toggle('is-off',!isOn);balikanAutoCheckToggle.setAttribute('aria-pressed',isOn?'true':'false');balikanAutoCheckToggle.textContent=`Scan to checklist: ${isOn?'ON':'OFF'}`;balikanAutoCheckToggle.style.display=perms.canUpdate?"":"none";}
-function toggleBalikanAutoCheck(){BALIKAN_STATE.autoCheckOnScan=!(BALIKAN_STATE.autoCheckOnScan!==false);syncBalikanAutoCheckToggle();}
+function syncBalikanAutoCheckToggle(){if(!balikanAutoCheckToggle)return;const perms=getPermissions();const isOn=BALIKAN_STATE.autoCheckOnScan!==false;balikanAutoCheckToggle.checked=isOn;balikanAutoCheckToggle.setAttribute("aria-checked",isOn?"true":"false");const statusEl=document.getElementById("balikanAutoCheckStatus");if(statusEl)statusEl.textContent=isOn?"ON":"OFF";const wrap=balikanAutoCheckToggle.closest(".balikan-switch-wrap");if(wrap){wrap.classList.toggle("is-on",isOn);wrap.classList.toggle("is-off",!isOn);wrap.style.display=perms.canUpdate?"":"none";}}
+function initBalikanAutoCheckPreference(){try{const saved=localStorage.getItem(BALIKAN_AUTO_CHECK_KEY);if(saved===null)return;BALIKAN_STATE.autoCheckOnScan=saved!=="0";}catch(_err){}}
+function toggleBalikanAutoCheck(isOn){const next=typeof isOn==="boolean"?isOn:!(BALIKAN_STATE.autoCheckOnScan!==false);BALIKAN_STATE.autoCheckOnScan=next;try{localStorage.setItem(BALIKAN_AUTO_CHECK_KEY,next?"1":"0");}catch(_err){}syncBalikanAutoCheckToggle();}
 function sortBalikanRows(rows,sortBy='default'){const list=[...rows];const map={default:(a,b)=>(Number(a.rowNumber)||0)-(Number(b.rowNumber)||0),skuAsc:(a,b)=>String(a.sku||'').localeCompare(String(b.sku||'')),skuDesc:(a,b)=>String(b.sku||'').localeCompare(String(a.sku||'')),namaAsc:(a,b)=>String(a.namaBarang||'').localeCompare(String(b.namaBarang||'')),namaDesc:(a,b)=>String(b.namaBarang||'').localeCompare(String(a.namaBarang||'')),qtyDesc:(a,b)=>parseNumber(b.qty)-parseNumber(a.qty),qtyAsc:(a,b)=>parseNumber(a.qty)-parseNumber(b.qty),checkedFirst:(a,b)=>Number(isCheckedValue(b.checked))-Number(isCheckedValue(a.checked)),uncheckedFirst:(a,b)=>Number(isCheckedValue(a.checked))-Number(isCheckedValue(b.checked))};return list.sort(map[sortBy]||map.default);}
 function resetBalikanFilter(){window.balikanSearchKeyword='';if(balikanSearchInput)balikanSearchInput.value='';if(balikanSortSelect)balikanSortSelect.value='default';BALIKAN_STATE.sortBy='default';BALIKAN_STATE.highlightRowNumber=null;BALIKAN_STATE.exactScanSku='';const st=ensureBalikanFilterState();st.columnFilters={};st.openFilterCol='';renderBalikanTable(false);}
 function exportBalikanFilteredCsv(){const st=ensureBalikanFilterState();const baseRows=(window.BALIKAN_ROWS||[]).map(r=>({...r}));const filtered=sortBalikanRows(applyBalikanTableFilters(baseRows),BALIKAN_STATE.sortBy||'default');const cols=['no','sku','namaBarang','qty','rakTujuan','lokasi','stokBulky','stokRetail','status','keterangan','checked'];const header=['No','SKU','Nama Barang','Qty','Rak Tujuan','Lokasi','Stok Bulky','Stok Retail','Status','Keterangan','Centang'];const lines=[header.join(','),...filtered.map(row=>cols.map(c=>`"${String(row[c]??'').replaceAll('"','""')}"`).join(','))];const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);const sheet=String(window.currentTripSheet||'balikan-store').replace(/[^a-z0-9-_]+/gi,'-');a.download=`${sheet}-filtered.csv`;a.click();URL.revokeObjectURL(a.href);toast('Export CSV berhasil','success');}
