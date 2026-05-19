@@ -139,7 +139,7 @@ export async function onRequestPost({ request, env }) {
     const payload = {
       user_id: userId,
       user_name: sanitizeText(body?.user_name, 120) || null,
-      role: userId === "developer" ? "Development Mode" : sanitizeText(profile?.role, 120) || sessionRole || "User",
+      role: userId === "developer" ? "Mode Development" : sanitizeText(profile?.role, 120) || sessionRole || "User",
       action,
       module,
       detail: sanitizeText(body?.detail, 1000) || null,
