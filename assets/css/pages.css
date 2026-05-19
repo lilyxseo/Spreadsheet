@@ -1076,8 +1076,13 @@ body.light #page-balikan-store .balikan-check{
   flex-wrap:wrap;
   align-items:center;
 }
-#page-balikan-store .balikan-controls select{min-width:200px}
-#page-balikan-store .balikan-controls input{flex:1 1 260px;min-width:220px}
+#page-balikan-store .balikan-controls select{min-width:170px}
+#page-balikan-store .balikan-search-row{display:flex;gap:8px;align-items:center;width:100%}
+#page-balikan-store .balikan-search-row input{flex:1 1 auto;min-width:220px}
+#page-balikan-store .balikan-filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
+#page-balikan-store .balikan-toggle-btn.is-on{border-color:var(--success-color);color:var(--success-color)}
+#page-balikan-store .balikan-toggle-btn.is-off{opacity:.8}
+
 
 #page-balikan-store .editable-cell{cursor:pointer}
 #page-balikan-store .editable-cell:hover{background:var(--hover-bg)}
