@@ -1072,12 +1072,34 @@ body.light #page-balikan-store .balikan-check{
 }
 #page-balikan-store .balikan-controls{
   display:flex;
-  gap:8px;
-  flex-wrap:wrap;
+  gap:6px;
+  flex-wrap:nowrap;
   align-items:center;
+  overflow:auto;
 }
-#page-balikan-store .balikan-controls select{min-width:200px}
-#page-balikan-store .balikan-controls input{flex:1 1 260px;min-width:220px}
+#page-balikan-store .balikan-sort-wrap,
+#page-balikan-store .balikan-scan-toggle{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-sort-wrap select{
+  min-width:120px;
+  height:32px;
+  font-size:12px;
+  padding:4px 8px;
+}
+#page-balikan-store .balikan-btn-mini{
+  height:32px;
+  padding:4px 10px;
+  font-size:12px;
+}
+#page-balikan-store .balikan-scan-toggle input{
+  width:38px;
+  height:20px;
+}
 
 #page-balikan-store .editable-cell{cursor:pointer}
 #page-balikan-store .editable-cell:hover{background:var(--hover-bg)}
