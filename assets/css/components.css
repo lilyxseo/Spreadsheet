@@ -31,3 +31,5 @@
 .search-with-scan{display:flex;align-items:center;gap:8px;}
 .search-with-scan .search-lg{flex:1;}
 
+
+.badge-readonly{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#fff3cd;color:#8a6d3b;font-size:12px;font-weight:700;vertical-align:middle;}
