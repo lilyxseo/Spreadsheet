@@ -104,9 +104,15 @@ function getCurrentUserRole() {
   return found?.role || "";
 }
 window.getCurrentUserRole=getCurrentUserRole;
+function normalizeRoleName(role){
+  return String(role||"").trim().toLowerCase();
+}
+function hasCrudAccess(role){
+  const normalized=normalizeRoleName(role);
+  return normalized==="pic"||normalized==="developer"||normalized==="mode development";
+}
 function isPicRole(){
-  const role=String(getCurrentUserRole()||"").trim().toLowerCase();
-  return role==="pic"||role==="mode development"||role==="developer";
+  return hasCrudAccess(getCurrentUserRole());
 }
 function getPermissions(){
   const canRead=true;
@@ -114,7 +120,10 @@ function getPermissions(){
   const canUpdate=isPicRole();
   const canDelete=isPicRole();
   const canSync=isPicRole();
-  return {canCreate,canRead,canUpdate,canDelete,canSync};
+  const canChecklist=isPicRole();
+  const canImportExport=isPicRole();
+  const canRefresh=isPicRole();
+  return {canCreate,canRead,canUpdate,canDelete,canSync,canChecklist,canImportExport,canRefresh};
 }
 window.getPermissions=getPermissions;
 function renderReadOnlyBadge(){
