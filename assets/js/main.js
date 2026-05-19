@@ -1630,31 +1630,7 @@ function normalizeRole(role){
 
   return r;
 }
-window.mvSubmitSession=async()=>{if(!canSubmitMovement()){toast('Lengkapi tujuan dan stok aktual semua item.','error');return;}const dup=new Set();for(const it of MOVEMENT_STATE.sessionItems){const key=`${clean(it.sku)}|${clean(it.lokasi)}|${clean(it.to)}`;if(dup.has(key)){toast('Duplikasi SKU + From + To terdeteksi.','error');return;}dup.add(key);}MOVEMENT_STATE.submitting=true;renderMovementSessionTable();try{for(const it of MOVEMENT_STATE.sessionItems){const tanggal=formatTanggal(new Date());const from=it.lokasi;const to=String(it.to||"").trim();const qty=Number(it.stokAktual);const rawRole=getCurrentUserRole();
-
-console.log("USER ROLE DEBUG", {
-  currentUser: window.currentUser,
-  appState: window.APP_STATE,
-  localCurrentUser: localStorage.getItem("currentUser"),
-  localUser: localStorage.getItem("user"),
-  rawRole
-});
-
-const normalizedRole=normalizeRole(rawRole);
-
-const pic=
-  APP_CONFIG.PIC_BY_ROLE[normalizedRole] ||
-  APP_CONFIG.PIC_BY_ROLE.inventory;
-
-const finalPic=String(pic).toUpperCase();
-
-console.log("PIC DEBUG", {
-  rawRole,
-  normalizedRole,
-  finalPic
-});
-
-const payload={tanggal,from,to,sku:it.sku,namaBarang:it.nama,qty,pic:finalPic,stokDiLokasiAwal:Number(it.stokAwal),stokAktual:Number(it.stokAktual)};const res=await fetch('/api/movement/in',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data?.success)throw new Error(data?.message||'Gagal menyimpan barang masuk');logActivitySafe({action:'CREATE_MOVEMENT',module:'Movement',detail:`[CREATE] Movement\nSKU: ${it.sku}\nQty: ${qty}\nStatus: Movement`,status:'SUCCESS',metadata:{inventorySheet:'Movement',inventorySpreadsheet:'SHEET_ID_INVENTORY',syncedTo2026:true,tanggal,from,to,sku:it.sku,namaBarang:it.nama,qty,status:'Movement',pic:finalPic,keterangan:'INTERNAL STOCK TRANSFER'}});}toast('Barang masuk berhasil disimpan','success');MOVEMENT_STATE.sessionActive=false;MOVEMENT_STATE.searchInput="";MOVEMENT_STATE.search="";MOVEMENT_STATE.sessionItems=[];MOVEMENT_HISTORY_REMOTE.loaded=false;await ensureMovementHistoryLoaded();if(typeof syncData==='function')syncData();}catch(err){toast(err?.message||'Gagal menyimpan barang masuk','error');}finally{MOVEMENT_STATE.submitting=false;renderMovementPage();}};
+window.mvSubmitSession=async()=>{if(!canSubmitMovement()){toast('Lengkapi tujuan dan stok aktual semua item.','error');return;}const dup=new Set();for(const it of MOVEMENT_STATE.sessionItems){const key=`${clean(it.sku)}|${clean(it.lokasi)}|${clean(it.to)}`;if(dup.has(key)){toast('Duplikasi SKU + From + To terdeteksi.','error');return;}dup.add(key);}MOVEMENT_STATE.submitting=true;renderMovementSessionTable();try{const rawRole=getCurrentUserRole();const normalizedRole=normalizeRole(rawRole);const pic=APP_CONFIG.PIC_BY_ROLE[normalizedRole]||APP_CONFIG.PIC_BY_ROLE.inventory;const finalPic=String(pic).toUpperCase();const tanggal=formatTanggal(new Date());const items=MOVEMENT_STATE.sessionItems.map(it=>({tanggal,from:it.lokasi,to:String(it.to||'').trim(),sku:it.sku,namaBarang:it.nama,qty:Number(it.stokAktual),pic:finalPic,stokDiLokasiAwal:Number(it.stokAwal),stokAktual:Number(it.stokAktual)}));const res=await fetch('/api/movement/in',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items})});const data=await res.json();if(!res.ok||!data?.success)throw new Error(data?.message||'Gagal menyimpan movement');items.forEach(it=>{logActivitySafe({action:'CREATE_MOVEMENT',module:'Movement',detail:`[CREATE] Movement\nSKU: ${it.sku}\nQty: ${it.qty}\nStatus: Movement`,status:'SUCCESS',metadata:{inventorySheet:'Movement',inventorySpreadsheet:'SHEET_ID_INVENTORY',syncedTo2026:true,tanggal:it.tanggal,from:it.from,to:it.to,sku:it.sku,namaBarang:it.namaBarang,qty:it.qty,status:'Movement',pic:it.pic,keterangan:'INTERNAL STOCK TRANSFER'}});});toast(`Movement berhasil disimpan (${items.length} SKU)`,'success');MOVEMENT_STATE.sessionActive=false;MOVEMENT_STATE.searchInput='';MOVEMENT_STATE.search='';MOVEMENT_STATE.sessionItems=[];MOVEMENT_HISTORY_REMOTE.loaded=false;await ensureMovementHistoryLoaded();if(typeof syncData==='function')syncData({silent:true,force:true});}catch(err){toast(err?.message||'Gagal menyimpan movement','error');}finally{MOVEMENT_STATE.submitting=false;renderMovementPage();}};
 document.addEventListener('input',e=>{if(e.target?.id==='movementSearchInput'){MOVEMENT_STATE.searchInput=e.target.value;movementHistoryPage=1;clearTimeout(MOVEMENT_STATE.searchTimer);MOVEMENT_STATE.searchTimer=setTimeout(()=>{MOVEMENT_STATE.search=MOVEMENT_STATE.searchInput;renderMovementSearchResults();},280);return;}if(e.target?.id==='mvHistoryPageSize'){movementHistoryPageSize=Number(e.target.value)||10;movementHistoryPage=1;renderMovementHistory();return;}if(e.target?.dataset?.mvm){const idx=Number(e.target.dataset.idx);const row=MOVEMENT_STATE.sessionItems[idx];if(!row)return;if(e.target.dataset.mvm==='to')row.to=e.target.value||"";if(e.target.dataset.mvm==='akt'){const n=Number(e.target.value);row.stokAktual=Number.isFinite(n)?n:null;}const submitBtn=document.getElementById('mvSubmitBtn');if(submitBtn)submitBtn.disabled=!canSubmitMovement()||MOVEMENT_STATE.submitting;}});
 document.addEventListener('click',e=>{if(e.target?.id==='ccHistoryPrev'){cycleHistoryPage=Math.max(1,cycleHistoryPage-1);renderCycleHistory();return;}if(e.target?.id==='ccHistoryNext'){cycleHistoryPage+=1;renderCycleHistory();return;}if(e.target?.closest('#movementScanBtn')){openMovementScanner();return;}if(e.target?.id==='mvHistoryPrev'){movementHistoryPage=Math.max(1,movementHistoryPage-1);renderMovementHistory();return;}if(e.target?.id==='mvHistoryNext'){movementHistoryPage+=1;renderMovementHistory();return;}const btn=e.target.closest('[data-mvm-action]');if(!btn)return;const action=btn.dataset.mvmAction;if(action==='remove'){const idx=Number(btn.dataset.idx);MOVEMENT_STATE.sessionItems.splice(idx,1);renderMovementSessionTable();return;}if(action==='add'){const sku=decodeURIComponent(btn.dataset.sku||"");const lokasi=decodeURIComponent(btn.dataset.lok||"");const source=getMovementSourceRows().find(r=>clean(r.sku)===clean(sku)&&clean(r.lokasi)===clean(lokasi));if(source)addMovementItem(source);}});
 document.addEventListener("DOMContentLoaded",()=>{ensureMovementHistoryLoaded().finally(()=>renderMovementPage());});

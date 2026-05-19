@@ -115,6 +115,18 @@ async function appendToSheet({ accessToken, sheetId, range, values }) {
   return { res, data };
 }
 
+
+async function batchUpdateSheetRows({ accessToken, sheetId, data }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return { res, data: body };
+}
+
 async function readSheetValues({ accessToken, sheetId, range }) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`;
   const res = await fetch(url, {
@@ -168,32 +180,40 @@ export async function onRequestPost({ request, env }) {
     if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) return json({ success: false, message: "Environment variable belum lengkap" }, 500);
 
     const body = await request.json();
-    const sku = sanitize(body?.sku);
-    const namaBarang = sanitize(body?.namaBarang);
-    const qty = toPositiveNumber(body?.qty);
-    const stokDiLokasiAwal = toNonNegativeNumber(body?.stokDiLokasiAwal);
-    const stokAktual = toNonNegativeNumber(body?.stokAktual);
-    const tanggalInput = sanitize(body?.tanggal);
-    const tanggal = tanggalInput || new Date().toISOString();
-    const tanggalBarangMasuk = formatDateMDYYYY(toDate(tanggalInput) || new Date());
-    const from = sanitize(body?.from);
-    const to = sanitize(body?.to);
-    const pic = sanitize(body?.pic) || "ABI";
+    const requestItems = Array.isArray(body?.items) ? body.items : [body];
+    if (!requestItems.length) return json({ success: false, message: "items wajib diisi" }, 400);
 
-    if (!tanggal) return json({ success: false, message: "tanggal wajib diisi" }, 400);
-    if (!from) return json({ success: false, message: "from wajib diisi" }, 400);
-    if (!to) return json({ success: false, message: "to wajib diisi" }, 400);
-    if (!sku) return json({ success: false, message: "sku wajib diisi" }, 400);
-    if (!namaBarang) return json({ success: false, message: "namaBarang wajib diisi" }, 400);
-    if (qty === null) return json({ success: false, message: "qty harus angka > 0" }, 400);
-    if (stokDiLokasiAwal === null) return json({ success: false, message: "stokDiLokasiAwal harus angka >= 0" }, 400);
-    if (stokAktual === null) return json({ success: false, message: "stokAktual harus angka >= 0" }, 400);
+    const movementItems = requestItems.map((item) => {
+      const sku = sanitize(item?.sku);
+      const namaBarang = sanitize(item?.namaBarang);
+      const qty = toPositiveNumber(item?.qty);
+      const stokDiLokasiAwal = toNonNegativeNumber(item?.stokDiLokasiAwal);
+      const stokAktual = toNonNegativeNumber(item?.stokAktual);
+      const tanggalInput = sanitize(item?.tanggal);
+      const tanggal = tanggalInput || new Date().toISOString();
+      const tanggalBarangMasuk = formatDateMDYYYY(toDate(tanggalInput) || new Date());
+      const from = sanitize(item?.from);
+      const to = sanitize(item?.to);
+      const pic = sanitize(item?.pic) || "ABI";
+      return { sku, namaBarang, qty, stokDiLokasiAwal, stokAktual, tanggalInput, tanggal, tanggalBarangMasuk, from, to, pic };
+    });
+
+    for (const item of movementItems) {
+      if (!item.tanggal) return json({ success: false, message: "tanggal wajib diisi" }, 400);
+      if (!item.from) return json({ success: false, message: "from wajib diisi" }, 400);
+      if (!item.to) return json({ success: false, message: "to wajib diisi" }, 400);
+      if (!item.sku) return json({ success: false, message: "sku wajib diisi" }, 400);
+      if (!item.namaBarang) return json({ success: false, message: "namaBarang wajib diisi" }, 400);
+      if (item.qty === null) return json({ success: false, message: "qty harus angka > 0" }, 400);
+      if (item.stokDiLokasiAwal === null) return json({ success: false, message: "stokDiLokasiAwal harus angka >= 0" }, 400);
+      if (item.stokAktual === null) return json({ success: false, message: "stokAktual harus angka >= 0" }, 400);
+    }
 
     const accessToken = await createAccessToken(env);
-    const inventoryRow = [[tanggal, from, to, sku, namaBarang, stokDiLokasiAwal, stokAktual]];
-    const barangMasukRow = [[tanggalBarangMasuk, from, to, sku, namaBarang, qty, "Movement", pic, "INTERNAL STOCK TRANSFER"]];
+    const inventoryRows = movementItems.map((item) => [item.tanggal, item.from, item.to, item.sku, item.namaBarang, item.stokDiLokasiAwal, item.stokAktual]);
+    const barangMasukRows = movementItems.map((item) => [item.tanggalBarangMasuk, item.from, item.to, item.sku, item.namaBarang, item.qty, "Movement", item.pic, "INTERNAL STOCK TRANSFER"]);
 
-    let inventoryWrite = await appendToSheet({ accessToken, sheetId: inventorySpreadsheetId, range: INVENTORY_MOVEMENT_RANGE, values: inventoryRow });
+    let inventoryWrite = await appendToSheet({ accessToken, sheetId: inventorySpreadsheetId, range: INVENTORY_MOVEMENT_RANGE, values: inventoryRows });
     if (!inventoryWrite.res.ok && isPermissionError(inventoryWrite.data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet Inventory" }, 403);
     }
@@ -209,15 +229,15 @@ export async function onRequestPost({ request, env }) {
     const values = Array.isArray(data?.values) ? data.values : [];
     const emptyIndex = findFirstEmptyRowIndex(values);
     const targetIndex = emptyIndex === -1 ? values.length : emptyIndex;
-    const rowNumber = Math.max(2, targetIndex + 1);
-    const targetRange = `Barang Masuk!A${rowNumber}:I${rowNumber}`;
-    ({ res, data } = await updateSheetRow({ accessToken, sheetId: spreadsheetId, range: targetRange, values: barangMasukRow }));
+    const startRowNumber = Math.max(2, targetIndex + 1);
+    const updateData = barangMasukRows.map((row, idx) => ({ range: `Barang Masuk!A${startRowNumber + idx}:I${startRowNumber + idx}`, values: [row] }));
+    ({ res, data } = await batchUpdateSheetRows({ accessToken, sheetId: spreadsheetId, data: updateData }));
 
     if (!res.ok && isPermissionError(data)) {
       return json({ success: false, message: "Service account belum punya akses Editor ke Spreadsheet 2026" }, 403);
     }
     if (!res.ok) return json({ success: false, message: data?.error?.message || "Gagal update Google Sheet", detail: data }, res.status);
-    return json({ success: true });
+    return json({ success: true, processed: movementItems.length });
   } catch (err) {
     return json({ success: false, message: err?.message || "Internal server error" }, 500);
   }
