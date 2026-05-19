@@ -1,3 +1,4 @@
+import { requirePicRole } from './_authz.js';
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const SHEET_RANGE = "Sheet1!A:G";
