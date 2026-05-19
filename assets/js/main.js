@@ -458,6 +458,14 @@ function goBackToPreviousPage(){if(window.history.length>1){window.history.back(
 function showLoginView(){
 authChecking=false;
 user=null;
+const loginForm=document.getElementById("loginForm");
+const emailInput=document.getElementById("email");
+const passwordInput=document.getElementById("password");
+const rememberMeInput=document.getElementById("rememberMe");
+if(loginForm)loginForm.reset();
+if(emailInput)emailInput.value="";
+if(passwordInput)passwordInput.value="";
+if(rememberMeInput)rememberMeInput.checked=false;
 renderAuthState();
 bindLoginView();
 }
