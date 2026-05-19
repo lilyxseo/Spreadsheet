@@ -1075,9 +1075,11 @@ const inRows=bySheet["Barang Masuk"]||[],outRows=bySheet["Barang Keluar"]||[];
 const tIn=inRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0),tOut=outRows.reduce((n,r)=>n+parseNumber(getVal(r,["qty"])),0);
 const kartuRows=bySheet["Kartu Stock"]||[];
 const tAvailable=kartuRows.reduce((n,r)=>n+parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"])),0);
+const tStokBulky=(bySheet["BULKY"]||[]).reduce((n,r)=>n+parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir","qty","stok","quantity"])),0);
+const tStokRetail=(bySheet["RPL"]||[]).reduce((n,r)=>n+parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir","qty","stok","quantity"])),0);
 const locationSet=new Set();
 for(const r of (bySheet["Kartu Stock"]||[])){const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(stokAkhir<=0)continue;for(const k of Object.keys(r||{})){const nk=clean(k);if(["lokasi","location","rak","bin","area"].some(x=>nk.includes(x))){const v=r[k];if(v)locationSet.add(String(v).trim());}}}
-const summary=[["Baris Kartu Stock",bySheet["Kartu Stock"].length],["Baris RPL",bySheet["RPL"].length],["Baris BULKY",bySheet["BULKY"].length],["Total Qty Masuk",tIn],["Total Qty Keluar",tOut],["Total Qty Tersedia",tAvailable]];
+const summary=[["Total Stok Akhir",tAvailable],["Stok Retail",tStokRetail],["Stok Bulky",tStokBulky],["Total Qty Masuk",tIn],["Total Qty Keluar",tOut],["Baris Kartu Stock",bySheet["Kartu Stock"].length]];
 const sourceList=Array.isArray(sel.sources)?sel.sources:[...sel.sources||[]];
 let html=`<div class='detail-profile'><div class='detail-hero'><div class='detail-top'><div><div class='detail-name'>${esc(nama)}</div><div class='detail-sku'>SKU: <strong>${esc(sku)}</strong> <button class='btn-ghost copy-mini-btn' data-copy-sku onclick="copySku(decodeURIComponent('${encAttr(sku)}'),this)"><span aria-hidden='true'>⧉</span><span>Copy SKU</span></button></div></div><button class='btn-primary' onclick="goBackToPreviousPage()"><span aria-hidden='true'>←</span><span>Kembali ke hasil pencarian</span></button></div><div class='source-row'>${sourceList.map(s=>`<span class='badge ${badgeClass(s)}'>${esc(s)}</span>`).join(" ")}</div></div>`;
 html+=`<div class='summary-grid'>${summary.map(([k,v])=>`<div class='summary-card'><div class='k'>${k}</div><div class='v'>${esc(v)}</div></div>`).join("")}</div>`;
