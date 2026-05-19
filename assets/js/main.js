@@ -7,6 +7,7 @@ ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
+const BARCODE_CACHE_KEY="inventory_barcode_master";
 const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
@@ -15,6 +16,7 @@ const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+const BARCODE_STATE={barcodeToSku:new Map(),barcodeToName:new Map(),loaded:false,updatedAt:0};
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTimer:null,idleTimer:null};
 const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
 const BALIKAN_STATE={sheets:[],highlightRowNumber:null};
@@ -191,9 +193,10 @@ if(!res.ok||json?.success===false){console.error("INIT ERROR movement",json?.mes
 const rows=Array.isArray(json?.data)?json.data:(Array.isArray(json?.rows)?json.rows:[]);
 setCacheSafe(MODULE_CACHE_KEYS.movement,rows);return rows;
 };
+const loadBarcodeData=async()=>loadBarcodeMaster({force});
 
 const results=await Promise.allSettled([
-loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData()
+loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData(),loadBarcodeData()
 ]);
 results.forEach((res,i)=>{if(res.status==="rejected")console.error("INIT ERROR INDEX",i,res.reason);});
 const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes]=results;
@@ -824,6 +827,58 @@ if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error
 return json.values||[];
 }
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
+function parseBarcodeSheet(values){
+if(!Array.isArray(values)||values.length<2)return[];
+const rows=[];
+for(let r=1;r<values.length;r++){
+const row=Array.isArray(values[r])?values[r]:[];
+const sku=String(row[0]||"").trim();
+const barcode=String(row[1]||"").trim();
+const nama=String(row[2]||"").trim();
+if(!sku||!barcode)continue;
+rows.push({sku,barcode,nama});
+}
+return rows;
+}
+function setBarcodeMap(rows=[]){
+BARCODE_STATE.barcodeToSku=new Map();
+BARCODE_STATE.barcodeToName=new Map();
+for(const item of rows){
+const key=cleanScannedSku(item?.barcode||"");
+if(!key)continue;
+BARCODE_STATE.barcodeToSku.set(key,String(item?.sku||"").trim());
+if(item?.nama)BARCODE_STATE.barcodeToName.set(key,String(item.nama).trim());
+}
+BARCODE_STATE.loaded=true;
+BARCODE_STATE.updatedAt=Date.now();
+localStorage.setItem(BARCODE_CACHE_KEY,JSON.stringify({updatedAt:BARCODE_STATE.updatedAt,rows}));
+}
+function loadBarcodeMapFromCache(){
+const raw=localStorage.getItem(BARCODE_CACHE_KEY);
+const parsed=safeJsonParse(raw,null);
+if(!parsed||!Array.isArray(parsed?.rows)||!parsed.rows.length)return false;
+setBarcodeMap(parsed.rows);
+BARCODE_STATE.updatedAt=Number(parsed.updatedAt)||Date.now();
+return true;
+}
+async function loadBarcodeMaster({force=false}={}){
+if(!force&&BARCODE_STATE.loaded&&BARCODE_STATE.barcodeToSku.size)return BARCODE_STATE;
+if(!force&&loadBarcodeMapFromCache())return BARCODE_STATE;
+try{
+const raw=await fetchSheet("BARCODE");
+const rows=parseBarcodeSheet(raw);
+setBarcodeMap(rows);
+console.log("BARCODE MASTER LOADED",rows.length);
+}catch(err){
+console.warn("Gagal load BARCODE master",err);
+if(!BARCODE_STATE.loaded){
+BARCODE_STATE.barcodeToSku=new Map();
+BARCODE_STATE.barcodeToName=new Map();
+BARCODE_STATE.loaded=true;
+}
+}
+return BARCODE_STATE;
+}
 function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
 function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[]});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}}
 function scheduleSearchFilter(nextValue){
@@ -888,19 +943,21 @@ navigateTo('/sku/'+encodeURIComponent(exact.sku));
 return true;
 }
 async function handleSearchScanResult(decodedText){
-const sku=cleanScannedSku(decodedText);
-if(!sku)return;
+const scanned=cleanScannedSku(decodedText);
+if(!scanned)return;
+const mappedSku=BARCODE_STATE.barcodeToSku.get(scanned);
+const sku=String(mappedSku||scanned).trim();
 try{
 await logActivity({
 ...currentUserIdentity(),
 action:"SCAN_BARCODE_SKU",
 module:"Search",
-detail:`User scan barcode SKU: ${sku}`,
-reference:sku,
+detail:`User scan barcode: ${scanned} -> SKU: ${sku}`,
+reference:scanned,
 status:"SUCCESS",
 metadata:{
 sku,
-barcode:sku,
+barcode:scanned,
 source:"barcode_scanner"
 }
 });
@@ -909,7 +966,11 @@ const input=document.getElementById("searchInput");
 if(input)input.value=sku;
 triggerSearchSku(sku);
 const found=openSkuDetailIfFound(sku);
-toast(found?`Barcode berhasil: ${sku}`:`Barcode berhasil: ${sku}. SKU tidak ditemukan.`,"success");
+if(!mappedSku){
+toast("Barcode tidak terdaftar","error");
+return;
+}
+toast(found?`Barcode berhasil: ${scanned} → SKU ${sku}`:`Barcode ditemukan, tetapi SKU ${sku} tidak ada di data inventory.","success");
 }
 async function openBarcodeScanner(targetInputId="searchInput",onResult=handleSearchScanResult){
 SCANNER_STATE.targetInputId=targetInputId;
