@@ -1,3 +1,4 @@
+import { requirePicRole } from './_authz.js';
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const SHEET_RANGE = "Cycle Count!A4:I";
@@ -126,6 +127,8 @@ function validateItem(item, index) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const authz = await requirePicRole({ request, env });
+  if (!authz.ok) return authz.response;
   try {
     const SHEET_MAP = {
       cycle_count: env.SHEET_ID_INVENTORY,

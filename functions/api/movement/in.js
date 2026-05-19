@@ -1,3 +1,4 @@
+import { requirePicRole } from '../_authz.js';
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const INVENTORY_MOVEMENT_RANGE = "Movement!A:I";
@@ -172,6 +173,8 @@ async function readSheetBarangMasuk({ accessToken, sheetId }) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const authz = await requirePicRole({ request, env });
+  if (!authz.ok) return authz.response;
   try {
     const inventorySpreadsheetId = sanitize(env.SHEET_ID_INVENTORY);
     const spreadsheetId = sanitize(env.SHEET_ID_2026);
