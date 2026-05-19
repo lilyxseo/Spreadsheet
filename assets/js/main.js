@@ -21,6 +21,31 @@ const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:25,debounceTime
 const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
 const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],highlightRowNumber:null,sortBy:"default",autoCheckOnScan:true,exactScanSku:""};
+const MODULE_CACHE_MEMORY={};
+const LARGE_CACHE_KEYS=new Set([MODULE_CACHE_KEYS.inventory,MODULE_CACHE_KEYS.movement,MODULE_CACHE_KEYS.barangMasuk,MODULE_CACHE_KEYS.barangKeluar]);
+const HAS_INDEXED_DB=typeof window!=="undefined"&&typeof window.indexedDB!=="undefined";
+function isLargeCacheKey(key){return LARGE_CACHE_KEYS.has(key);}
+async function saveLargeCacheToDb(key,data){
+if(!HAS_INDEXED_DB)return;
+try{
+const db=await openCacheDb();
+await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);st.put({sheet:key,rows:Array.isArray(data)?data:[],updatedAt:Date.now(),version:CACHE_VERSION});tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
+}catch(err){console.warn("IndexedDB save module cache failed",key,err);}
+}
+async function loadLargeCacheFromDb(key){
+if(!HAS_INDEXED_DB)return [];
+try{
+const db=await openCacheDb();
+const row=await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readonly");const rq=tx.objectStore(IDB_STORE).get(key);rq.onsuccess=()=>resolve(rq.result||null);rq.onerror=()=>reject(rq.error);});
+return Array.isArray(row?.rows)?row.rows:[];
+}catch(err){console.warn("IndexedDB load module cache failed",key,err);return [];} 
+}
+async function hydrateModuleCachesFromDb(){
+for(const key of LARGE_CACHE_KEYS){
+const rows=await loadLargeCacheFromDb(key);
+if(Array.isArray(rows)&&rows.length)MODULE_CACHE_MEMORY[key]=rows;
+}
+}
 window.BALIKAN_ROWS=[];
 window.currentTripSheet="";
 window.balikanSearchKeyword="";
@@ -152,9 +177,14 @@ const deletedSet=new Set((deletedRowNumbers||[]).map(Number));
 return (oldRows||[]).filter(row=>!deletedSet.has(Number(row?.rowNumber)));
 }
 function setModuleCache(key,rows){
-localStorage.setItem(key,JSON.stringify(Array.isArray(rows)?rows:[]));
+const normalized=Array.isArray(rows)?rows:[];
+MODULE_CACHE_MEMORY[key]=normalized;
+if(isLargeCacheKey(key)){saveLargeCacheToDb(key,normalized);return;}
+localStorage.setItem(key,JSON.stringify(normalized));
 }
 function getModuleCache(key){
+if(Array.isArray(MODULE_CACHE_MEMORY[key]))return MODULE_CACHE_MEMORY[key];
+if(isLargeCacheKey(key))return [];
 try{return JSON.parse(localStorage.getItem(key)||"[]");}catch(_err){return [];}
 }
 function safeJsonParse(value,fallback=null){
@@ -168,9 +198,11 @@ return fallback;
 }
 function setCacheSafe(key,data){
 if(!Array.isArray(data)||data.length===0){console.warn("Skip empty cache",key);return;}
+if(isLargeCacheKey(key)){setModuleCache(key,data);return;}
 localStorage.setItem(key,JSON.stringify({timestamp:Date.now(),data}));
 }
 function getCacheData(key){
+if(isLargeCacheKey(key))return getModuleCache(key);
 const raw=localStorage.getItem(key);
 const parsed=safeJsonParse(raw,null);
 if(Array.isArray(parsed))return parsed;
@@ -189,6 +221,7 @@ return {res,data:{success:false,data:[],message:"Response API bukan JSON"}};
 return {res,data};
 }
 ["barangMasukCache","barangKeluarCache","inventoryCache","movementCache","appDataCache"].forEach(key=>{const raw=localStorage.getItem(key);if(raw==="API OK")localStorage.removeItem(key);});
+if(HAS_INDEXED_DB)["barangMasukCache","barangKeluarCache","inventoryCache","movementCache"].forEach(key=>{if(localStorage.getItem(key)!==null)localStorage.removeItem(key);});
 
 let preloadPromise=null;
 
@@ -716,6 +749,7 @@ console.log("INIT APP START");
 console.log("CURRENT ROUTE", location.pathname);
 window.APP_STATE=window.APP_STATE||{};
 
+await hydrateModuleCachesFromDb();
 const cachedBarangMasuk=getCacheData(MODULE_CACHE_KEYS.barangMasuk)||[];
 const cachedBarangKeluar=getCacheData(MODULE_CACHE_KEYS.barangKeluar)||[];
 const cachedInventory=getCacheData(MODULE_CACHE_KEYS.inventory)||[];
