@@ -1076,8 +1076,12 @@ body.light #page-balikan-store .balikan-check{
   flex-wrap:wrap;
   align-items:center;
 }
-#page-balikan-store .balikan-controls select{min-width:200px}
+#page-balikan-store .balikan-controls select{min-width:170px}
 #page-balikan-store .balikan-controls input{flex:1 1 260px;min-width:220px}
+
+#page-balikan-store .balikan-scan-toggle{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border-color);border-radius:10px;background:var(--card-bg);font-size:13px;white-space:nowrap}
+#page-balikan-store .balikan-scan-toggle input{margin:0}
+
 
 #page-balikan-store .editable-cell{cursor:pointer}
 #page-balikan-store .editable-cell:hover{background:var(--hover-bg)}
