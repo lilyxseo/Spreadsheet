@@ -581,7 +581,6 @@ console.log("FETCH RESULT BULKY",Array.isArray(raw)?raw.length:0);
 return rows;
 }
 async function refreshBarangMasukFull(){
-setStatus("loading","Barang Masuk refreshing...");
 const {res,data:json}=await fetchJsonSafe('/api/barang-masuk?mode=full');
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Masuk');
 const data=normalizeBackendRows(json);
