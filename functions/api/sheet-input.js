@@ -116,6 +116,8 @@ export async function onRequestGet() {
 }
 
 export async function onRequestPost({ request, env }) {
+  const authz = await requirePicRole({ request, env });
+  if (!authz.ok) return authz.response;
   try {
     if (!env.GOOGLE_SHEET_ID || !env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
       return json({
