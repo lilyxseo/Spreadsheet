@@ -1,6 +1,9 @@
 import { json, getAccessToken, escSheet, buildHeaderInfo } from './_utils';
+import { requirePicRole } from '../_authz.js';
 
 export async function onRequestPatch({ request, env }) {
+  const authz = await requirePicRole({ request, env });
+  if (!authz.ok) return authz.response;
   try {
     const body = await request.json();
     const sheetName = String(body?.sheetName || '').trim();
