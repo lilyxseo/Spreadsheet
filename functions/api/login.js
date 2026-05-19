@@ -23,7 +23,7 @@ function createDevToken(secret, username) {
   const payload = {
     sub: "developer",
     username,
-    role: "Development Mode",
+    role: "Mode Development",
     isDeveloper: true,
     exp: Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS,
   };
@@ -85,7 +85,7 @@ export async function onRequestPost({ request, env }) {
             id: "developer",
             email: normalizedUsername,
             name: "Developer",
-            role: "Development Mode",
+            role: "Mode Development",
             isDeveloper: true,
           },
         });
