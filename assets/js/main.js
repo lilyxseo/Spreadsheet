@@ -588,7 +588,6 @@ setCacheSafe("barangMasukCache",data);
 return data;
 }
 async function refreshBarangKeluarFull(){
-setStatus("loading","Barang Keluar refreshing...");
 const {res,data:json}=await fetchJsonSafe('/api/barang-keluar?mode=full');
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Keluar');
 const data=normalizeBackendRows(json);
