@@ -1383,12 +1383,32 @@ function debouncedTableRender(mode){return (DEBOUNCED_RENDER[mode]||(()=>{}))();
 const selectedBarangMasukRows=new Set();
 const selectedBarangKeluarRows=new Set();
 function getSelectedSet(mode){return mode==="in"?selectedBarangMasukRows:selectedBarangKeluarRows;}
-const TABLE_STATE={in:{page:1,pageSize:25,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangMasukRows,deletingRows:new Set(),bulkDeleting:false},out:{page:1,pageSize:25,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangKeluarRows,deletingRows:new Set(),bulkDeleting:false}};
+const TABLE_STATE={in:{page:1,pageSize:25,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangMasukRows,deletingRows:new Set(),bulkDeleting:false,cache:{rawHash:"",filterHash:"",sort:"latest",search:"",columnFilterHash:"",filteredRows:[]}},out:{page:1,pageSize:25,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangKeluarRows,deletingRows:new Set(),bulkDeleting:false,cache:{rawHash:"",filterHash:"",sort:"latest",search:"",columnFilterHash:"",filteredRows:[]}}};
 const FILTERABLE_COLUMNS=["tanggal","from","to","sku","nama","status","pic","lokasi"];
 const FILTER_LABELS={tanggal:"TANGGAL",from:"FROM",to:"TO",sku:"SKU",nama:"NAMA BARANG",status:"STATUS",pic:"PIC",lokasi:"LOKASI"};
 function sanitizeFilterValue(v){const value=String(v??"").trim();if(!value||value==="-"||clean(value)==="null")return"";return value;}
 function getUniqueOptions(rows,key){return [...new Set(rows.map(r=>sanitizeFilterValue(r[key])).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
 function ensureColumnFilterState(mode){if(mode==='balikan')return ensureBalikanFilterState().columnFilters;const st=TABLE_STATE[mode];if(!st)return{};if(!st.columnFilters)st.columnFilters={};FILTERABLE_COLUMNS.forEach(k=>{if(!Array.isArray(st.columnFilters[k]))st.columnFilters[k]=[];});return st.columnFilters;}
+function getMovementRowsHash(rows){if(!Array.isArray(rows)||!rows.length)return "0";const first=rows[0],last=rows[rows.length-1];return `${rows.length}|${first?.rowNumber||""}|${last?.rowNumber||""}|${first?._sheetOrder||""}|${last?._sheetOrder||""}`;}
+function getColumnFilterHash(filters){return FILTERABLE_COLUMNS.map(c=>`${c}:${(filters?.[c]||[]).join("|")}`).join("||");}
+function getMovementFilteredRows(mode,sheetName){
+const st=TABLE_STATE[mode];
+const isIn=mode==="in";
+const nextRows=normalizeMovementRows(sheetName,isIn?"IN":"OUT").map((r,i)=>({...r,rowNumber:Number(r.rowNumber)||i+2}));
+const nextHash=getMovementRowsHash(nextRows);
+if(st.cache.rawHash!==nextHash){st.rows=nextRows;st.cache.rawHash=nextHash;st.cache.filteredRows=[];}
+const search=clean((isIn?inSearch:outSearch)?.value||"");
+const columnFilters=ensureColumnFilterState(mode);
+const columnFilterHash=getColumnFilterHash(columnFilters);
+const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";
+const filterHash=`${st.cache.rawHash}|${search}|${columnFilterHash}|${sort}`;
+if(st.cache.filterHash!==filterHash){
+const filtered=applyTableFilters(st.rows,mode);
+st.cache.filteredRows=sortTableRows(filtered,sort);
+st.cache.filterHash=filterHash;
+}
+return st.cache.filteredRows;
+}
 function rerenderTableByMode(mode,keepPage=true){if(mode==='in'||mode==='out')return renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',keepPage);if(mode==='balikan')return renderBalikanTable(keepPage);}
 function rerenderTableWithScrollRestore(mode,keepPage=true){
   const isBalikan=mode==='balikan';
@@ -1445,7 +1465,7 @@ function positionColumnMenu(mode){
 function toggleColumnMenu(mode){const target=document.getElementById(`mv-cols-${mode}`);if(!target)return;const willOpen=!target.classList.contains("open");closeColumnMenus();if(willOpen){target.classList.add("open");TABLE_STATE[mode].columnMenuOpen=true;positionColumnMenu(mode);}}
 function toggleAllColumns(mode,checked){const root=document.getElementById(`mv-cols-${mode}`);if(!root)return;root.querySelectorAll('input[type="checkbox"]').forEach(c=>{c.checked=!!checked;});toggleColumnVisibility(mode);}
 function exportFilteredCsv(mode){const st=TABLE_STATE[mode];const cols=st.columns||["tanggal","from","to","sku","nama","qty","status","pic","keterangan"];const lines=[cols.join(","),...st.filtered.map(r=>cols.map(c=>`"${String(r[c]??"").replaceAll('"','""')}"`).join(","))];const blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=mode==="in"?"barang-masuk-filtered.csv":"barang-keluar-filtered.csv";a.click();URL.revokeObjectURL(a.href);} 
-function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.rows=normalizeMovementRows(sheetName,isIn?"IN":"OUT").map((r,i)=>({...r,rowNumber:Number(r.rowNumber)||i+2}));const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];st.columns=selectedCols||st.columns||allCols;const filtered=applyTableFilters(rows,mode);const sort=document.getElementById(`mv-sort-${mode}`)?.value||"latest";st.filtered=sortTableRows(filtered,sort);st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
+function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];const allCols=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];st.columns=selectedCols||st.columns||allCols;st.filtered=getMovementFilteredRows(mode,sheetName);const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
 const pageRows=st.filtered.slice((st.page-1)*size,st.page*size);const totalQty=st.filtered.reduce((n,r)=>n+(r._qty||0),0),totalSku=new Set(st.filtered.map(r=>r._sku)).size;
 const totalRowCount=st.filtered.length;
 summaryEl.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Total Row</div><div class='v'>${totalRowCount}</div></div><div class='summary-card'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div><div class='summary-card'><div class='k'>Total SKU</div><div class='v'>${totalSku}</div></div></div>`;
