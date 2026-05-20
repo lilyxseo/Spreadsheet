@@ -1672,10 +1672,36 @@ function getMovementSourceRows(){return getCycleSourceRows();}
 function getMovementCandidates(query){const q=clean(query);if(!q)return[];return getMovementSourceRows().filter(r=>clean(`${r.sku} ${r.nama} ${r.lokasi}`).includes(q)).slice(0,80);}
 function normalizeMovementHeader(v){return String(v||"").toLowerCase().trim().replace(/\s+/g," ").replace(/ /g,"_");}
 function findMovementHeaderRow(values){for(let i=0;i<values.length;i++){const norm=(values[i]||[]).map(normalizeMovementHeader);if(norm.includes("tanggal")&&norm.includes("from")&&norm.includes("to")&&norm.includes("sku"))return i;}return -1;}
-function mapMovementHeaderIndex(headerRow){const normalized=(headerRow||[]).map(normalizeMovementHeader);const aliases={nama:["nama","nama_barang"],awal:["awal","stok_lokasi_awal"],aktual:["aktual","stok_aktual"],keterangan:["keterangan"]};const idx={tanggal:normalized.indexOf("tanggal"),from:normalized.indexOf("from"),to:normalized.indexOf("to"),sku:normalized.indexOf("sku"),nama:-1,awal:-1,aktual:-1,keterangan:-1};for(const key of ["nama","awal","aktual","keterangan"]){for(const alias of aliases[key]){const at=normalized.indexOf(alias);if(at>=0){idx[key]=at;break;}}}return idx;}
+function mapMovementHeaderIndex(headerRow){const normalized=(headerRow||[]).map(normalizeMovementHeader);const aliases={nama:["nama","nama_barang"],awal:["awal","stok_lokasi_awal","stokdilokasiawal","stok_di_lokasi_awal"],aktual:["aktual","stok_aktual"],keterangan:["keterangan","catatan","remark"]};const idx={tanggal:normalized.indexOf("tanggal"),from:normalized.indexOf("from"),to:normalized.indexOf("to"),sku:normalized.indexOf("sku"),nama:-1,awal:-1,aktual:-1,keterangan:-1};for(const key of ["nama","awal","aktual","keterangan"]){for(const alias of aliases[key]){const at=normalized.indexOf(alias);if(at>=0){idx[key]=at;break;}}}return idx;}
 function parseMovementRows(values,idx,startRow){const rows=[];for(let i=startRow;i<values.length;i++){const r=values[i]||[];if(!r.some(c=>String(c||"").trim()))continue;rows.push({tanggal:String(r[idx.tanggal]||""),from:String(r[idx.from]||""),to:String(r[idx.to]||""),sku:String(r[idx.sku]||""),nama:String(r[idx.nama]||""),stok_lokasi_awal:parseNumber(r[idx.awal]??0),stok_aktual:parseNumber(r[idx.aktual]??0),keterangan:idx.keterangan>=0?String(r[idx.keterangan]||""):"",rowNumber:i+1});}return rows;}
-function parseMovementHistoryRows(rawValues){try{const rows=parseRows(rawValues);return {rows:rows.map((r,i)=>({tanggal:r.tanggal,from:r.lokasi,to:r.retail?String(r.retail):String((rawValues||[])[0]||""),sku:r.sku,nama:r.nama_barang,stok_lokasi_awal:r.bulky,stok_aktual:r.aktual_bulky,keterangan:r.catatan||"",rowNumber:i+4})),error:""};}catch(_){const values=Array.isArray(rawValues)?rawValues:[];if(!values.length)return {rows:[],error:""};const headerRow=findMovementHeaderRow(values);if(headerRow<0)return {rows:[],error:"Header Movement tidak valid: tanggal, from, to, sku"};const idx=mapMovementHeaderIndex(values[headerRow]||[]);const required=["tanggal","from","to","sku","nama","awal","aktual"];const miss=required.filter(k=>idx[k]<0);if(miss.length)return {rows:[],error:`Header Movement tidak valid: ${miss.join(", ")}`};return {rows:parseMovementRows(values,idx,headerRow+1),error:""};}}
-async function fetchMovementHistoryRemote(){const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(MOVEMENT_HISTORY_RANGE)}?key=${API_KEY}`;const res=await fetch(url);const json=await res.json();if(!res.ok||json.error)throw new Error((json.error&&json.error.message)||res.statusText||"Gagal memuat sheet Data Movement Barang");return parseMovementHistoryRows(json.values||[]);}
+function parseMovementHistoryRows(rawValues){
+const values=Array.isArray(rawValues)?rawValues:[];
+if(!values.length)return {rows:[],error:""};
+const headerRow=findMovementHeaderRow(values);
+if(headerRow<0)return {rows:[],error:"Header Movement tidak valid: tanggal, from, to, sku"};
+const idx=mapMovementHeaderIndex(values[headerRow]||[]);
+const required=["tanggal","from","to","sku"];
+const miss=required.filter(k=>idx[k]<0);
+if(miss.length)return {rows:[],error:`Header Movement tidak valid: ${miss.join(", ")}`};
+return {rows:parseMovementRows(values,idx,headerRow+1),error:""};
+}
+async function fetchMovementHistoryRemote(){
+const res=await fetch('/api/movement?mode=full');
+const json=await res.json();
+if(!res.ok||json?.success===false)throw new Error(json?.message||res.statusText||"Gagal memuat sheet Movement dari inventory");
+const rows=Array.isArray(json?.data)?json.data:[];
+return {rows:rows.map((r,idx)=>({
+  tanggal:String(r?.tanggal||""),
+  from:String(r?.from||r?.lokasi||""),
+  to:String(r?.to||r?.retail||""),
+  sku:String(r?.sku||""),
+  nama:String(r?.nama||r?.nama_barang||""),
+  stok_lokasi_awal:parseNumber(r?.stok_lokasi_awal??r?.stokdilokasiawal??r?.stok_di_lokasi_awal??r?.bulky??0),
+  stok_aktual:parseNumber(r?.stok_aktual??r?.aktual_bulky??0),
+  keterangan:String(r?.keterangan||r?.catatan||""),
+  rowNumber:Number(r?.rowNumber)||idx+2
+})),error:""};
+}
 async function ensureMovementHistoryLoaded(){if(MOVEMENT_HISTORY_REMOTE.loaded)return;try{const parsed=await fetchMovementHistoryRemote();MOVEMENT_HISTORY_REMOTE={rows:parsed.rows,error:parsed.error||"",loaded:true};}catch(err){MOVEMENT_HISTORY_REMOTE={rows:[],error:`Gagal fetch Movement: ${err.message||"unknown error"}`,loaded:true};}}
 function buildMovementHistoryRows(){return [...(MOVEMENT_HISTORY_REMOTE.rows||[])];}
 function renderMovementSearchResults(){const tbody=document.querySelector('#mvSearchResultsBody');if(!tbody)return;const candidates=MOVEMENT_STATE.sessionActive?getMovementCandidates(MOVEMENT_STATE.search):[];if(!candidates.length){tbody.innerHTML="<tr><td colspan='5'><div class='state cc-state'>Cari SKU untuk menambah item movement.</div></td></tr>";return;}const frag=document.createDocumentFragment();candidates.forEach(c=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(c.lokasi)}</td><td>${esc(c.sku)}</td><td>${esc(c.nama)}</td><td>${esc(c.stok_akhir)}</td><td><button class='btn-ghost' data-mvm-action='add' data-sku='${encAttr(c.sku)}' data-lok='${encAttr(c.lokasi)}'>Tambah</button></td>`;frag.appendChild(tr);});tbody.replaceChildren(frag);}
