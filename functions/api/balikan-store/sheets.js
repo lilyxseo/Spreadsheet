@@ -8,7 +8,11 @@ export async function onRequestGet({ env }) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     const data = await res.json();
     if (!res.ok) return json({ message: data.error?.message || 'Gagal membaca metadata sheet' }, res.status);
-    const sheets = (data.sheets || []).map(s => s?.properties?.title).filter(Boolean).filter(title => String(title).toUpperCase().includes('TRIP'));
+    const sheets = (data.sheets || [])
+      .map(s => s?.properties?.title)
+      .filter(Boolean)
+      .filter(title => String(title).toUpperCase().includes('TRIP'))
+      .sort((a, b) => String(a).localeCompare(String(b), 'id', { sensitivity: 'base', numeric: true }));
     return json({ sheets });
   } catch (err) {
     return json({ message: err?.message || 'Internal server error' }, 500);
