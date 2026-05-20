@@ -78,18 +78,32 @@
   .mv-filters.open{display:grid}
   .mv-column-dropdown-wrap{width:100%}
   .mv-column-dropdown-wrap [data-mv-action='columns']{width:100%}
-  .mv-columns{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:none;max-height:74vh;border-radius:16px 16px 0 0;padding:8px 10px 10px;z-index:260}
-  .mv-columns::before{content:"";width:36px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 6px;display:block}
-  .mv-columns-head{padding:0 2px 6px;gap:6px}
-  .mv-columns-head strong{font-size:12px}
-  .mv-columns-head small{font-size:10px;line-height:1.25}
-  .mv-columns-actions button{font-size:10px;padding:2px 4px}
-  .mv-columns-list{max-height:calc(74vh - 132px);gap:3px}
-  .mv-columns-list label{grid-template-columns:20px 1fr auto;font-size:12px;padding:7px 8px;min-height:46px}
-  .mv-columns-list label em{font-size:9px;padding:1px 4px;border-radius:999px;background:color-mix(in srgb,var(--line) 45%, transparent)}
-  .mv-columns-list input[type="checkbox"]{width:18px;height:18px}
-  .mv-columns-foot{position:sticky;bottom:0;background:var(--panel);padding:8px 0 0}
-  .mv-columns-foot .btn-ghost{width:100%;padding:7px 10px;font-size:12px}
+  #page-barang-masuk .mv-columns,
+  #page-barang-keluar .mv-columns{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:none;max-height:74vh;border-radius:16px 16px 0 0;padding:10px 12px 12px;z-index:260}
+  #page-barang-masuk .mv-columns::before,
+  #page-barang-keluar .mv-columns::before{content:"";width:36px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 8px;display:block}
+  #page-barang-masuk .mv-columns-head,
+  #page-barang-keluar .mv-columns-head{padding:0 2px 8px;gap:8px}
+  #page-barang-masuk .mv-columns-head strong,
+  #page-barang-keluar .mv-columns-head strong{font-size:12px}
+  #page-barang-masuk .mv-columns-head small,
+  #page-barang-keluar .mv-columns-head small{font-size:10px;line-height:1.25}
+  #page-barang-masuk .mv-columns-actions button,
+  #page-barang-keluar .mv-columns-actions button{font-size:10px;padding:2px 4px}
+  #page-barang-masuk .mv-columns-list,
+  #page-barang-keluar .mv-columns-list{max-height:calc(74vh - 140px);gap:4px;padding-right:10px}
+  #page-barang-masuk .mv-columns-list label,
+  #page-barang-keluar .mv-columns-list label{grid-template-columns:20px minmax(0,1fr) auto;column-gap:10px;row-gap:2px;font-size:12px;padding:6px 8px;min-height:48px;align-items:center}
+  #page-barang-masuk .mv-columns-list label span,
+  #page-barang-keluar .mv-columns-list label span{min-width:0;word-break:break-word}
+  #page-barang-masuk .mv-columns-list label em,
+  #page-barang-keluar .mv-columns-list label em{font-size:8px;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--line) 40%, transparent);justify-self:end;white-space:nowrap}
+  #page-barang-masuk .mv-columns-list input[type="checkbox"],
+  #page-barang-keluar .mv-columns-list input[type="checkbox"]{width:20px;height:20px;margin:0}
+  #page-barang-masuk .mv-columns-foot,
+  #page-barang-keluar .mv-columns-foot{position:sticky;bottom:0;background:var(--panel);padding:10px 0 0}
+  #page-barang-masuk .mv-columns-foot .btn-ghost,
+  #page-barang-keluar .mv-columns-foot .btn-ghost{width:100%;padding:8px 10px;font-size:12px}
 }
 
 .search-modal-open #page-search.search-modal{
