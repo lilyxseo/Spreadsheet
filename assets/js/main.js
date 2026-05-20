@@ -2,7 +2,7 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase 
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity } from "./activity-log.js";
-const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle"];
+const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","returStorePdfInput","btnParseReturStore","btnImportReturStore","returStorePreviewSummary","returStorePreviewTable","returStoreTable"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
@@ -494,7 +494,7 @@ renderAuthState();
 bindLoginView();
 }
 
-function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/retur-store")return showPage("retur-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');if(!activityLogMenu)return;activityLogMenu.style.display=isDeveloperUser()?"":"none";}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
@@ -1771,3 +1771,72 @@ else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;s
 await saveCache(DATA);
 rebuildSkuCache();
 }
+
+
+const RETUR_STORE_STATE={previewItems:[],tableRows:[]};
+
+function renderReturStorePreview(){
+  const rows=RETUR_STORE_STATE.previewItems||[];
+  returStorePreviewSummary.textContent=rows.length?`${rows.length} item siap import`:'Belum ada preview';
+  if(!rows.length){returStorePreviewTable.innerHTML='';btnImportReturStore.disabled=true;return;}
+  const head='<tr><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>Catatan</th></tr>';
+  const body=rows.map(r=>`<tr><td>${esc(r.sku)}</td><td>${esc(r.namaBarang)}</td><td>${Number(r.qty)||0}</td><td>${esc(r.catatan||'')}</td></tr>`).join('');
+  returStorePreviewTable.innerHTML=`<div class="table-wrap"><table class="table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  btnImportReturStore.disabled=false;
+}
+
+function renderReturStoreTable(){
+  const rows=RETUR_STORE_STATE.tableRows||[];
+  if(!rows.length){returStoreTable.innerHTML='<p class="subtitle">Belum ada data.</p>';return;}
+  const head='<tr><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>Catatan</th><th>Status</th><th>Created At</th></tr>';
+  const body=rows.map(r=>`<tr><td>${esc(r.sku)}</td><td>${esc(r.namaBarang)}</td><td>${Number(r.qty)||0}</td><td>${esc(r.catatan||'')}</td><td>${esc(r.status||'')}</td><td>${esc(r.createdAt||'')}</td></tr>`).join('');
+  returStoreTable.innerHTML=`<div class="table-wrap"><table class="table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+function extractReturStoreItemsFromText(text){
+  const lines=String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const skip=/(alamat|nomor|tanggal|total|halaman|page|retur|transfer store|gudang|penerima|pengirim)/i;
+  const items=[]; let current=null;
+  for(const line of lines){
+    if(skip.test(line))continue;
+    const m=line.match(/^([A-Z0-9\-\/.]{4,})\s+(.+?)\s+(\d+)\s*(.*)$/i);
+    if(m){
+      if(current&&current.sku&&Number.isFinite(Number(current.qty)))items.push(current);
+      current={sku:m[1].trim(),namaBarang:m[2].trim(),qty:Number(m[3]),catatan:(m[4]||'').trim()};
+      continue;
+    }
+    if(current&&!/^\d+$/.test(line))current.namaBarang=`${current.namaBarang} ${line}`.replace(/\s+/g,' ').trim();
+  }
+  if(current&&current.sku&&Number.isFinite(Number(current.qty)))items.push(current);
+  return items;
+}
+
+async function loadReturStoreRows(){
+  try{const res=await fetch('/api/retur-store');const data=await res.json();if(!res.ok)throw new Error(data?.message||'Gagal memuat Retur Store');RETUR_STORE_STATE.tableRows=Array.isArray(data?.rows)?data.rows:[];renderReturStoreTable();}catch(err){toast(err?.message||'Gagal memuat Retur Store','error');}
+}
+
+async function parseReturStorePdf(){
+  const file=returStorePdfInput?.files?.[0]; if(!file){toast('Pilih file PDF dulu','error');return;}
+  const lib=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
+  lib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  const pdf=await lib.getDocument({data:bytes}).promise;
+  let all='';
+  for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const tc=await page.getTextContent();all += tc.items.map(it=>it.str).join(' ')+'\n';}
+  RETUR_STORE_STATE.previewItems=extractReturStoreItemsFromText(all);
+  if(!RETUR_STORE_STATE.previewItems.length)toast('Item tidak terdeteksi dari PDF','error');
+  renderReturStorePreview();
+}
+
+async function importReturStoreItems(){
+  if(!RETUR_STORE_STATE.previewItems.length){toast('Preview kosong','error');return;}
+  const res=await fetch('/api/retur-store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:RETUR_STORE_STATE.previewItems})});
+  const data=await res.json(); if(!res.ok)throw new Error(data?.message||'Import gagal');
+  toast(`Import berhasil: ${data.imported} item`,'success');
+  RETUR_STORE_STATE.previewItems=[]; renderReturStorePreview();
+  await loadReturStoreRows();
+}
+
+if(btnParseReturStore)btnParseReturStore.addEventListener('click',()=>parseReturStorePdf().catch(err=>toast(err?.message||'Gagal parse PDF','error')));
+if(btnImportReturStore)btnImportReturStore.addEventListener('click',()=>importReturStoreItems().catch(err=>toast(err?.message||'Gagal import','error')));
+setTimeout(()=>{if(typeof loadReturStoreRows==='function')loadReturStoreRows();},1200);
