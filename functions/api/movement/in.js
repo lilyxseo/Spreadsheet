@@ -198,7 +198,8 @@ export async function onRequestPost({ request, env }) {
       const from = sanitize(item?.from);
       const to = sanitize(item?.to);
       const pic = sanitize(item?.pic) || "ABI";
-      return { sku, namaBarang, qty, stokDiLokasiAwal, stokAktual, tanggalInput, tanggal, tanggalBarangMasuk, from, to, pic };
+      const keterangan = sanitize(item?.keterangan) || "INTERNAL STOCK TRANSFER";
+      return { sku, namaBarang, qty, stokDiLokasiAwal, stokAktual, tanggalInput, tanggal, tanggalBarangMasuk, from, to, pic, keterangan };
     });
 
     for (const item of movementItems) {
@@ -214,7 +215,7 @@ export async function onRequestPost({ request, env }) {
 
     const accessToken = await createAccessToken(env);
     const inventoryRows = movementItems.map((item) => [item.tanggal, item.from, item.to, item.sku, item.namaBarang, item.stokDiLokasiAwal, item.stokAktual]);
-    const barangMasukRows = movementItems.map((item) => [item.tanggalBarangMasuk, item.from, item.to, item.sku, item.namaBarang, item.qty, "Movement", item.pic, "INTERNAL STOCK TRANSFER"]);
+    const barangMasukRows = movementItems.map((item) => [item.tanggalBarangMasuk, item.from, item.to, item.sku, item.namaBarang, item.qty, "Movement", item.pic, item.keterangan]);
 
     let inventoryWrite = await appendToSheet({ accessToken, sheetId: inventorySpreadsheetId, range: INVENTORY_MOVEMENT_RANGE, values: inventoryRows });
     if (!inventoryWrite.res.ok && isPermissionError(inventoryWrite.data)) {
