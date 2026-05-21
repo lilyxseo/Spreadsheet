@@ -215,8 +215,11 @@ return {res,data};
 if(HAS_INDEXED_DB)["barangMasukCache","barangKeluarCache","inventoryCache","movementCache"].forEach(key=>{if(localStorage.getItem(key)!==null)localStorage.removeItem(key);});
 
 let preloadPromise=null;
+let isInitialDataLoaded=false;
+let hasScheduledBackgroundPreload=false;
 
 function startBackgroundPreload(){
+if(!isInitialDataLoaded)return Promise.resolve(null);
 if(preloadPromise)return preloadPromise;
 preloadPromise=hydrateAllDataOnInit({allowBeforeLogin:true,useCacheFirst:true}).catch(err=>{
 preloadPromise=null;
@@ -367,7 +370,6 @@ window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 applyTheme();
 renderAuthState();
-startBackgroundPreload().catch(err=>console.warn("Background preload gagal",err));
 try{
 const session=await ensureAuthSession();
 if(session){
@@ -403,7 +405,6 @@ bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisib
 }else{
 syncDeveloperMenuVisibility();
 }
-await startBackgroundPreload();
 await initAppData();
 renderDashboard();
 await loadBalikanSheets();
@@ -762,10 +763,17 @@ movement:window.APP_STATE.movement.length
 });
 
 if(window.APP_STATE.barangMasuk.length||window.APP_STATE.barangKeluar.length||window.APP_STATE.inventory.length){
+isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
 rerenderCurrentPage({fromCache:true});
+if(!hasScheduledBackgroundPreload){
+hasScheduledBackgroundPreload=true;
+queueMicrotask(()=>{
+startBackgroundPreload().catch(err=>console.warn("Background preload gagal",err));
 refreshDataInBackground();
+});
+}
 startAutoSync();
 return;
 }
@@ -773,6 +781,7 @@ return;
 if(hasValidData(window.mainDataCache)){
 console.log("[initAppData] data dari window.mainDataCache");
 await hydrateAllDataOnInit({force:false});
+isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
 rerenderCurrentPage();
@@ -785,6 +794,7 @@ console.log("CACHE DATA", cachedData);
 if(hasValidData(cachedData)){
 window.mainDataCache=cachedData;
 await hydrateAllDataOnInit({force:false});
+isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
 rerenderCurrentPage({fromCache:true});
@@ -808,6 +818,7 @@ console.log("[initAppData] data dari window.mainDataPromise");
 if(hasValidData(preloadedData)){
 window.mainDataCache=preloadedData;
 await hydrateAllDataOnInit({force:false});
+isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
 rerenderCurrentPage();
@@ -821,6 +832,7 @@ console.warn("Preload utama gagal, lanjut cache/fetch biasa",err);
 
 try{
 await hydrateAllDataOnInit({force:true});
+isInitialDataLoaded=true;
 }catch(err){
 console.warn("Fallback fetch gagal", err);
 }
@@ -830,6 +842,7 @@ setStatus("error","Data belum siap dimuat");
 startAutoSync();
 }
 async function refreshDataInBackground(){
+if(!isInitialDataLoaded)return;
 try{
 const [barangMasuk,barangKeluar]=await Promise.allSettled([
 loadBarangMasuk({mode:"full"}),
