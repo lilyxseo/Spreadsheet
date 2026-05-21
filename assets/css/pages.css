@@ -1279,3 +1279,9 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
     padding-inline:10px;
   }
 }
+
+/* ABC Analisis TO filter */
+.abc-to-filter-wrap{position:relative;min-width:180px;max-width:240px}
+.abc-to-filter-toggle{height:34px;min-width:180px;max-width:240px;text-align:left;padding:5px 12px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abc-to-filter-dropdown{position:absolute;top:38px;left:0;z-index:40;width:min(270px,calc(100vw - 20px));max-height:290px;padding:8px}
+.abc-to-filter-options{max-height:180px;overflow:auto}
