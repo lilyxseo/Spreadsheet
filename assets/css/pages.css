@@ -1196,3 +1196,8 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
 .btn-spinner-inline{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .mv-bulkbar.is-loading{opacity:.9}
+
+.abc-cat{display:inline-flex;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px}
+.abc-A{background:#fee2e2;color:#991b1b}
+.abc-B{background:#fef9c3;color:#854d0e}
+.abc-C{background:#e5e7eb;color:#374151}
