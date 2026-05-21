@@ -1197,7 +1197,12 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
 @keyframes spin{to{transform:rotate(360deg)}}
 .mv-bulkbar.is-loading{opacity:.9}
 
-#page-abc-analisis .abc-action-btn{min-width:92px}
+#page-abc-analisis .abc-action-btn{min-width:92px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;transition:transform .15s ease,filter .2s ease,box-shadow .2s ease}
+#page-abc-analisis #abcResetBtn,
+#page-abc-analisis #abcCopyBtn{background:color-mix(in srgb,var(--panel) 65%, #f8c6d6);border-color:color-mix(in srgb,var(--line) 50%, #f472b6);color:var(--text)}
+#page-abc-analisis #abcRefreshBtn{box-shadow:0 6px 14px color-mix(in srgb,var(--primary) 30%, transparent)}
+#page-abc-analisis .abc-action-btn:hover{filter:brightness(1.06)}
+#page-abc-analisis .abc-action-btn:active{transform:translateY(1px)}
 @media (max-width: 640px){
   #page-abc-analisis .abc-action-btn{
     flex:1 1 calc(33.333% - 6px);
