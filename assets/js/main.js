@@ -2,13 +2,14 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase 
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity } from "./activity-log.js";
-const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle"];
+const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","abcAnalisisApp"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const BARCODE_CACHE_KEY="inventory_barcode_master";
 const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
+const ABC_ANALYSIS_CACHE_KEY="ABC_ANALYSIS_CACHE";
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
 const AUTO_SYNC_CHECK_INTERVAL_MS=30*1000;
@@ -495,7 +496,7 @@ renderAuthState();
 bindLoginView();
 }
 
-function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');if(!activityLogMenu)return;activityLogMenu.style.display=isDeveloperUser()?"":"none";}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
@@ -608,6 +609,7 @@ setMainContentLoading(false);
 const page=getActivePage();
 if(page==="dashboard")updateDashboard();
 if(page==="stats")updateStats();
+if(page==="abc-analisis")renderAbcAnalisisPage();
 if(page==="locations")renderLocationsPage();
 if(page==="detail"&&currentSku)showDetail(currentSku);
 if(page==="search"&&String(lastQuery||"").trim()){SEARCH_STATE.filterValue=lastQuery;runSearch();}
@@ -1813,4 +1815,38 @@ if(isMasuk){window.APP_STATE.barangMasuk=mergedRows;DATA["Barang Masuk"]=mergedR
 else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;setModuleCache(MODULE_CACHE_KEYS.barangKeluar,mergedRows);}
 await saveCache(DATA);
 rebuildSkuCache();
+}
+const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:["__ALL__"],excludeTo:["REJECT","RUSAK"]};
+function isStoreOrder(to){const v=String(to||"").toUpperCase();return v.includes("100")||v.includes("-BT-");}
+function parseDateSafe(value){const d=new Date(value);return Number.isNaN(d.getTime())?null:d;}
+function toNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+function computePriority(freq,stock,maxFreq){if(stock<=0&&freq>0)return "HIGH PRIORITY";if(freq>=Math.max(2,Math.ceil(maxFreq*0.6)))return "HIGH PRIORITY";if(freq>=Math.max(1,Math.ceil(maxFreq*0.3)))return "MEDIUM";return "LOW";}
+function computeRekom(cat,stock,priority){if(priority==="HIGH PRIORITY"&&stock<=0)return "SEGERA ORDER";if(cat==="A"&&stock<=5)return "RESTOCK PRIORITAS";if(cat==="A"&&stock>5)return "AMAN";if(cat==="C"&&stock>=30)return "OVERSTOCK";if(cat==="C"&&stock<=5)return "LOW PRIORITY";return "NORMAL";}
+function buildAbcAnalysis({forceRefresh=false}={}){
+const now=Date.now();if(!forceRefresh){const raw=localStorage.getItem(ABC_ANALYSIS_CACHE_KEY);const parsed=safeJsonParse(raw,null);if(parsed&&parsed.key&&parsed.ts&&now-parsed.ts<24*60*60*1000)return parsed;}
+const keluar=getBarangKeluarRows(),stokRows=Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:[],masuk=getBarangMasukRows();
+const cutoff=new Date();cutoff.setDate(cutoff.getDate()-ABC_STATE.periodMonths*30);
+const filtered=keluar.filter(r=>{const d=parseDateSafe(r.tanggal);if(!d||d<cutoff)return false;const to=String(r.to||"").trim();if(!to)return false;if(ABC_STATE.excludeTo.some(x=>to.toUpperCase().includes(String(x).toUpperCase())))return false;const store=isStoreOrder(to);if(ABC_STATE.orderType==="Orderan Store"&&!store)return false;if(ABC_STATE.orderType==="Orderan GT"&&store)return false;const all=ABC_STATE.selectedTo.includes("__ALL__");if(!all&&!ABC_STATE.selectedTo.includes(to))return false;return true;});
+const bySku=new Map();let total=0;
+filtered.forEach(r=>{const sku=String(r.sku||"").trim();if(!sku)return;const qty=toNum(r.qty);if(qty<=0)return;const obj=bySku.get(sku)||{sku,namaBarang:String(r.namaBarang||sku),qtyKeluar:0};obj.qtyKeluar+=qty;bySku.set(sku,obj);total+=qty;});
+const stockMap=new Map();stokRows.forEach(r=>{const sku=String(r.sku||"").trim();if(!sku)return;stockMap.set(sku,(stockMap.get(sku)||0)+toNum(r.qty));});
+const freqMap=new Map();masuk.forEach(r=>{const sku=String(r.sku||"").trim();if(!sku)return;freqMap.set(sku,(freqMap.get(sku)||0)+1);});
+const freqVals=[...freqMap.values()];const maxFreq=Math.max(1,...freqVals);
+const ranked=[...bySku.values()].sort((a,b)=>b.qtyKeluar-a.qtyKeluar);
+let cum=0;ranked.forEach(it=>{const pct=total?it.qtyKeluar/total:0;cum+=pct;it.kontribusi=pct;it.cum=cum;it.abc=cum<=0.8?"A":cum<=0.95?"B":"C";it.stokSaatIni=stockMap.get(it.sku)||0;it.priority=computePriority(freqMap.get(it.sku)||0,it.stokSaatIni,maxFreq);it.rekom=computeRekom(it.abc,it.stokSaatIni,it.priority);});
+const rows=ranked.sort((a,b)=>a.qtyKeluar-b.qtyKeluar);
+const top10=ranked.filter(x=>x.abc==="A").sort((a,b)=>b.qtyKeluar-a.qtyKeluar).slice(0,10);
+const result={ts:now,key:`${ABC_STATE.periodMonths}|${ABC_STATE.orderType}|${ABC_STATE.selectedTo.join(",")}`,rows,top10,toOptions:[...new Set(keluar.map(r=>String(r.to||"").trim()).filter(Boolean))].sort()};
+localStorage.setItem(ABC_ANALYSIS_CACHE_KEY,JSON.stringify(result));return result;
+}
+function renderAbcAnalisisPage(forceRefresh=false){
+if(!abcAnalisisApp)return;const data=buildAbcAnalysis({forceRefresh});if(!data.rows.length){abcAnalisisApp.innerHTML="<div class='card'><div class='state'>Tidak ada data pada periode ini</div></div>";return;}
+const periodOpt=[1,2,3,4,5,6].map(v=>`<option ${ABC_STATE.periodMonths===v?"selected":""} value="${v}">${v} bulan terakhir</option>`).join("");
+const toOpt=["<option value='__ALL__'>Semua TO</option>",...data.toOptions.map(v=>`<option value="${encAttr(v)}" ${ABC_STATE.selectedTo.includes(v)?"selected":""}>${esc(v)}</option>`)].join("");
+abcAnalisisApp.innerHTML=`<div class='card'><div class='mv-filters open'><select id='abcPeriod'>${periodOpt}</select><select id='abcOrderType'><option ${ABC_STATE.orderType==="Semua"?"selected":""}>Semua</option><option ${ABC_STATE.orderType==="Orderan GT"?"selected":""}>Orderan GT</option><option ${ABC_STATE.orderType==="Orderan Store"?"selected":""}>Orderan Store</option></select><select id='abcTo' multiple>${toOpt}</select><button id='abcRefreshBtn' class='btn-primary'>Refresh</button></div><div class='table-wrap'><table><thead><tr><th>Nama Barang</th><th>SKU</th><th>Total Qty Keluar</th><th>% Kontribusi</th><th>Cumulative %</th><th>Kategori ABC</th><th>Stok Saat Ini</th><th>Priority Order</th><th>Status Rekomendasi</th></tr></thead><tbody>${data.rows.map(r=>`<tr><td>${esc(r.namaBarang)}</td><td>${esc(r.sku)}</td><td>${r.qtyKeluar}</td><td>${(r.kontribusi*100).toFixed(2)}%</td><td>${(r.cum*100).toFixed(2)}%</td><td><span class='badge ${r.abc==="A"?"b-out":r.abc==="B"?"b-warn":"b-idle"}'>${r.abc}</span></td><td>${r.stokSaatIni}</td><td>${esc(r.priority)}</td><td>${esc(r.rekom)}</td></tr>`).join("")}</tbody></table></div></div><div class='card' style='margin-top:10px'><h4>Top 10 Fast Moving Items</h4><ol>${data.top10.map(r=>`<li><button class='btn-link' data-abc-sku='${encAttr(r.sku)}'>${esc(r.namaBarang)}</button></li>`).join("")}</ol></div>`;
+document.getElementById("abcPeriod").onchange=e=>{ABC_STATE.periodMonths=Number(e.target.value)||3;renderAbcAnalisisPage(true);};
+document.getElementById("abcOrderType").onchange=e=>{ABC_STATE.orderType=e.target.value;renderAbcAnalisisPage(true);};
+document.getElementById("abcTo").onchange=e=>{const values=[...e.target.selectedOptions].map(o=>o.value);ABC_STATE.selectedTo=values.length?values:["__ALL__"];renderAbcAnalisisPage(true);};
+document.getElementById("abcRefreshBtn").onclick=()=>renderAbcAnalisisPage(true);
+abcAnalisisApp.querySelectorAll("[data-abc-sku]").forEach(btn=>btn.onclick=()=>navigateToSku(btn.dataset.abcSku||""));
 }
