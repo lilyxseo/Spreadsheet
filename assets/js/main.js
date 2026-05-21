@@ -2,13 +2,14 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase 
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity } from "./activity-log.js";
-const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle"];
+const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","abcAnalisisApp"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const BARCODE_CACHE_KEY="inventory_barcode_master";
 const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
+const ABC_ANALYSIS_CACHE_KEY="ABC_ANALYSIS_CACHE";
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
 const AUTO_SYNC_CHECK_INTERVAL_MS=30*1000;
@@ -495,7 +496,7 @@ renderAuthState();
 bindLoginView();
 }
 
-function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');if(!activityLogMenu)return;activityLogMenu.style.display=isDeveloperUser()?"":"none";}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
@@ -608,6 +609,7 @@ setMainContentLoading(false);
 const page=getActivePage();
 if(page==="dashboard")updateDashboard();
 if(page==="stats")updateStats();
+if(page==="abc-analisis")renderAbcAnalisisPage();
 if(page==="locations")renderLocationsPage();
 if(page==="detail"&&currentSku)showDetail(currentSku);
 if(page==="search"&&String(lastQuery||"").trim()){SEARCH_STATE.filterValue=lastQuery;runSearch();}
@@ -1813,4 +1815,65 @@ if(isMasuk){window.APP_STATE.barangMasuk=mergedRows;DATA["Barang Masuk"]=mergedR
 else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;setModuleCache(MODULE_CACHE_KEYS.barangKeluar,mergedRows);}
 await saveCache(DATA);
 rebuildSkuCache();
+}
+const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:[],excludeTo:["REJECT","RUSAK"],sortBy:"Prioritas Order",toSearch:"",toDropdownOpen:false};
+function isStoreOrder(to){const v=String(to||"").toUpperCase();return v.includes("100")||v.includes("-BT-");}
+function parseDateSafe(value){const d=new Date(value);return Number.isNaN(d.getTime())?null:d;}
+function toNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+function computePriority(freq,stock,maxFreq){if(stock<=0&&freq>0)return "HIGH PRIORITY";if(freq>=Math.max(2,Math.ceil(maxFreq*0.6)))return "HIGH PRIORITY";if(freq>=Math.max(1,Math.ceil(maxFreq*0.3)))return "MEDIUM";return "LOW";}
+function computeRekom(cat,stock,priority){if(priority==="HIGH PRIORITY"&&stock<=0)return "SEGERA ORDER";if(cat==="A"&&stock<=5)return "RESTOCK PRIORITAS";if(cat==="A"&&stock>5)return "AMAN";if(cat==="C"&&stock>=30)return "OVERSTOCK";if(cat==="C"&&stock<=5)return "LOW PRIORITY";return "NORMAL";}
+function getAbcSortWeight(r){
+const rekomWeight={"SEGERA ORDER":0,"RESTOCK PRIORITAS":1,"AMAN":2,"NORMAL":3,"LOW PRIORITY":4,"OVERSTOCK":5}[r?.rekom]??9;
+const prioWeight={"HIGH PRIORITY":0,"MEDIUM":1,"LOW":2}[r?.priority]??9;
+const abcWeight={A:0,B:1,C:2}[r?.abc]??9;
+return {rekomWeight,prioWeight,abcWeight};
+}
+function sortAbcRows(rows){
+const list=[...(rows||[])];
+if(ABC_STATE.sortBy==="Paling Banyak Keluar")return list.sort((a,b)=>b.qtyKeluar-a.qtyKeluar);
+if(ABC_STATE.sortBy==="Paling Sedikit Keluar")return list.sort((a,b)=>a.qtyKeluar-b.qtyKeluar);
+if(ABC_STATE.sortBy==="Stok Terkecil")return list.sort((a,b)=>a.stokSaatIni-b.stokSaatIni||b.qtyKeluar-a.qtyKeluar);
+if(ABC_STATE.sortBy==="Stok Terbesar")return list.sort((a,b)=>b.stokSaatIni-a.stokSaatIni||b.qtyKeluar-a.qtyKeluar);
+if(ABC_STATE.sortBy==="Kategori ABC")return list.sort((a,b)=>({A:0,B:1,C:2}[a.abc]-({A:0,B:1,C:2}[b.abc])||b.qtyKeluar-a.qtyKeluar));
+return list.sort((a,b)=>{const wa=getAbcSortWeight(a),wb=getAbcSortWeight(b);return wa.rekomWeight-wb.rekomWeight||wa.prioWeight-wb.prioWeight||wa.abcWeight-wb.abcWeight||a.stokSaatIni-b.stokSaatIni||b.qtyKeluar-a.qtyKeluar;});
+}
+function buildAbcAnalysis({forceRefresh=false}={}){
+const now=Date.now();if(!forceRefresh){const raw=localStorage.getItem(ABC_ANALYSIS_CACHE_KEY);const parsed=safeJsonParse(raw,null);if(parsed&&parsed.key&&parsed.ts&&now-parsed.ts<24*60*60*1000)return parsed;}
+const keluar=getBarangKeluarRows(),stokRows=Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:(Array.isArray(DATA["Kartu Stok"])?DATA["Kartu Stok"]:[]),masuk=getBarangMasukRows();
+const cutoff=new Date();cutoff.setDate(cutoff.getDate()-ABC_STATE.periodMonths*30);
+const filteredByType=keluar.filter(r=>{const to=String(r.to||"").trim();if(!to)return false;if(ABC_STATE.excludeTo.some(x=>to.toUpperCase().includes(String(x).toUpperCase())))return false;const store=isStoreOrder(to);if(ABC_STATE.orderType==="Orderan Store"&&!store)return false;if(ABC_STATE.orderType==="Orderan GT"&&store)return false;return true;});
+const toOptions=[...new Set(filteredByType.map(r=>String(r.to||"").trim()).filter(Boolean))].sort();
+const selectedSet=new Set(ABC_STATE.selectedTo||[]);
+const filtered=filteredByType.filter(r=>{const d=parseDateSafe(r.tanggal);if(!d||d<cutoff)return false;const to=String(r.to||"").trim();if(!to)return false;if(!selectedSet.size)return true;return selectedSet.has(to);});
+const bySku=new Map();let total=0;
+filtered.forEach(r=>{const sku=String(r.sku||"").trim();if(!sku)return;const qty=toNum(r.qty);if(qty<=0)return;const obj=bySku.get(sku)||{sku,namaBarang:String(r.namaBarang||sku),qtyKeluar:0};obj.qtyKeluar+=qty;bySku.set(sku,obj);total+=qty;});
+const stockMap=new Map();stokRows.forEach(r=>{const sku=String(getVal(r,["sku","kode sku","item code"])||r?.sku||"").trim();if(!sku)return;const qty=parseNumber(getVal(r,["qty","stok akhir","closing stock","ending stock","saldo akhir","stok","quantity"]));if(!Number.isFinite(qty))return;stockMap.set(sku,(stockMap.get(sku)||0)+qty);});
+const freqMap=new Map();masuk.forEach(r=>{const sku=String(r.sku||"").trim();if(!sku)return;freqMap.set(sku,(freqMap.get(sku)||0)+1);});
+const freqVals=[...freqMap.values()];const maxFreq=Math.max(1,...freqVals);
+const ranked=[...bySku.values()].sort((a,b)=>b.qtyKeluar-a.qtyKeluar);
+let cum=0;ranked.forEach(it=>{const pct=total?it.qtyKeluar/total:0;cum+=pct;it.kontribusi=pct;it.cum=cum;it.abc=cum<=0.8?"A":cum<=0.95?"B":"C";it.stokSaatIni=stockMap.get(it.sku)||0;it.priority=computePriority(freqMap.get(it.sku)||0,it.stokSaatIni,maxFreq);it.rekom=computeRekom(it.abc,it.stokSaatIni,it.priority);});
+const rows=sortAbcRows(ranked);
+const top10=ranked.filter(x=>x.abc==="A").sort((a,b)=>b.qtyKeluar-a.qtyKeluar).slice(0,10);
+const result={ts:now,key:`${ABC_STATE.periodMonths}|${ABC_STATE.orderType}|${ABC_STATE.selectedTo.join(",")}|${ABC_STATE.sortBy}`,rows,top10,toOptions};
+localStorage.setItem(ABC_ANALYSIS_CACHE_KEY,JSON.stringify(result));return result;
+}
+function renderAbcAnalisisPage(forceRefresh=false){
+if(!abcAnalisisApp)return;const data=buildAbcAnalysis({forceRefresh});if(!data.rows.length){abcAnalisisApp.innerHTML="<div class='card'><div class='state'>Tidak ada data pada periode ini</div></div>";return;}
+const periodOpt=[1,2,3,4,5,6].map(v=>`<option ${ABC_STATE.periodMonths===v?"selected":""} value="${v}">${v} bulan terakhir</option>`).join("");
+const toFiltered=(data.toOptions||[]).filter(v=>clean(v).includes(clean(ABC_STATE.toSearch||"")));
+const sortOpt=["Prioritas Order","Paling Banyak Keluar","Paling Sedikit Keluar","Stok Terkecil","Stok Terbesar","Kategori ABC"].map(v=>`<option ${ABC_STATE.sortBy===v?"selected":""}>${v}</option>`).join("");
+const selectedCount=(ABC_STATE.selectedTo||[]).length;
+const allSelected=selectedCount>0&&selectedCount===data.toOptions.length;
+const selectedLabel=allSelected||selectedCount===0?"Semua TO":`${selectedCount} TO dipilih`;
+abcAnalisisApp.innerHTML=`<div class='card'><div class='mv-filters open' style='display:flex;flex-wrap:wrap;gap:8px;align-items:center'><select id='abcPeriod' style='max-width:170px;height:34px'>${periodOpt}</select><select id='abcOrderType' style='max-width:160px;height:34px'><option ${ABC_STATE.orderType==="Semua"?"selected":""}>Semua</option><option ${ABC_STATE.orderType==="Orderan GT"?"selected":""}>Orderan GT</option><option ${ABC_STATE.orderType==="Orderan Store"?"selected":""}>Orderan Store</option></select><select id='abcSortBy' style='max-width:190px;height:34px'>${sortOpt}</select><div id='abcToWrap' style='position:relative;min-width:180px;max-width:230px'><button id='abcToToggle' class='btn-ghost' type='button' style='height:34px;min-width:180px;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>${esc(selectedLabel)}</button><div id='abcToDropdown' ${ABC_STATE.toDropdownOpen?"":"hidden"} style='position:absolute;z-index:20;top:38px;left:0;width:260px;background:var(--cardBg,#111827);border:1px solid var(--line,#2a3346);border-radius:10px;padding:8px;max-height:300px;overflow:auto;box-shadow:0 10px 25px rgba(0,0,0,.35)'><input id='abcToSearch' class='search-lg' placeholder='Cari tujuan...' value='${encAttr(ABC_STATE.toSearch||"")}' style='margin-bottom:8px;height:32px'><div class='row' style='gap:6px;margin-bottom:6px'><button type='button' id='abcToSelectAll' class='btn-ghost'>Pilih semua</button><button type='button' id='abcToClear' class='btn-ghost'>Hapus</button></div>${toFiltered.map(v=>`<label style='display:flex;gap:8px;align-items:center;padding:3px 0;font-size:12px'><input type='checkbox' data-abc-to='${encAttr(v)}' ${(ABC_STATE.selectedTo||[]).includes(v)?"checked":""}/> <span>${esc(v)}</span></label>`).join("")||"<div class='subtitle'>Tidak ada tujuan</div>"}</div></div><button id='abcRefreshBtn' class='btn-primary' style='height:34px'>Refresh</button></div><div class='table-wrap'><table><thead><tr><th>Nama Barang</th><th>SKU</th><th>Total Qty Keluar</th><th>% Kontribusi</th><th>Cumulative %</th><th>Kategori ABC</th><th>Stok Saat Ini</th><th>Priority Order</th><th>Status Rekomendasi</th></tr></thead><tbody>${data.rows.map(r=>`<tr><td>${esc(r.namaBarang)}</td><td>${esc(r.sku)}</td><td>${r.qtyKeluar}</td><td>${(r.kontribusi*100).toFixed(2)}%</td><td>${(r.cum*100).toFixed(2)}%</td><td><span class='badge ${r.abc==="A"?"b-out":r.abc==="B"?"b-warn":"b-idle"}'>${r.abc}</span></td><td>${r.stokSaatIni}</td><td>${esc(r.priority)}</td><td>${esc(r.rekom)}</td></tr>`).join("")}</tbody></table></div></div><div class='card' style='margin-top:8px;padding:8px 10px'><div class='section-header' style='margin-bottom:4px'><h4 style='margin:0;font-size:13px'>Top 10 Fast Moving Items</h4></div><ol style='margin:0;padding-left:16px;display:block'>${data.top10.map(r=>`<li style='margin:0 0 2px 0'><button class='btn-link' data-abc-sku='${encAttr(r.sku)}' style='font-size:12px;line-height:1.2;padding:0'>${esc(r.namaBarang)}</button></li>`).join("")}</ol></div>`;
+document.getElementById("abcPeriod").onchange=e=>{ABC_STATE.periodMonths=Number(e.target.value)||3;renderAbcAnalisisPage(true);};
+document.getElementById("abcOrderType").onchange=e=>{ABC_STATE.orderType=e.target.value;renderAbcAnalisisPage(true);};
+document.getElementById("abcSortBy").onchange=e=>{ABC_STATE.sortBy=e.target.value||"Prioritas Order";renderAbcAnalisisPage(true);};
+document.getElementById("abcToToggle").onclick=()=>{ABC_STATE.toDropdownOpen=!ABC_STATE.toDropdownOpen;renderAbcAnalisisPage(false);};
+if(document.getElementById("abcToSearch"))document.getElementById("abcToSearch").oninput=e=>{ABC_STATE.toSearch=e.target.value||"";renderAbcAnalisisPage(false);};
+if(document.getElementById("abcToSelectAll"))document.getElementById("abcToSelectAll").onclick=()=>{ABC_STATE.selectedTo=[...data.toOptions];renderAbcAnalisisPage(true);};
+if(document.getElementById("abcToClear"))document.getElementById("abcToClear").onclick=()=>{ABC_STATE.selectedTo=[];renderAbcAnalisisPage(true);};
+abcAnalisisApp.querySelectorAll("[data-abc-to]").forEach(chk=>chk.onchange=e=>{const v=e.target.dataset.abcTo||"";const set=new Set(ABC_STATE.selectedTo||[]);if(e.target.checked)set.add(v);else set.delete(v);ABC_STATE.selectedTo=[...set];renderAbcAnalisisPage(true);});
+document.getElementById("abcRefreshBtn").onclick=()=>renderAbcAnalisisPage(true);
+abcAnalisisApp.querySelectorAll("[data-abc-sku]").forEach(btn=>btn.onclick=()=>navigateToSku(btn.dataset.abcSku||""));
 }
