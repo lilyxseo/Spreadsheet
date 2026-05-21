@@ -1196,3 +1196,20 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
 .btn-spinner-inline{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .mv-bulkbar.is-loading{opacity:.9}
+
+#page-abc-analisis .abc-action-group{display:flex;gap:8px;align-items:center}
+#page-abc-analisis .abc-action-btn{min-width:92px;white-space:nowrap}
+@media (max-width: 640px){
+  #page-abc-analisis .mv-filters.open{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    align-items:stretch !important;
+  }
+  #page-abc-analisis #abcToWrap,
+  #page-abc-analisis #abcToToggle,
+  #page-abc-analisis .search-lg,
+  #page-abc-analisis .abc-action-group{min-width:0 !important;max-width:none !important;width:100%}
+  #page-abc-analisis .abc-action-group{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  #page-abc-analisis .abc-action-btn{min-width:0;width:100%;padding-inline:8px}
+}
