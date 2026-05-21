@@ -1197,7 +1197,49 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
 @keyframes spin{to{transform:rotate(360deg)}}
 .mv-bulkbar.is-loading{opacity:.9}
 
-#page-abc-analisis .abc-action-btn{min-width:92px}
+
+#page-abc-analisis .abc-action-btn{
+  min-width:92px;
+  min-height:36px;
+  font-weight:700;
+  letter-spacing:.02em;
+  color:#ffeef2;
+  border-color:color-mix(in srgb,var(--line) 48%, #fb7185);
+  background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 68%, #3b0d1a),color-mix(in srgb,var(--panel) 84%, #190b1a));
+  box-shadow:0 2px 10px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.08);
+  transition:background-color .16s ease,border-color .16s ease,transform .12s ease,box-shadow .16s ease,color .16s ease;
+}
+#page-abc-analisis .abc-action-btn:hover,
+#page-abc-analisis .abc-action-btn:focus-visible{
+  color:#fff;
+  border-color:color-mix(in srgb,var(--line) 36%, #fb7185);
+  background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 58%, #4a1222),color-mix(in srgb,var(--panel) 74%, #241126));
+  box-shadow:0 4px 14px rgba(0,0,0,.34),0 0 0 2px color-mix(in srgb,var(--primary) 22%, transparent);
+}
+#page-abc-analisis .abc-action-btn:active{
+  transform:translateY(1px);
+  box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);
+}
+#page-abc-analisis .abc-action-btn:disabled{opacity:1}
+#page-abc-analisis #abcRefreshBtn.abc-action-btn{
+  color:#fff;
+  font-weight:800;
+  letter-spacing:.025em;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 90%, #fff),color-mix(in srgb,var(--primary-2) 92%, #fff));
+  border-color:transparent;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--primary-2) 34%, transparent);
+}
+#page-abc-analisis #abcRefreshBtn.abc-action-btn:hover,
+#page-abc-analisis #abcRefreshBtn.abc-action-btn:focus-visible{
+  background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 84%, #fff),color-mix(in srgb,var(--primary-2) 86%, #fff));
+  box-shadow:0 8px 18px color-mix(in srgb,var(--primary-2) 40%, transparent),0 0 0 2px color-mix(in srgb,var(--primary) 20%, transparent);
+}
+@media (max-width: 640px){
+  #page-abc-analisis .abc-action-btn{
+    font-size:13px;
+    letter-spacing:.03em;
+  }
+}
 @media (max-width: 640px){
   #page-abc-analisis .abc-action-btn{
     flex:1 1 calc(33.333% - 6px);
