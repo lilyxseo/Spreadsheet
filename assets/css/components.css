@@ -33,3 +33,27 @@
 
 
 .badge-readonly{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#fff3cd;color:#8a6d3b;font-size:12px;font-weight:700;vertical-align:middle;}
+
+.abc-check-input{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+  accent-color:var(--accent,#ff4d5a);
+}
+.abc-sku-cell,.abc-name-cell{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.abc-copy-sku-btn,.abc-detail-icon-btn{
+  width:24px;
+  height:24px;
+  padding:0;
+  border-radius:7px;
+  border:1px solid var(--line,#2a3f6e);
+  color:var(--text,#e9f1ff);
+  background:var(--panel-soft,rgba(255,255,255,.04));
+}
+.abc-copy-sku-btn:hover,.abc-detail-icon-btn:hover{
+  background:var(--panel,rgba(255,255,255,.08));
+}
