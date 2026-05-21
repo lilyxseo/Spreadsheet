@@ -1196,3 +1196,12 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
 .btn-spinner-inline{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .mv-bulkbar.is-loading{opacity:.9}
+
+#page-abc-analisis .abc-action-btn{min-width:92px}
+@media (max-width: 640px){
+  #page-abc-analisis .abc-action-btn{
+    flex:1 1 calc(33.333% - 6px);
+    min-width:0;
+    padding-inline:10px;
+  }
+}
