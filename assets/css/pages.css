@@ -1060,8 +1060,13 @@ body.dark .app-icon {
   margin:0 auto !important;
   cursor:pointer;
   position:relative;
-  z-index:2;
+  z-index:1;
   transition:transform .16s ease;
+}
+#page-abc-analisis .table-wrap thead th{
+  position:sticky;
+  top:0;
+  z-index:6;
 }
 body.dark #page-balikan-store .balikan-check{
   accent-color:#f87171 !important;
