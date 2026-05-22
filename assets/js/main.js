@@ -1351,7 +1351,9 @@ const qty=parseNumber(getVal(row,["qty"]));
 const tanggal=getVal(row,["tanggal","date","created at","waktu"])||"-";
 return{sku,nama,qty,tanggal,type,sheet,row};
 }
-const STATS_STATE={page:1,pageSize:25,searchInputValue:"",debouncedSearchValue:"",sort:"absDesc",isFiltering:false,_normalizedRows:null,_debounceTimer:null,_idleTimer:null};
+const STATS_ACCURACY_CACHE_KEY="STATS_ACCURACY_CACHE_V1";
+const STATS_STATE={page:1,pageSize:25,searchInputValue:"",debouncedSearchValue:"",sort:"absDesc",isFiltering:false,_normalizedRows:null,_debounceTimer:null,_idleTimer:null,isProcessing:false,lastHash:""};
+function setStatsProcessing(flag=true){STATS_STATE.isProcessing=flag;const el=document.getElementById("statsProcessingState");if(el)el.textContent=flag?"Memproses...":"";}
 function renderStatsFilteringState(){const el=document.getElementById("statsFilterState");if(el)el.textContent=STATS_STATE.isFiltering?"Memfilter...":"";}
 function scheduleStatsFilter(){
   STATS_STATE.isFiltering=true;renderStatsFilteringState();
@@ -1373,20 +1375,30 @@ function updateStatsTableOnly(){
   if(tbody)tbody.innerHTML=paged.map(r=>`<tr class='${r.selisih!==0?"row-mismatch":""}'><td title='${encAttr(r.lokasiText)}'>${esc(r.lokasiText)}</td><td>${esc(r.sku)}</td><td><div class='nama-barang'>${esc(r.nama)}</div></td><td class='${r.selisih!==0?"txt-danger":""}'>${r.selisih}</td><td class='action-cell'><button class='detail-mini-btn' type='button' onclick="navigateToSku(decodeURIComponent('${encAttr(r.sku)}'))">Lihat SKU</button></td></tr>`).join("")||`<tr><td colspan='5'><div class='state'>Tidak ada data.</div></td></tr>`;
   if(paging)paging.textContent=`Menampilkan ${(tableRows.length?((STATS_STATE.page-1)*STATS_STATE.pageSize+1):0)}–${Math.min(STATS_STATE.page*STATS_STATE.pageSize,tableRows.length)} dari ${tableRows.length} data`;
 }
+function buildStatsNormalizedRows(sourceRows){
+  const bySku=new Map();
+  sourceRows.forEach(r=>{
+    const key=clean(r.sku);if(!key)return;
+    if(!bySku.has(key))bySku.set(key,{sku:r.sku,nama:r.nama,lokasiSet:new Set(),selisih:0,selisihAbs:0});
+    const it=bySku.get(key);
+    if(it.nama==="-"&&r.nama!=="-")it.nama=r.nama;
+    if(r.lokasi&&r.lokasi!=="-")it.lokasiSet.add(String(r.lokasi));
+    it.selisih+=Number(r.selisih)||0;it.selisihAbs=Math.abs(it.selisih);
+  });
+  return [...bySku.values()].map(r=>({...r,lokasi:[...r.lokasiSet],lokasiText:[...r.lokasiSet].length?[...r.lokasiSet].join(", "):"-",_searchText:clean(`${r.sku} ${r.nama} ${[...r.lokasiSet].join(", ")}`)}));
+}
 function updateStats(){
 const rows=[...(DATA["RPL"]||[]),...(DATA["BULKY"]||[])].filter(r=>clean(getVal(r,["sku"])));
 if(!rows.length){statsCards.innerHTML="";statsChart.innerHTML="<div class='state'>Sheet RPL/BULKY belum ada data.</div>";return;}
 const norm=rows.map(r=>{const sel=parseNumber(getVal(r,["selisih","selisih kartu stok","selisih kartu stock","selisih kartu stok vs iseller","selisih kartu stok vs netsuite"]));const iseller=parseNumber(getVal(r,["stok iseller","iseller"]));const netsuite=parseNumber(getVal(r,["stok netsuite","netsuite"]));return{lokasi:getVal(r,["lokasi"])||"-",sku:getVal(r,["sku"])||"-",nama:getVal(r,["nama barang","nama"])||"-",stokBulky:parseNumber(getVal(r,["stok bulky"])),stokRetail:parseNumber(getVal(r,["stok retail"])),stokGlobal:parseNumber(getVal(r,["stok global","kartu stok","stok kartu","stok kartu stok"])),iseller,netsuite,selisih:sel,status:getVal(r,["status"])||"-",selisihAbs:Math.abs(sel),nsIseller:getVal(r,["ns dan iseller","iseller vs netsuite"])||"-"};});
 const totalSku=norm.length,skuAkurat=norm.filter(r=>r.selisih===0).length,skuTidakAkurat=totalSku-skuAkurat,akurasi=totalSku?((skuAkurat/totalSku)*100):0,selisihTotal=norm.reduce((n,r)=>n+r.selisih,0);
 statsCards.innerHTML=[["Total SKU",totalSku,""],["Akurat (%)",`${akurasi.toFixed(2)}%`,"ok"],["Tidak Akurat",skuTidakAkurat,"err"],["Selisih Total",selisihTotal,"warn"]].map(c=>`<div class='metric ${c[2]||""}'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
-const bySku=new Map();
-norm.forEach(r=>{const key=clean(r.sku);if(!key)return;if(!bySku.has(key))bySku.set(key,{sku:r.sku,nama:r.nama,lokasiSet:new Set(),selisih:0,selisihAbs:0});const it=bySku.get(key);if(it.nama==="-"&&r.nama!=="-")it.nama=r.nama;if(r.lokasi&&r.lokasi!=="-")it.lokasiSet.add(String(r.lokasi));it.selisih+=Number(r.selisih)||0;it.selisihAbs=Math.abs(it.selisih);});
-const aggregated=[...bySku.values()].map(r=>({...r,lokasi:[...r.lokasiSet],lokasiText:[...r.lokasiSet].length?[...r.lokasiSet].join(", "):"-"}));
-STATS_STATE._normalizedRows=aggregated.map(r=>({...r,_searchText:clean(`${r.sku} ${r.nama} ${r.lokasiText}`)}));
+const cache=safeJsonParse(localStorage.getItem(STATS_ACCURACY_CACHE_KEY),null);
+if(cache?.rows?.length&&!STATS_STATE._normalizedRows)STATS_STATE._normalizedRows=cache.rows;
 statsChart.innerHTML=`<div class='mv-toolbar stats-toolbar'>
 <label class='stats-search-field'><span>Cari SKU / Nama / Lokasi</span><input id='statsSearch' placeholder='Ketik kata kunci...' value='${esc(STATS_STATE.searchInputValue)}'></label>
 <select id='statsSort' aria-label='Urutkan data'><option value='absDesc'>Selisih terbesar</option><option value='absAsc'>Selisih terkecil</option><option value='sku'>SKU A-Z</option></select>
-<select id='statsSize' aria-label='Jumlah data per halaman'><option value='25'>25 / halaman</option><option value='50'>50 / halaman</option><option value='100'>100 / halaman</option></select><small id='statsFilterState' class='stats-filtering-indicator'></small></div>
+<select id='statsSize' aria-label='Jumlah data per halaman'><option value='25'>25 / halaman</option><option value='50'>50 / halaman</option><option value='100'>100 / halaman</option></select><small id='statsFilterState' class='stats-filtering-indicator'></small><small id='statsProcessingState' class='stats-filtering-indicator'></small></div>
 <div class='stats-table-shell'><div class='table-wrap table-wrap-full stats-table-wrap'><table><thead><tr><th>LOKASI</th><th>SKU</th><th>NAMA BARANG</th><th>SELISIH</th><th>AKSI</th></tr></thead><tbody id='statsTbody'></tbody></table></div></div>
 <div class='mv-pagination stats-pagination'><span id='statsPagingText'></span><div class='row'><button class='btn-ghost' id='statsPrev'>Prev</button><button class='btn-ghost' id='statsNext'>Next</button></div></div>`;
 document.getElementById("statsSearch")?.addEventListener("input",e=>{STATS_STATE.searchInputValue=e.target.value;clearTimeout(STATS_STATE._debounceTimer);STATS_STATE._debounceTimer=setTimeout(scheduleStatsFilter,350);renderStatsFilteringState();});
@@ -1396,7 +1408,18 @@ document.getElementById("statsSort")?.addEventListener("change",e=>{STATS_STATE.
 document.getElementById("statsSize")?.addEventListener("change",e=>{STATS_STATE.pageSize=Number(e.target.value)||25;STATS_STATE.page=1;updateStatsTableOnly();});
 document.getElementById("statsPrev")?.addEventListener("click",()=>{STATS_STATE.page=Math.max(1,STATS_STATE.page-1);updateStatsTableOnly();});
 document.getElementById("statsNext")?.addEventListener("click",()=>{const maxPage=Math.max(1,Math.ceil(getFilteredStatsRows().length/STATS_STATE.pageSize));STATS_STATE.page=Math.min(maxPage,STATS_STATE.page+1);updateStatsTableOnly();});
-updateStatsTableOnly();renderStatsFilteringState();
+updateStatsTableOnly();renderStatsFilteringState();setStatsProcessing(true);
+setTimeout(()=>{
+  const aggregated=buildStatsNormalizedRows(norm);
+  const hash=`${aggregated.length}|${aggregated.reduce((n,r)=>n+r.selisih,0)}`;
+  if(hash!==STATS_STATE.lastHash){
+    STATS_STATE.lastHash=hash;
+    STATS_STATE._normalizedRows=aggregated;
+    if(aggregated.length)localStorage.setItem(STATS_ACCURACY_CACHE_KEY,JSON.stringify({ts:Date.now(),rows:aggregated}));
+    updateStatsTableOnly();
+  }
+  setStatsProcessing(false);
+},0);
 }
 function normalizeDateKey(raw){
   const s=String(raw||"").trim();
@@ -1988,7 +2011,7 @@ else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;s
 await saveCache(DATA);
 rebuildSkuCache();
 }
-const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:[],excludeTo:["REJECT","RUSAK"],sortBy:"Prioritas Order",toSearch:"",toDropdownOpen:false,selectedRows:new Set()};
+const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:[],excludeTo:["REJECT","RUSAK"],sortBy:"Prioritas Order",toSearch:"",toDropdownOpen:false,selectedRows:new Set(),page:1,pageSize:25,toSearchDebounced:"",toSearchTimer:null,isProcessing:false};
 function isStoreOrder(to){const v=String(to||"").toUpperCase();return v.includes("100")||v.includes("-BT-");}
 function parseDateSafe(value){const d=new Date(value);return Number.isNaN(d.getTime())?null:d;}
 function toNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
@@ -2051,19 +2074,19 @@ if(!data.rows.length){abcAnalisisApp.innerHTML="<div class='card'><div class='st
 const periodOpt=[1,2,3,4,5,6].map(v=>`<option ${ABC_STATE.periodMonths===v?"selected":""} value="${v}">${v} bulan terakhir</option>`).join("");
 const sortOpt=["Prioritas Order","Paling Banyak Keluar","Paling Sedikit Keluar","Stok Terkecil","Stok Terbesar","Kategori ABC"].map(v=>`<option ${ABC_STATE.sortBy===v?"selected":""}>${v}</option>`).join("");
 const selectedToSet=new Set(ABC_STATE.selectedTo||[]);
-const toOptionFiltered=(data.toOptions||[]).filter(v=>clean(v).includes(clean(ABC_STATE.toSearch||"")));
+const toOptionFiltered=(data.toOptions||[]).filter(v=>clean(v).includes(clean(ABC_STATE.toSearchDebounced||"")));
 const toSummary=selectedToSet.size?`${selectedToSet.size} tujuan dipilih`:"Semua Tujuan";
 abcAnalisisApp.innerHTML=`<div class='card' style='overflow:visible'><div class='mv-filters open' style='display:flex;flex-wrap:wrap;gap:8px;align-items:center;overflow:visible'><select id='abcPeriod' class='search-lg' style='max-width:170px;height:34px;padding:5px 14px!important'>${periodOpt}</select><select id='abcOrderType' class='search-lg' style='max-width:160px;height:34px;padding:5px 14px!important'><option ${ABC_STATE.orderType==="Semua"?"selected":""}>Semua</option><option ${ABC_STATE.orderType==="Orderan GT"?"selected":""}>Orderan GT</option><option ${ABC_STATE.orderType==="Orderan Store"?"selected":""}>Orderan Store</option></select><div id='abcToWrap' style='position:relative;min-width:220px;flex:1 1 240px;max-width:360px'><button id='abcToToggle' class='btn-ghost abc-action-btn' style='height:34px;width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center'><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(toSummary)}</span><span style="opacity:.85;font-size:12px">${ABC_STATE.toDropdownOpen?'▴':'▾'}</span></button><div id='abcToMenu' style='position:absolute;left:0;right:auto;top:38px;background:var(--panel,#fff);color:var(--text,#0f172a);border:1px solid var(--line,#d4d4d8);border-radius:10px;padding:8px;min-width:280px;width:min(360px,calc(100vw - 48px));z-index:25;box-shadow:0 12px 24px rgba(0,0,0,.18);${ABC_STATE.toDropdownOpen?'':'display:none'}'><input id='abcToSearch' class='search-lg' placeholder='Cari tujuan...' value='${esc(ABC_STATE.toSearch||"")}' style='width:100%;height:34px;margin-bottom:8px'><div style='display:flex;gap:6px;margin-bottom:8px'><button type='button' id='abcToSelectAll' class='btn-ghost abc-action-btn' style='height:30px;font-size:12px;flex:1'>Pilih semua</button><button type='button' id='abcToClear' class='btn-ghost abc-action-btn' style='height:30px;font-size:12px;flex:1'>Hapus</button></div><div style='max-height:240px;overflow:auto;padding-right:2px'>${toOptionFiltered.map(v=>`<label style='display:flex;gap:8px;align-items:flex-start;padding:5px 4px;border-radius:8px;cursor:pointer'><input type='checkbox' data-abc-to='${encAttr(v)}' ${selectedToSet.has(v)?'checked':''} style='margin-top:1px;width:18px;height:18px;accent-color:var(--primary,#e11d48);flex:0 0 18px'><span style='font-size:13px;line-height:1.35;word-break:break-word'>${esc(v)}</span></label>`).join('')||"<div class='subtitle'>Tidak ada opsi</div>"}</div></div></div><select id='abcSortBy' class='search-lg' style='max-width:190px;height:34px;padding:5px 14px!important'>${sortOpt}</select><button id='abcResetBtn' class='btn-ghost abc-action-btn' style='height:34px'>Reset</button><button id='abcCopyBtn' class='btn-ghost abc-action-btn' style='height:34px'>Copy</button><button id='abcRefreshBtn' class='btn-primary abc-action-btn' style='height:34px'>Refresh</button></div><div class='table-wrap' style='margin-top:14px;max-height:calc(100vh - 280px);overflow:auto'><table><thead><tr><th><input type='checkbox' id='abcSelectAll' class='balikan-check'></th><th>SKU</th><th>Nama Barang</th><th>Total Qty Keluar</th><th>% Kontribusi</th><th>Cumulative %</th><th>Kategori ABC</th><th>Stok Saat Ini</th><th>Priority Order</th><th>Status Rekomendasi</th></tr></thead><tbody>${data.rows.map(r=>`<tr><td><input type='checkbox' class='balikan-check' data-abc-row='${encAttr(r.sku)}' ${ABC_STATE.selectedRows.has(r.sku)?"checked":""}></td><td>${esc(r.sku)}</td><td><div style='display:flex;align-items:center;gap:6px;justify-content:space-between'><span>${esc(r.namaBarang)}</span><button class='btn-ghost' data-abc-sku='${encAttr(r.sku)}' style='padding:2px 6px;font-size:11px;line-height:1.1;border-radius:8px'>Detail</button></div></td><td>${r.qtyKeluar}</td><td>${(r.kontribusi*100).toFixed(2)}%</td><td>${(r.cum*100).toFixed(2)}%</td><td><span class='badge ${r.abc==="A"?"b-out":r.abc==="B"?"b-warn":"b-idle"}'>${r.abc}</span></td><td>${r.stokSaatIni}</td><td>${esc(r.priority)}</td><td>${esc(r.rekom)}</td></tr>`).join("")}</tbody></table></div></div><div class='card' style='margin-top:8px;padding:8px 10px'><div class='section-header' style='margin-bottom:4px'><h4 style='margin:0;font-size:13px'>Top 10 Fast Moving Items</h4></div><ol style='margin:0;padding-left:16px;display:block'>${data.top10.map(r=>`<li style='margin:0 0 2px 0'><button class='btn-link' data-abc-sku='${encAttr(r.sku)}' style='font-size:12px;line-height:1.2;padding:0'>${esc(r.namaBarang)}</button></li>`).join("")}</ol></div>`;
 document.getElementById("abcPeriod").onchange=e=>{ABC_STATE.periodMonths=Number(e.target.value)||3;renderAbcAnalisisPage(true);};
-document.getElementById("abcOrderType").onchange=e=>{ABC_STATE.orderType=e.target.value;ABC_STATE.selectedTo=[];ABC_STATE.toSearch="";ABC_STATE.toDropdownOpen=false;renderAbcAnalisisPage(true);};
+document.getElementById("abcOrderType").onchange=e=>{ABC_STATE.orderType=e.target.value;ABC_STATE.selectedTo=[];ABC_STATE.toSearch="";ABC_STATE.toSearchDebounced="";ABC_STATE.toDropdownOpen=false;ABC_STATE.page=1;renderAbcAnalisisPage(true);};
 const toToggle=document.getElementById("abcToToggle");if(toToggle)toToggle.onclick=e=>{e.stopPropagation();ABC_STATE.toDropdownOpen=!ABC_STATE.toDropdownOpen;renderAbcAnalisisPage(false);};
 const toSearchEl=document.getElementById("abcToSearch");if(toSearchEl){toSearchEl.oninput=e=>{e.stopPropagation();ABC_STATE.toSearch=e.target.value||"";renderAbcAnalisisPage(false);};toSearchEl.onclick=e=>e.stopPropagation();}
 const toSelectAll=document.getElementById("abcToSelectAll");if(toSelectAll)toSelectAll.onclick=e=>{e.stopPropagation();ABC_STATE.selectedTo=[...(data.toOptions||[])];ABC_STATE.toDropdownOpen=true;renderAbcAnalisisPage(true);};
 const toClear=document.getElementById("abcToClear");if(toClear)toClear.onclick=e=>{e.stopPropagation();ABC_STATE.selectedTo=[];ABC_STATE.toDropdownOpen=true;renderAbcAnalisisPage(true);};
 abcAnalisisApp.querySelectorAll("[data-abc-to]").forEach(chk=>chk.onchange=e=>{e.stopPropagation();const toVal=e.target.dataset.abcTo||"";const set=new Set(ABC_STATE.selectedTo||[]);if(e.target.checked)set.add(toVal);else set.delete(toVal);ABC_STATE.selectedTo=[...set];ABC_STATE.toDropdownOpen=true;renderAbcAnalisisPage(true);});
-document.getElementById("abcSortBy").onchange=e=>{ABC_STATE.sortBy=e.target.value||"Prioritas Order";renderAbcAnalisisPage(true);};
+document.getElementById("abcSortBy").onchange=e=>{ABC_STATE.sortBy=e.target.value||"Prioritas Order";ABC_STATE.page=1;renderAbcAnalisisPage(true);};
 document.getElementById("abcRefreshBtn").onclick=()=>renderAbcAnalisisPage(true);
-document.getElementById("abcResetBtn").onclick=()=>{ABC_STATE.periodMonths=3;ABC_STATE.orderType="Semua";ABC_STATE.selectedTo=[];ABC_STATE.sortBy="Prioritas Order";ABC_STATE.toSearch="";ABC_STATE.toDropdownOpen=false;renderAbcAnalisisPage(true);};
+document.getElementById("abcResetBtn").onclick=()=>{ABC_STATE.periodMonths=3;ABC_STATE.orderType="Semua";ABC_STATE.selectedTo=[];ABC_STATE.sortBy="Prioritas Order";ABC_STATE.toSearch="";ABC_STATE.toSearchDebounced="";ABC_STATE.toDropdownOpen=false;ABC_STATE.page=1;renderAbcAnalisisPage(true);};
 const selectedInPage=data.rows.filter(r=>ABC_STATE.selectedRows.has(r.sku)).length;
 const selAllEl=document.getElementById("abcSelectAll");
 if(selAllEl)selAllEl.checked=selectedInPage>0&&selectedInPage===data.rows.length;
