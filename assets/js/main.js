@@ -1351,8 +1351,8 @@ const qty=parseNumber(getVal(row,["qty"]));
 const tanggal=getVal(row,["tanggal","date","created at","waktu"])||"-";
 return{sku,nama,qty,tanggal,type,sheet,row};
 }
-const STATS_STATE={page:1,pageSize:25,searchInputValue:"",debouncedSearchValue:"",sort:"absDesc",isFiltering:false,_normalizedRows:null,_debounceTimer:null,_idleTimer:null};
-function renderStatsFilteringState(){const el=document.getElementById("statsFilterState");if(el)el.textContent=STATS_STATE.isFiltering?"Memfilter...":"";}
+const STATS_STATE={page:1,pageSize:25,searchInputValue:"",debouncedSearchValue:"",sort:"absDesc",isFiltering:false,isProcessing:false,_normalizedRows:null,_debounceTimer:null,_idleTimer:null,cacheKey:"STATS_ACCURACY_CACHE_V1"};
+function renderStatsFilteringState(){const el=document.getElementById("statsFilterState");if(el)el.textContent=STATS_STATE.isProcessing?"Memproses...":(STATS_STATE.isFiltering?"Memfilter...":"");}
 function scheduleStatsFilter(){
   STATS_STATE.isFiltering=true;renderStatsFilteringState();
   if(STATS_STATE._idleTimer){clearTimeout(STATS_STATE._idleTimer);STATS_STATE._idleTimer=null;}
@@ -1373,12 +1373,15 @@ function updateStatsTableOnly(){
   if(tbody)tbody.innerHTML=paged.map(r=>`<tr class='${r.selisih!==0?"row-mismatch":""}'><td title='${encAttr(r.lokasiText)}'>${esc(r.lokasiText)}</td><td>${esc(r.sku)}</td><td><div class='nama-barang'>${esc(r.nama)}</div></td><td class='${r.selisih!==0?"txt-danger":""}'>${r.selisih}</td><td class='action-cell'><button class='detail-mini-btn' type='button' onclick="navigateToSku(decodeURIComponent('${encAttr(r.sku)}'))">Lihat SKU</button></td></tr>`).join("")||`<tr><td colspan='5'><div class='state'>Tidak ada data.</div></td></tr>`;
   if(paging)paging.textContent=`Menampilkan ${(tableRows.length?((STATS_STATE.page-1)*STATS_STATE.pageSize+1):0)}–${Math.min(STATS_STATE.page*STATS_STATE.pageSize,tableRows.length)} dari ${tableRows.length} data`;
 }
+function getStatsCache(){return safeJsonParse(localStorage.getItem(STATS_STATE.cacheKey),null);}
+function setStatsCache(payload){if(!payload||!Array.isArray(payload.rows)||!payload.rows.length)return;localStorage.setItem(STATS_STATE.cacheKey,JSON.stringify(payload));}
 function updateStats(){
 const rows=[...(DATA["RPL"]||[]),...(DATA["BULKY"]||[])].filter(r=>clean(getVal(r,["sku"])));
 if(!rows.length){statsCards.innerHTML="";statsChart.innerHTML="<div class='state'>Sheet RPL/BULKY belum ada data.</div>";return;}
+const cacheSig=`${rows.length}|${rows.map(r=>`${r?.sku||""}|${r?.lokasi||""}|${r?.selisih||""}`).join("~")}`;
 const norm=rows.map(r=>{const sel=parseNumber(getVal(r,["selisih","selisih kartu stok","selisih kartu stock","selisih kartu stok vs iseller","selisih kartu stok vs netsuite"]));const iseller=parseNumber(getVal(r,["stok iseller","iseller"]));const netsuite=parseNumber(getVal(r,["stok netsuite","netsuite"]));return{lokasi:getVal(r,["lokasi"])||"-",sku:getVal(r,["sku"])||"-",nama:getVal(r,["nama barang","nama"])||"-",stokBulky:parseNumber(getVal(r,["stok bulky"])),stokRetail:parseNumber(getVal(r,["stok retail"])),stokGlobal:parseNumber(getVal(r,["stok global","kartu stok","stok kartu","stok kartu stok"])),iseller,netsuite,selisih:sel,status:getVal(r,["status"])||"-",selisihAbs:Math.abs(sel),nsIseller:getVal(r,["ns dan iseller","iseller vs netsuite"])||"-"};});
-const totalSku=norm.length,skuAkurat=norm.filter(r=>r.selisih===0).length,skuTidakAkurat=totalSku-skuAkurat,akurasi=totalSku?((skuAkurat/totalSku)*100):0,selisihTotal=norm.reduce((n,r)=>n+r.selisih,0);
-statsCards.innerHTML=[["Total SKU",totalSku,""],["Akurat (%)",`${akurasi.toFixed(2)}%`,"ok"],["Tidak Akurat",skuTidakAkurat,"err"],["Selisih Total",selisihTotal,"warn"]].map(c=>`<div class='metric ${c[2]||""}'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
+const totalSku=norm.length,skuAkurat=norm.filter(r=>r.selisih===0).length,skuTidakAkurat=totalSku-skuAkurat,akurasi=totalSku?((skuAkurat/totalSku)*100):0,selisihTotal=norm.reduce((n,r)=>n+r.selisih,0);setStatsCache({sig:cacheSig,norm});
+const cache=getStatsCache();if(cache&&cache.sig===cacheSig&&Array.isArray(cache.norm)&&cache.norm.length){const ctotal=cache.norm.length,cak=cache.norm.filter(r=>r.selisih===0).length,ctidak=ctotal-cak,cakur=ctotal?((cak/ctotal)*100):0,csel=cache.norm.reduce((n,r)=>n+r.selisih,0);statsCards.innerHTML=[["Total SKU",ctotal,""],["Akurat (%)",`${cakur.toFixed(2)}%`,"ok"],["Tidak Akurat",ctidak,"err"],["Selisih Total",csel,"warn"]].map(c=>`<div class='metric ${c[2]||""}'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");}else{statsCards.innerHTML=[["Total SKU",totalSku,""],["Akurat (%)",`${akurasi.toFixed(2)}%`,"ok"],["Tidak Akurat",skuTidakAkurat,"err"],["Selisih Total",selisihTotal,"warn"]].map(c=>`<div class='metric ${c[2]||""}'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");}
 const bySku=new Map();
 norm.forEach(r=>{const key=clean(r.sku);if(!key)return;if(!bySku.has(key))bySku.set(key,{sku:r.sku,nama:r.nama,lokasiSet:new Set(),selisih:0,selisihAbs:0});const it=bySku.get(key);if(it.nama==="-"&&r.nama!=="-")it.nama=r.nama;if(r.lokasi&&r.lokasi!=="-")it.lokasiSet.add(String(r.lokasi));it.selisih+=Number(r.selisih)||0;it.selisihAbs=Math.abs(it.selisih);});
 const aggregated=[...bySku.values()].map(r=>({...r,lokasi:[...r.lokasiSet],lokasiText:[...r.lokasiSet].length?[...r.lokasiSet].join(", "):"-"}));
@@ -1988,7 +1991,7 @@ else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;s
 await saveCache(DATA);
 rebuildSkuCache();
 }
-const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:[],excludeTo:["REJECT","RUSAK"],sortBy:"Prioritas Order",toSearch:"",toDropdownOpen:false,selectedRows:new Set()};
+const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:[],excludeTo:["REJECT","RUSAK"],sortBy:"Prioritas Order",toSearch:"",toDropdownOpen:false,selectedRows:new Set(),_toTimer:null};
 function isStoreOrder(to){const v=String(to||"").toUpperCase();return v.includes("100")||v.includes("-BT-");}
 function parseDateSafe(value){const d=new Date(value);return Number.isNaN(d.getTime())?null:d;}
 function toNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
