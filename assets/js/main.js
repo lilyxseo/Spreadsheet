@@ -17,6 +17,10 @@ const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+let manualRefreshNoticeTimer=null;
+const scheduleManualRefreshRender=debounce((mode)=>{
+if(mode==='in'||mode==='out')rerenderTableWithScrollRestore(mode,true);
+},180);
 const BARCODE_STATE={barcodeToSku:new Map(),barcodeToName:new Map(),loaded:false,updatedAt:0};
 const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:50,minChars:2,debounceMs:500,debounceTimer:null,idleTimer:null,abortController:null,runToken:0,lastRenderedHtml:""};
 const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
@@ -750,10 +754,36 @@ try{
 const inventoryPromise=refreshInventoryGroupFull();
 const transaksiPromise=refreshTransaksiFull({render:false});
 await Promise.allSettled([inventoryPromise,transaksiPromise]);
+const prevMasuk=Array.isArray(DATA["Barang Masuk"])?DATA["Barang Masuk"]:[];
+const prevKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
+const nextMasuk=Array.isArray(window.APP_STATE?.barangMasuk)?window.APP_STATE.barangMasuk:prevMasuk;
+const nextKeluar=Array.isArray(window.APP_STATE?.barangKeluar)?window.APP_STATE.barangKeluar:prevKeluar;
+const masukChanged=sheetChecksum(prevMasuk)!==sheetChecksum(nextMasuk);
+const keluarChanged=sheetChecksum(prevKeluar)!==sheetChecksum(nextKeluar);
+const dataChanged=masukChanged||keluarChanged;
+if(masukChanged&&nextMasuk.length)DATA["Barang Masuk"]=nextMasuk;
+if(keluarChanged&&nextKeluar.length)DATA["Barang Keluar"]=nextKeluar;
+
+if(force){
+if(dataChanged){
+const runRender=()=>{
+if(masukChanged)scheduleManualRefreshRender("in");
+if(keluarChanged)scheduleManualRefreshRender("out");
+scheduleRenderDashboard();
+};
+if(typeof requestIdleCallback==='function')requestIdleCallback(runRender,{timeout:700});
+else setTimeout(runRender,16);
+}else{
+if(manualRefreshNoticeTimer)clearTimeout(manualRefreshNoticeTimer);
+setStatus('ok','Data sudah terbaru');
+manualRefreshNoticeTimer=setTimeout(()=>setStatus('ok',''),1800);
+}
+}else{
 renderDataTablePage("in","Barang Masuk",true);
 renderDataTablePage("out","Barang Keluar",true);
 scheduleRenderDashboard();
-await saveCache(DATA);
+}
+if(dataChanged)await saveCache(DATA);
 setStatus('ok','');
 return true;
 }catch(err){
