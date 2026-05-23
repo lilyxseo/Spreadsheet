@@ -149,9 +149,16 @@ return runtimeConfig.previewBypassLogin===true;
 
 async function loadRuntimeConfig(){
 try{
-const {res,data}=await fetchJsonSafe('/api/runtime-config',{cache:'no-store'});
-if(!res.ok||!data?.success)throw new Error(data?.message||'Runtime config unavailable');
-runtimeConfig={previewBypassLogin:data.previewBypassLogin===true};
+const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];
+let loaded=null;
+for(const url of endpoints){
+const {res,data}=await fetchJsonSafe(url,{cache:'no-store'});
+if(!res.ok||!data||typeof data!=='object')continue;
+loaded=data;
+break;
+}
+if(!loaded)throw new Error('Runtime config unavailable');
+runtimeConfig={previewBypassLogin:loaded.previewBypassLogin===true};
 }catch(err){
 runtimeConfig={previewBypassLogin:false};
 console.warn('Gagal load runtime config, fallback login normal',err?.message||err);
