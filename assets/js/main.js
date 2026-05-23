@@ -679,13 +679,11 @@ console.log("PARSED DATA",sheet,freshData[sheet].length);
 return freshData;
 }
 async function refreshRplFull(){
-if(Array.isArray(DATA["RPL"])&&DATA["RPL"].length)return DATA["RPL"];
 const raw=await fetchSheet("RPL");
 const rows=parseSheet(raw,"RPL");
 return rows;
 }
 async function refreshBulkyFull(){
-if(Array.isArray(DATA["BULKY"])&&DATA["BULKY"].length)return DATA["BULKY"];
 const raw=await fetchSheet("BULKY");
 const rows=parseSheet(raw,"BULKY");
 console.log("FETCH RESULT BULKY",Array.isArray(raw)?raw.length:0);
@@ -756,13 +754,35 @@ const transaksiPromise=refreshTransaksiFull({render:false});
 await Promise.allSettled([inventoryPromise,transaksiPromise]);
 const prevMasuk=Array.isArray(DATA["Barang Masuk"])?DATA["Barang Masuk"]:[];
 const prevKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
+const prevKartu=Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:[];
+const prevRpl=Array.isArray(DATA["RPL"])?DATA["RPL"]:[];
+const prevBulky=Array.isArray(DATA["BULKY"])?DATA["BULKY"]:[];
 const nextMasuk=Array.isArray(window.APP_STATE?.barangMasuk)?window.APP_STATE.barangMasuk:prevMasuk;
 const nextKeluar=Array.isArray(window.APP_STATE?.barangKeluar)?window.APP_STATE.barangKeluar:prevKeluar;
+const nextKartu=Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:prevKartu;
+const nextRpl=Array.isArray(DATA["RPL"])?DATA["RPL"]:prevRpl;
+const nextBulky=Array.isArray(DATA["BULKY"])?DATA["BULKY"]:prevBulky;
 const masukChanged=sheetChecksum(prevMasuk)!==sheetChecksum(nextMasuk);
 const keluarChanged=sheetChecksum(prevKeluar)!==sheetChecksum(nextKeluar);
-const dataChanged=masukChanged||keluarChanged;
-if(masukChanged&&nextMasuk.length)DATA["Barang Masuk"]=nextMasuk;
-if(keluarChanged&&nextKeluar.length)DATA["Barang Keluar"]=nextKeluar;
+const kartuChanged=sheetChecksum(prevKartu)!==sheetChecksum(nextKartu);
+const rplChanged=sheetChecksum(prevRpl)!==sheetChecksum(nextRpl);
+const bulkyChanged=sheetChecksum(prevBulky)!==sheetChecksum(nextBulky);
+const dataChanged=masukChanged||keluarChanged||kartuChanged||rplChanged||bulkyChanged;
+DATA["Barang Masuk"]=nextMasuk;
+DATA["Barang Keluar"]=nextKeluar;
+window.APP_STATE=window.APP_STATE||{};
+window.APP_STATE.inventory={
+"Kartu Stock":nextKartu,
+"RPL":nextRpl,
+"BULKY":nextBulky
+};
+window.APP_STATE.data={
+...(window.APP_STATE.data||{}),
+...window.APP_STATE.inventory,
+barangMasuk:nextMasuk,
+barangKeluar:nextKeluar
+};
+rebuildSkuCache();
 
 if(force){
 if(dataChanged){
@@ -770,6 +790,7 @@ const runRender=()=>{
 if(masukChanged)scheduleManualRefreshRender("in");
 if(keluarChanged)scheduleManualRefreshRender("out");
 scheduleRenderDashboard();
+rerenderCurrentPage({fromCache:false});
 };
 if(typeof requestIdleCallback==='function')requestIdleCallback(runRender,{timeout:700});
 else setTimeout(runRender,16);
