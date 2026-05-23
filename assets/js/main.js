@@ -26,6 +26,14 @@ const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:50,minChars:2,d
 const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
 const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],highlightRowNumber:null,sortBy:"default",autoCheckOnScan:true,exactScanSku:""};
+if(window.lucide&&typeof window.lucide.createIcons==="function"&&!window.__lucideSafePatched){
+const _createIconsOriginal=window.lucide.createIcons.bind(window.lucide);
+window.lucide.createIcons=(...args)=>{
+try{return _createIconsOriginal(...args);}
+catch(err){console.warn("lucide.createIcons skipped:",err?.message||err);return null;}
+};
+window.__lucideSafePatched=true;
+}
 const MODULE_CACHE_MEMORY={};
 const LARGE_CACHE_KEYS=new Set([MODULE_CACHE_KEYS.inventory,MODULE_CACHE_KEYS.movement,MODULE_CACHE_KEYS.barangMasuk,MODULE_CACHE_KEYS.barangKeluar,MODULE_CACHE_KEYS.kartuStock,MODULE_CACHE_KEYS.rpl,MODULE_CACHE_KEYS.bulky]);
 const HAS_INDEXED_DB=typeof window!=="undefined"&&typeof window.indexedDB!=="undefined";
@@ -1967,11 +1975,10 @@ function renderBalikanSummaryInfo(rows,baseRows){
   const checkedCount=rows.filter(r=>isCheckedValue(r.checked)).length;
   const uncheckedCount=Math.max(0,visibleRows-checkedCount);
   const checkedPct=visibleRows?((checkedCount/visibleRows)*100):0;
+  const uncheckedPct=visibleRows?((uncheckedCount/visibleRows)*100):0;
   const totalQty=rows.reduce((sum,r)=>sum+toNumberSafe(r.qty),0);
-  const totalBulky=rows.reduce((sum,r)=>sum+toNumberSafe(r.stokBulky),0);
-  const totalRetail=rows.reduce((sum,r)=>sum+toNumberSafe(r.stokRetail),0);
-  const title=`${visibleRows} baris ditampilkan dari ${totalRows} baris sheet ${window.currentTripSheet||''}`;
-  balikanSummary.innerHTML=`<div class='grid dashboard archive-summary'>    <div class='metric'><div class='k'>Baris Ditampilkan</div><div class='v'>${visibleRows}</div></div>    <div class='metric'><div class='k'>Checklist</div><div class='v'>${checkedCount} (${checkedPct.toFixed(1)}%)</div></div>    <div class='metric'><div class='k'>Belum Checklist</div><div class='v'>${uncheckedCount}</div></div>    <div class='metric'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div>    <div class='metric'><div class='k'>Stok Bulky</div><div class='v'>${totalBulky}</div></div>    <div class='metric'><div class='k'>Stok Retail</div><div class='v'>${totalRetail}</div></div>  </div><div class='subtitle' style='margin-top:6px'>${esc(title)}</div>`;
+  const progressState=checkedPct>=80?'high':checkedPct>=50?'medium':'low';
+  balikanSummary.innerHTML=`<div class='grid dashboard archive-summary balikan-summary-grid balikan-summary-compact'>    <div class='metric'><div class='k'>Baris Ditampilkan</div><div class='v'>${visibleRows}</div></div>    <div class='metric balikan-metric-progress'><div class='k'>Checklist</div><div class='v'>${checkedCount} dari ${visibleRows} baris</div><div class='balikan-progress-percent'>${checkedPct.toFixed(1)}% selesai</div></div>    <div class='metric balikan-metric-progress'><div class='k'>Belum Checklist</div><div class='v'>${uncheckedCount} dari ${visibleRows} baris</div><div class='balikan-progress-percent'>${uncheckedPct.toFixed(1)}% belum selesai</div></div>    <div class='metric'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div>  </div><div class='balikan-progress-track balikan-progress-${progressState}' role='progressbar' aria-label='Progress checklist Balikan Store' aria-valuemin='0' aria-valuemax='100' aria-valuenow='${checkedPct.toFixed(1)}'><span class='balikan-progress-fill' style='width:${checkedPct.toFixed(1)}%'></span></div>`;
 }
 
 function syncBalikanAutoCheckToggle(){if(!balikanAutoCheckToggle)return;const perms=getPermissions();const isOn=BALIKAN_STATE.autoCheckOnScan!==false;balikanAutoCheckToggle.checked=isOn;balikanAutoCheckToggle.setAttribute("aria-checked",isOn?"true":"false");const statusEl=document.getElementById("balikanAutoCheckStatus");if(statusEl)statusEl.textContent=isOn?"ON":"OFF";const wrap=balikanAutoCheckToggle.closest(".balikan-switch-wrap");if(wrap){wrap.classList.toggle("is-on",isOn);wrap.classList.toggle("is-off",!isOn);wrap.style.display=perms.canUpdate?"":"none";}}
