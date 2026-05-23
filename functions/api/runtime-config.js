@@ -1,27 +1,37 @@
-module.exports = async (req, res) => {
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
+function parseTrue(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
 
+function pickContext(env = {}) {
+  return String(env.CONTEXT || env.NETLIFY_CONTEXT || env.NODE_ENV || "").toLowerCase() || "unknown";
+}
+
+export async function onRequestGet({ env }) {
   try {
-    if (req.method && req.method !== "GET") {
-      res.statusCode = 405;
-      return res.end(JSON.stringify({ success: false, message: "Method Not Allowed" }));
-    }
-
-    const env = process.env || {};
-    const previewBypassLoginRaw = String(env.PREVIEW_BYPASS_LOGIN || "").toLowerCase() === "true";
-    const context = String(env.CONTEXT || env.NETLIFY_CONTEXT || env.NODE_ENV || "").toLowerCase();
-    const isProduction = context === "production";
-    const environment = context || "unknown";
-
-    return res.end(JSON.stringify({
-      previewBypassLogin: previewBypassLoginRaw && !isProduction,
-      environment
-    }));
-  } catch (error) {
-    res.statusCode = 500;
-    return res.end(JSON.stringify({
-      success: false,
-      message: "Failed to load runtime config"
-    }));
+    const previewBypassLogin = parseTrue(
+      env?.PREVIEW_BYPASS_LOGIN ?? env?.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env?.VITE_PREVIEW_BYPASS_LOGIN
+    );
+    return new Response(
+      JSON.stringify({
+        previewBypassLogin,
+        environment: pickContext(env || {}),
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (_error) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Failed to load runtime config" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      }
+    );
   }
-};
+}
