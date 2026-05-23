@@ -10,11 +10,10 @@ module.exports = async (req, res) => {
     const env = process.env || {};
     const previewBypassLoginRaw = String(env.PREVIEW_BYPASS_LOGIN || "").toLowerCase() === "true";
     const context = String(env.CONTEXT || env.NETLIFY_CONTEXT || env.NODE_ENV || "").toLowerCase();
-    const isProduction = context === "production";
     const environment = context || "unknown";
 
     return res.end(JSON.stringify({
-      previewBypassLogin: previewBypassLoginRaw && !isProduction,
+      previewBypassLogin: previewBypassLoginRaw,
       environment
     }));
   } catch (error) {
