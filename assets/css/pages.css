@@ -1002,6 +1002,52 @@ body.dark .app-icon {
   width:100%;
   max-width:100%;
 }
+#page-balikan-store .balikan-summary-grid{
+  gap:8px;
+}
+#page-balikan-store .balikan-summary-compact .metric{
+  padding:10px 12px;
+  min-height:auto;
+}
+#page-balikan-store .balikan-metric-progress .v{
+  font-weight:700;
+  font-size:.95rem;
+}
+#page-balikan-store .balikan-progress-percent{
+  margin-top:2px;
+  font-size:1rem;
+  font-weight:800;
+  letter-spacing:.01em;
+  color:var(--text);
+}
+#page-balikan-store .balikan-progress-track{
+  margin-top:6px;
+  width:100%;
+  height:6px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--line) 60%, transparent);
+  overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--line) 85%, transparent);
+}
+#page-balikan-store .balikan-progress-fill{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  transition:width .2s ease;
+}
+#page-balikan-store .balikan-progress-high .balikan-progress-fill{
+  background:linear-gradient(90deg,#22c55e,#3b82f6);
+}
+#page-balikan-store .balikan-progress-medium .balikan-progress-fill{
+  background:linear-gradient(90deg,#f59e0b,#fbbf24);
+}
+#page-balikan-store .balikan-progress-low .balikan-progress-fill{
+  background:linear-gradient(90deg,#ef4444,#f87171);
+}
+body.dark #page-balikan-store .balikan-progress-percent{
+  color:#f8fafc;
+  text-shadow:0 0 0.01px rgba(255,255,255,.3);
+}
 #page-balikan-store .balikan-table-wrapper{
   width:100%;
   overflow:auto;
