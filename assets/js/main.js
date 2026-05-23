@@ -1152,27 +1152,38 @@ if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error
 return json.values||[];
 }
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
+function splitBarcodeTokens(raw){
+return String(raw||"").split(/[\n,;|]+/).map(v=>cleanScannedSku(v)).filter(Boolean);
+}
 function parseBarcodeSheet(values){
 if(!Array.isArray(values)||values.length<2)return[];
 const rows=[];
 for(let r=1;r<values.length;r++){
 const row=Array.isArray(values[r])?values[r]:[];
 const sku=String(row[0]||"").trim();
-const barcode=String(row[1]||"").trim();
 const nama=String(row[2]||"").trim();
-if(!sku||!barcode)continue;
-rows.push({sku,barcode,nama});
+if(!sku)continue;
+const barcodeSet=new Set();
+for(let i=1;i<row.length;i++)splitBarcodeTokens(row[i]).forEach(code=>barcodeSet.add(code));
+const barcodes=[...barcodeSet];
+if(!barcodes.length)continue;
+rows.push({sku,nama,barcodes});
 }
 return rows;
 }
-function setBarcodeMap(rows=[]){
+function rebuildBarcodeMap(rows=[]){
 BARCODE_STATE.barcodeToSku=new Map();
 BARCODE_STATE.barcodeToName=new Map();
 for(const item of rows){
-const key=cleanScannedSku(item?.barcode||"");
-if(!key)continue;
-BARCODE_STATE.barcodeToSku.set(key,String(item?.sku||"").trim());
-if(item?.nama)BARCODE_STATE.barcodeToName.set(key,String(item.nama).trim());
+const sku=String(item?.sku||"").trim();
+const nama=String(item?.nama||"").trim();
+const list=Array.isArray(item?.barcodes)?item.barcodes:splitBarcodeTokens(item?.barcode||"");
+for(const barcode of list){
+const key=cleanScannedSku(barcode);
+if(!sku||!key)continue;
+BARCODE_STATE.barcodeToSku.set(key,sku);
+if(nama)BARCODE_STATE.barcodeToName.set(key,nama);
+}
 }
 BARCODE_STATE.loaded=true;
 BARCODE_STATE.updatedAt=Date.now();
@@ -1182,7 +1193,7 @@ function loadBarcodeMapFromCache(){
 const raw=localStorage.getItem(BARCODE_CACHE_KEY);
 const parsed=safeJsonParse(raw,null);
 if(!parsed||!Array.isArray(parsed?.rows)||!parsed.rows.length)return false;
-setBarcodeMap(parsed.rows);
+rebuildBarcodeMap(parsed.rows);
 BARCODE_STATE.updatedAt=Number(parsed.updatedAt)||Date.now();
 return true;
 }
@@ -1192,7 +1203,7 @@ if(!force&&loadBarcodeMapFromCache())return BARCODE_STATE;
 try{
 const raw=await fetchSheet("BARCODE");
 const rows=parseBarcodeSheet(raw);
-setBarcodeMap(rows);
+rebuildBarcodeMap(rows);
 console.log("BARCODE MASTER LOADED",rows.length);
 }catch(err){
 console.warn("Gagal load BARCODE master",err);
@@ -1256,6 +1267,18 @@ const raw=String(text||"").trim();
 const match=raw.match(/\d{8,20}/);
 return match?match[0]:raw;
 }
+function findSkuByBarcode(barcode){
+const key=cleanScannedSku(barcode);
+if(!key)return null;
+const sku=BARCODE_STATE.barcodeToSku.get(key);
+if(!sku)return null;
+return {barcode:key,sku:String(sku).trim()};
+}
+function resolveScannedSku(rawText){
+const cleaned=cleanScannedSku(rawText);
+const mapped=findSkuByBarcode(cleaned);
+return {scanned:cleaned,sku:String(mapped?.sku||cleaned).trim(),mapped:Boolean(mapped)};
+}
 function triggerSearchSku(sku){
 SEARCH_STATE.inputValue=sku;
 SEARCH_STATE.filterValue=sku;
@@ -1270,10 +1293,8 @@ navigateTo('/sku/'+encodeURIComponent(exact.sku));
 return true;
 }
 async function handleSearchScanResult(decodedText){
-const scanned=cleanScannedSku(decodedText);
+const {scanned,sku,mapped}=resolveScannedSku(decodedText);
 if(!scanned)return;
-const mappedSku=BARCODE_STATE.barcodeToSku.get(scanned);
-const sku=String(mappedSku||scanned).trim();
 try{
 await logActivity({
 ...currentUserIdentity(),
@@ -1293,7 +1314,7 @@ const input=document.getElementById("searchInput");
 if(input)input.value=sku;
 triggerSearchSku(sku);
 const found=openSkuDetailIfFound(sku);
-if(!mappedSku){
+if(!mapped){
 toast("Barcode tidak terdaftar","error");
 return;
 }
@@ -2001,14 +2022,17 @@ function renderMovementHistory(){const tbody=document.querySelector('#mvHistoryB
 
 
 function handleMovementScanSearchResult(scannedSku){
-  const sku=cleanScannedSku(scannedSku);
+  const {scanned,sku,mapped}=resolveScannedSku(scannedSku);
+  if(!scanned){showToast('Barcode tidak ditemukan','error');return;}
   MOVEMENT_STATE.searchInput=sku;
   MOVEMENT_STATE.search=sku;
   const input=document.getElementById('movementSearchInput');
   if(input)input.value=sku;
   renderMovementSearchResults();
+  if(!mapped){showToast('Barcode tidak ditemukan','error');return;}
   showToast('SKU berhasil discan. Pilih lokasi awal yang benar.','success');
 }
+
 function openMovementScanner(){
   if(!MOVEMENT_STATE.sessionActive){toast('Mulai Movement dulu sebelum scan.','error');return;}
   openBarcodeScanner('movementSearchInput',handleMovementScanSearchResult);
@@ -2116,20 +2140,8 @@ window.toggleBalikanCheck=async(sheetName,rowNumber,checked)=>{try{await updateB
 function openBalikanScanner(){openBarcodeScanner("balikanSearchInput",handleBalikanScanResult);}
 window.openBalikanScanner=openBalikanScanner;
 
-async function handleBalikanScanResult(decodedText){if(navigator.vibrate)navigator.vibrate(100);const sku=cleanScannedSku(decodedText);window.balikanSearchKeyword=sku;BALIKAN_STATE.exactScanSku=sku;const searchInput=document.querySelector("#balikanSearchInput");if(searchInput)searchInput.value=sku;const row=(window.BALIKAN_ROWS||[]).find(item=>String(item.sku||"").trim().toLowerCase()===String(sku||"").trim().toLowerCase());if(!row){BALIKAN_STATE.highlightRowNumber=null;toast("SKU tidak ditemukan di Balikan Store: "+sku,"error");renderBalikanTable(false);return;}BALIKAN_STATE.highlightRowNumber=Number(row.rowNumber);renderBalikanTable(false);if(BALIKAN_STATE.autoCheckOnScan!==false){await toggleBalikanCheck(window.currentTripSheet,Number(row.rowNumber),true);showToast('SKU berhasil discan dan dicentang: '+sku,'success');}else{showToast('SKU berhasil discan: '+sku,'success');}setTimeout(()=>{const el=document.querySelector(`[data-row-number="${row.rowNumber}"]`);if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("row-highlight");}},300);}
-function bindSheetInputForm(){const form=document.getElementById("sheetInputForm");if(!form||form.dataset.bound==="1")return;const submitBtn=document.getElementById("sheetSubmitBtn");const labelEl=submitBtn?.querySelector(".sheet-submit-label");const spinnerEl=submitBtn?.querySelector(".btn-spinner");const setLoading=(loading)=>{if(!submitBtn)return;submitBtn.disabled=loading;submitBtn.classList.toggle("is-loading",loading);if(labelEl)labelEl.textContent=loading?"Menyimpan":"Simpan";if(spinnerEl)spinnerEl.hidden=!loading;};form.addEventListener("submit",async(e)=>{e.preventDefault();const tanggal=document.getElementById("sheetTanggal")?.value||"";const sku=(document.getElementById("sheetSku")?.value||"").trim();const nama_barang=(document.getElementById("sheetNamaBarang")?.value||"").trim();const qtyRaw=(document.getElementById("sheetQty")?.value||"").trim();const lokasi=(document.getElementById("sheetLokasi")?.value||"").trim();const keterangan=(document.getElementById("sheetKeterangan")?.value||"").trim();const qty=Number(qtyRaw);if(!sku||!nama_barang||!lokasi||Number.isNaN(qty)){toast("SKU, Nama Barang, Qty, dan Lokasi wajib diisi.","error");return;}setLoading(true);try{const res=await fetch('/api/sheet-input',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({tanggal,sku,nama_barang,qty,lokasi,keterangan})});const json=await res.json();if(!res.ok||!json?.success)throw new Error(json?.error||'Gagal menyimpan data');toast(json?.message||"Data berhasil disimpan.","success");form.reset();}catch(err){toast(err?.message||"Terjadi kesalahan saat menyimpan.","error");}finally{setLoading(false);}});form.dataset.bound="1";}
+async function handleBalikanScanResult(decodedText){if(navigator.vibrate)navigator.vibrate(100);const {scanned,sku,mapped}=resolveScannedSku(decodedText);if(!scanned){toast("Barcode tidak ditemukan","error");return;}window.balikanSearchKeyword=sku;BALIKAN_STATE.exactScanSku=sku;const searchInput=document.querySelector("#balikanSearchInput");if(searchInput)searchInput.value=sku;const row=(window.BALIKAN_ROWS||[]).find(item=>String(item.sku||"").trim().toLowerCase()===String(sku||"").trim().toLowerCase());if(!mapped){BALIKAN_STATE.highlightRowNumber=null;toast("Barcode tidak ditemukan","error");renderBalikanTable(false);return;}if(!row){BALIKAN_STATE.highlightRowNumber=null;toast("SKU tidak ditemukan di Balikan Store: "+sku,"error");renderBalikanTable(false);return;}BALIKAN_STATE.highlightRowNumber=Number(row.rowNumber);renderBalikanTable(false);if(BALIKAN_STATE.autoCheckOnScan!==false){await toggleBalikanCheck(window.currentTripSheet,Number(row.rowNumber),true);showToast('SKU berhasil discan dan dicentang: '+sku,'success');}else{showToast('SKU berhasil discan: '+sku,'success');}setTimeout(()=>{const el=document.querySelector(`[data-row-number="${row.rowNumber}"]`);if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("row-highlight");}},300);}
 
-document.addEventListener('input',e=>{if(e.target?.dataset?.mvhEdit){const row=Number(e.target.dataset.row);if(HISTORY_EDIT_STATE.movement[row])HISTORY_EDIT_STATE.movement[row][e.target.dataset.mvhEdit]=e.target.value;}if(e.target?.dataset?.cchEdit){const row=Number(e.target.dataset.row);if(HISTORY_EDIT_STATE.cycle[row])HISTORY_EDIT_STATE.cycle[row][e.target.dataset.cchEdit]=e.target.value;}});
-
-document.addEventListener('click',async e=>{const mvCell=e.target.closest('[data-mvh-field]');if(mvCell){const row=Number(mvCell.dataset.row);const field=mvCell.dataset.mvhField;const src=buildMovementHistoryRows().find(x=>x.rowNumber===row);if(src)startInlineEdit(mvCell,src,field,src[field],{onSave:async({row,field,value,oldValue})=>{await updateHistoryCell('movement','Movement',row,field,value,oldValue);}});return;}const ccCell=e.target.closest('[data-cch-field]');if(ccCell){const row=Number(ccCell.dataset.row);const field=ccCell.dataset.cchField;const src=buildCycleHistoryRows().find(x=>x.rowNumber===row);if(src)startInlineEdit(ccCell,src,field,src[field],{onSave:async({row,field,value,oldValue})=>{await updateHistoryCell('cycle','Cycle Count',row,field,value,oldValue);}});return;}const b=e.target.closest('[data-mvh-action],[data-cch-action]');if(!b)return;try{if(b.dataset.mvhAction){const row=Number(b.dataset.row);const src=buildMovementHistoryRows().find(x=>x.rowNumber===row);if(b.dataset.mvhAction==='delete'){showConfirmModal({title:'Hapus Row Movement',message:'Yakin ingin menghapus row movement ini?',confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{try{await deleteHistoryRow('movement','Movement',row);MOVEMENT_HISTORY_REMOTE.loaded=false;await ensureMovementHistoryLoaded();toast('Movement berhasil dihapus','success');logActivitySafe({action:'DELETE_MOVEMENT',module:'Movement',detail:`[DELETE] Movement\nSKU: ${src?.sku||'-'}\nRow: ${row}`,reference:`rowNumber ${row}`,status:'SUCCESS',metadata:{deletedFrom:'SHEET_ID_INVENTORY',sheetName:'Movement',rowNumber:row}});renderMovementHistory();}catch(err){toast(err?.message||'Aksi gagal','error');}}});return;}renderMovementHistory();}if(b.dataset.cchAction){const row=Number(b.dataset.row);const src=buildCycleHistoryRows().find(x=>x.rowNumber===row);if(b.dataset.cchAction==='delete'){showConfirmModal({title:'Hapus Row Cycle Count',message:'Yakin ingin menghapus row cycle count ini?',confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{try{await deleteHistoryRow('cycle_count','Cycle Count',row);CYCLE_HISTORY_REMOTE.loaded=false;await ensureCycleHistoryLoaded();toast('Cycle count berhasil dihapus','success');logActivitySafe({action:'DELETE_CYCLE_COUNT',module:'Cycle Count',detail:`Delete cycle count row ${row}`,reference:`rowNumber ${row}`,status:'SUCCESS'});renderCycleHistory();}catch(err){toast(err?.message||'Aksi gagal','error');}}});return;}renderCycleHistory();}}catch(err){toast(err?.message||'Aksi gagal','error');}});
-
-
-const ACTIVITY_LOG_STATE={rows:[],error:"",pageSize:10,page:1,filters:{module:"",action:"",user:"",status:""}};
-function currentUserIdentity(){
- const role=user?.id==="developer"?"Mode Development":String(devProfile?.role||"User");
- const name=String(devProfile?.name||devProfile?.username||devProfile?.email||user?.email||"Unknown");
- return {user_id:user?.id||null,user_name:name,role};
-}
 async function logActivitySafe(payload){try{await logActivity({...currentUserIdentity(),...payload});}catch(_){}}
 async function getActivityLogAccessToken(){const devRaw=localStorage.getItem("dev_auth_session");if(devRaw){try{const dev=JSON.parse(devRaw);if(dev?.session?.access_token)return dev.session.access_token;}catch(_err){}}const {data}=await supabase.auth.getSession();return data?.session?.access_token||"";}
 async function fetchActivityLogs(){const off=(ACTIVITY_LOG_STATE.page-1)*ACTIVITY_LOG_STATE.pageSize;const qs=new URLSearchParams({limit:String(ACTIVITY_LOG_STATE.pageSize),offset:String(off)});if(ACTIVITY_LOG_STATE.filters.module)qs.set("module",ACTIVITY_LOG_STATE.filters.module);if(ACTIVITY_LOG_STATE.filters.action)qs.set("action",ACTIVITY_LOG_STATE.filters.action);if(ACTIVITY_LOG_STATE.filters.user)qs.set("user_name",ACTIVITY_LOG_STATE.filters.user);if(ACTIVITY_LOG_STATE.filters.status)qs.set("status",ACTIVITY_LOG_STATE.filters.status);const token=await getActivityLogAccessToken();const headers=token?{Authorization:`Bearer ${token}`}:{ };const res=await fetch(`/api/activity-log?${qs.toString()}`,{headers});const data=await res.json();if(!res.ok||!data?.success)throw new Error(data?.message||"Gagal memuat activity log");return Array.isArray(data.data)?data.data:[];}
