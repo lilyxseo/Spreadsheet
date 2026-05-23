@@ -895,6 +895,7 @@ if(!hasValidData(preloadedData))return;
 console.log("[initAppData] refresh dari window.mainDataPromise setelah cache");
 applyData(preloadedData,{deferRender:true});
 await saveCache(preloadedData);
+rerenderCurrentPage();
 }).catch(err=>console.warn("Preload utama gagal setelah cache",err));
 }
 return;
@@ -2101,8 +2102,13 @@ function updateAbcSummaryAndBodyOnly(){
 const dataRows=ABC_STATE.rows||[];const isAllPageSize=ABC_STATE.pageSize===-1;const pageSize=isAllPageSize?Math.max(dataRows.length,1):ABC_STATE.pageSize;const start=isAllPageSize?0:(ABC_STATE.page-1)*pageSize;const pageRows=isAllPageSize?dataRows:dataRows.slice(start,start+pageSize);
 const selectedInPage=pageRows.filter(r=>ABC_STATE.selectedRows.has(r.sku)).length;
 const selAllEl=document.getElementById("abcSelectAll");
-if(selAllEl)selAllEl.checked=selectedInPage>0&&selectedInPage===pageRows.length;
+if(selAllEl){
+selAllEl.checked=selectedInPage>0&&selectedInPage===pageRows.length;
+selAllEl.indeterminate=selectedInPage>0&&selectedInPage<pageRows.length;
+selAllEl.onchange=e=>{const checked=!!e.target.checked;pageRows.forEach(r=>{if(checked)ABC_STATE.selectedRows.add(r.sku);else ABC_STATE.selectedRows.delete(r.sku);});updateAbcSummaryAndBodyOnly();};
+}
 const tbody=document.getElementById("abcTbody");if(tbody)tbody.innerHTML=pageRows.map(r=>`<tr><td><input type='checkbox' class='balikan-check' data-abc-row='${encAttr(r.sku)}' ${ABC_STATE.selectedRows.has(r.sku)?"checked":""}></td><td>${esc(r.sku)}</td><td><button class='btn-link' data-abc-sku='${encAttr(r.sku)}'>${esc(r.namaBarang)}</button></td><td>${r.qtyKeluar}</td><td>${(r.kontribusi*100).toFixed(2)}%</td><td>${(r.cum*100).toFixed(2)}%</td><td>${r.abc}</td><td>${r.stokSaatIni}</td><td>${esc(r.priority)}</td><td>${esc(r.rekom)}</td></tr>`).join("")||"<tr><td colspan='10'><div class='state'>Tidak ada data.</div></td></tr>";
+tbody?.querySelectorAll("[data-abc-row]").forEach(el=>{el.onchange=e=>{const sku=String(e.target?.dataset?.abcRow||"");if(!sku)return;if(e.target.checked)ABC_STATE.selectedRows.add(sku);else ABC_STATE.selectedRows.delete(sku);updateAbcSummaryAndBodyOnly();};});
 const pager=document.getElementById("abcPager");const totalPage=isAllPageSize?1:Math.max(1,Math.ceil(dataRows.length/pageSize));if(pager)pager.innerHTML=`<span>Page ${isAllPageSize?1:ABC_STATE.page}/${totalPage}</span><div class='row'><button id='abcPrev' class='btn-ghost' ${isAllPageSize?"disabled":""}>Prev</button><button id='abcNext' class='btn-ghost' ${isAllPageSize?"disabled":""}>Next</button></div>`;
 document.getElementById("abcPrev")?.addEventListener("click",()=>{if(isAllPageSize)return;ABC_STATE.page=Math.max(1,ABC_STATE.page-1);updateAbcSummaryAndBodyOnly();});
 document.getElementById("abcNext")?.addEventListener("click",()=>{if(isAllPageSize)return;ABC_STATE.page=Math.min(totalPage,ABC_STATE.page+1);updateAbcSummaryAndBodyOnly();});
