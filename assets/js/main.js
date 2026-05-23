@@ -65,6 +65,7 @@ window.balikanSearchKeyword="";
 let authChecking=true;
 let user=null;
 let devProfile=null;
+let runtimeConfig={previewBypassLogin:false};
 window.mainDataCache=window.mainDataCache||null;
 window.mainDataPromise=window.mainDataPromise||null;
 let appInitialized=false;
@@ -140,6 +141,21 @@ const appRoot=document.getElementById("appRoot");
 if(!appRoot)return;
 appRoot.classList.remove("is-auth-checking","is-logged-out","is-logged-in");
 appRoot.classList.add(state);
+}
+
+function isPreviewBypassLoginEnabled(){
+return runtimeConfig.previewBypassLogin===true;
+}
+
+async function loadRuntimeConfig(){
+try{
+const {res,data}=await fetchJsonSafe('/api/runtime-config',{cache:'no-store'});
+if(!res.ok||!data?.success)throw new Error(data?.message||'Runtime config unavailable');
+runtimeConfig={previewBypassLogin:data.previewBypassLogin===true};
+}catch(err){
+runtimeConfig={previewBypassLogin:false};
+console.warn('Gagal load runtime config, fallback login normal',err?.message||err);
+}
 }
 
 const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
@@ -403,8 +419,13 @@ window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 applyTheme();
 renderAuthState();
+await loadRuntimeConfig();
 queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload awal gagal",err));});
 try{
+if(isPreviewBypassLoginEnabled()){
+user={id:'preview-bypass',email:'preview@local'};
+devProfile={full_name:'Preview User',role:'Preview',username:'preview',email:'preview@local'};
+}else{
 const session=await ensureAuthSession();
 if(session){
 if(session?.isDeveloper){
@@ -417,6 +438,7 @@ user=userData?.user||null;
 }
 }else{
 user=null;
+}
 }
 }catch(err){
 console.error("Auth session check failed",err);
@@ -517,6 +539,7 @@ function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
 function showLoginView(){
+if(isPreviewBypassLoginEnabled()){routeFromPath(location.pathname);return;}
 authChecking=false;
 user=null;
 const loginForm=document.getElementById("loginForm");
@@ -531,7 +554,12 @@ renderAuthState();
 bindLoginView();
 }
 
-function routeFromPath(path){if(!user)return showLoginView();if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function routeFromPath(path){
+if(!user){
+if(isPreviewBypassLoginEnabled()){history.replaceState({},"","/");return showPage("dashboard");}
+return showLoginView();
+}
+if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');if(!activityLogMenu)return;activityLogMenu.style.display=isDeveloperUser()?"":"none";}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
