@@ -8,13 +8,18 @@ module.exports = async (req, res) => {
     }
 
     const env = process.env || {};
-    const previewBypassLoginRaw = String(env.PREVIEW_BYPASS_LOGIN || "").toLowerCase() === "true";
+    const parseTrue = (value) => {
+      const normalized = String(value ?? "").trim().toLowerCase();
+      return normalized === "true" || normalized === "1" || normalized === "yes";
+    };
+    const previewBypassLoginRaw = parseTrue(
+      env.PREVIEW_BYPASS_LOGIN ?? env.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env.VITE_PREVIEW_BYPASS_LOGIN
+    );
     const context = String(env.CONTEXT || env.NETLIFY_CONTEXT || env.NODE_ENV || "").toLowerCase();
-    const isProduction = context === "production";
     const environment = context || "unknown";
 
     return res.end(JSON.stringify({
-      previewBypassLogin: previewBypassLoginRaw && !isProduction,
+      previewBypassLogin: previewBypassLoginRaw,
       environment
     }));
   } catch (error) {
