@@ -2211,7 +2211,7 @@ function readAbcCache(){const raw=localStorage.getItem(ABC_ANALYSIS_CACHE_KEY);r
 function scheduleAbcBackgroundCompute(){
 if(ABC_STATE.bgComputing)return;
 ABC_STATE.bgComputing=true;updateAbcLoadingUi(true);
-setTimeout(()=>{const fresh=buildAbcAnalysis();const sig=getAbcRenderSignature(fresh);const same=sig===ABC_STATE.lastSignature;ABC_STATE.bgComputing=false;updateAbcLoadingUi(false);if(same)return;syncAbcStateFromData(fresh);updateAbcSummaryAndBodyOnly();},0);
+setTimeout(()=>{const fresh=buildAbcAnalysis();const sig=getAbcRenderSignature(fresh);const same=sig===ABC_STATE.lastSignature;ABC_STATE.bgComputing=false;updateAbcLoadingUi(false);if(same){updateAbcSummaryAndBodyOnly();return;}syncAbcStateFromData(fresh);updateAbcSummaryAndBodyOnly();},0);
 }
 function syncAbcStateFromData(data){
 ABC_STATE.rows=data.rows||[];ABC_STATE.top10=data.top10||[];ABC_STATE.toOptions=data.toOptions||[];ABC_STATE.filteredCount=data.filteredCount||0;ABC_STATE.sourceHasData=!!data.sourceHasData;ABC_STATE.lastSignature=getAbcRenderSignature(data);
