@@ -143,26 +143,41 @@ appRoot.classList.remove("is-auth-checking","is-logged-out","is-logged-in");
 appRoot.classList.add(state);
 }
 
+function isTruthyFlag(value){
+const normalized=String(value??'').trim().toLowerCase();
+return value===true||normalized==='true'||normalized==='1'||normalized==='yes';
+}
+
 function isPreviewBypassLoginEnabled(){
-return runtimeConfig.previewBypassLogin===true;
+return isTruthyFlag(runtimeConfig.previewBypassLogin);
 }
 
 async function loadRuntimeConfig(){
-try{
 const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];
+const runtimeDebug=[];
 let loaded=null;
 for(const url of endpoints){
-const {res,data}=await fetchJsonSafe(url,{cache:'no-store',silentInvalidJson:true});
+try{
+const res=await fetch(url,{cache:'no-store'});
+const raw=await res.text();
+const data=safeJsonParse(raw,null,false);
+runtimeDebug.push({url,status:res.status,ok:res.ok,isJson:data!==null,previewBypassLogin:data?.previewBypassLogin??null});
 if(!res.ok||!data||typeof data!=='object')continue;
 loaded=data;
 break;
-}
-if(!loaded)throw new Error('Runtime config unavailable');
-runtimeConfig={previewBypassLogin:loaded.previewBypassLogin===true};
 }catch(err){
-runtimeConfig={previewBypassLogin:false};
-console.warn('Gagal load runtime config, fallback login normal',err?.message||err);
+runtimeDebug.push({url,error:String(err?.message||err)});
 }
+}
+window.__runtimeConfigDebug={checkedAt:new Date().toISOString(),runtimeDebug};
+console.info('[runtime-config] debug',window.__runtimeConfigDebug);
+if(!loaded){
+runtimeConfig={previewBypassLogin:false};
+console.warn('Runtime config unavailable, fallback login normal');
+return;
+}
+runtimeConfig={previewBypassLogin:isTruthyFlag(loaded.previewBypassLogin)};
+console.info('[runtime-config] active config',runtimeConfig);
 }
 
 const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
@@ -432,7 +447,7 @@ queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload aw
 try{
 if(isPreviewBypassLoginEnabled()){
 user={id:'preview-bypass',email:'preview@local'};
-devProfile={full_name:'Preview User',role:'Preview',username:'preview',email:'preview@local'};
+devProfile={full_name:'Developer',role:'Mode Development',username:'developer',email:'preview@local'};
 }else{
 const session=await ensureAuthSession();
 if(session){
