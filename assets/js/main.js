@@ -229,6 +229,10 @@ if(HAS_INDEXED_DB)["barangMasukCache","barangKeluarCache","inventoryCache","move
 let preloadPromise=null;
 let isInitialDataLoaded=false;
 let hasPreloadStarted=false;
+let isPreloadStarted=false;
+let isPreloadFinished=false;
+let isUserLoggedIn=false;
+let isInitialDataApplied=false;
 let isRendering=false;
 let hasInitializedDataFlow=false;
 let hasRenderedInitial=false;
@@ -236,13 +240,19 @@ let lastRenderedData="";
 const CACHE_FRESH_TTL_MS=3*60*1000;
 
 function startBackgroundPreload(){
-if(!isInitialDataLoaded)return Promise.resolve(null);
-if(hasPreloadStarted&&preloadPromise)return preloadPromise;
+if(isPreloadStarted&&preloadPromise)return preloadPromise;
 if(preloadPromise)return preloadPromise;
+isPreloadStarted=true;
 hasPreloadStarted=true;
-preloadPromise=hydrateAllDataOnInit({allowBeforeLogin:true,useCacheFirst:true}).catch(err=>{
+isPreloadFinished=false;
+preloadPromise=hydrateAllDataOnInit({allowBeforeLogin:true,useCacheFirst:true}).then((result)=>{
+isPreloadFinished=true;
+return result;
+}).catch(err=>{
 preloadPromise=null;
 hasPreloadStarted=false;
+isPreloadStarted=false;
+isPreloadFinished=false;
 throw err;
 });
 return preloadPromise;
@@ -393,6 +403,7 @@ window.addEventListener("DOMContentLoaded",async ()=>{
 authChecking=true;
 applyTheme();
 renderAuthState();
+queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload awal gagal",err));});
 try{
 const session=await ensureAuthSession();
 if(session){
@@ -414,6 +425,7 @@ user=null;
 authChecking=false;
 renderAuthState();
 }
+isUserLoggedIn=!!user;
 if(!user){bindLoginView();if(window.lucide)lucide.createIcons();return;}
 const profile=devProfile||await fetchUserProfile(user.id);
 console.log("Profile public.users:",profile);
@@ -447,7 +459,7 @@ const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
 await loadBalikanSheets();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"Warga KST"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"Warga KST",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
@@ -917,6 +929,7 @@ applyData(window.APP_STATE.inventory,{fromCache:true,deferRender:true});
 console.log("CACHE LOAD KARTU STOCK",(DATA["Kartu Stock"]||cachedInventory||[]).length);
 console.log("CACHE LOAD RPL",(DATA["RPL"]||[]).length);
 console.log("CACHE LOAD BULKY",(DATA["BULKY"]||[]).length);
+isInitialDataApplied=true;
 isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
@@ -934,6 +947,7 @@ return;
 if(hasValidData(window.mainDataCache)){
 console.log("[initAppData] data dari window.mainDataCache");
 await hydrateAllDataOnInit({force:false});
+isInitialDataApplied=true;
 isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
@@ -943,11 +957,29 @@ if(!hasPreloadStarted&&!isCacheFresh())queueMicrotask(()=>startBackgroundPreload
 return;
 }
 
+
+if(preloadPromise){
+try{
+await preloadPromise;
+if(window.APP_STATE?.inventory||window.APP_STATE?.barangMasuk?.length||window.APP_STATE?.barangKeluar?.length){
+isInitialDataApplied=true;
+isInitialDataLoaded=true;
+hideInitialLoader();
+setMainContentLoading(false);
+rerenderCurrentPage({fromCache:true});
+startAutoSync();
+return;
+}
+}catch(err){
+console.warn("Menunggu preload gagal, lanjut fallback",err);
+}
+}
 const cachedData=await loadCache();
 console.log("CACHE DATA", cachedData);
 if(hasValidData(cachedData)){
 window.mainDataCache=cachedData;
 await hydrateAllDataOnInit({force:false});
+isInitialDataApplied=true;
 isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
@@ -972,6 +1004,7 @@ console.log("[initAppData] data dari window.mainDataPromise");
 if(hasValidData(preloadedData)){
 window.mainDataCache=preloadedData;
 await hydrateAllDataOnInit({force:false});
+isInitialDataApplied=true;
 isInitialDataLoaded=true;
 hideInitialLoader();
 setMainContentLoading(false);
@@ -998,6 +1031,7 @@ startAutoSync();
 }
 async function refreshDataInBackground(){
 if(!isInitialDataLoaded)return;
+if(isPreloadStarted&&!isPreloadFinished)return;
 if(isCacheFresh())return;
 console.log("BACKGROUND REFRESH START");
 try{
