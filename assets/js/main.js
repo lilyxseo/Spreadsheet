@@ -149,9 +149,16 @@ return runtimeConfig.previewBypassLogin===true;
 
 async function loadRuntimeConfig(){
 try{
-const {res,data}=await fetchJsonSafe('/api/runtime-config',{cache:'no-store'});
-if(!res.ok||!data?.success)throw new Error(data?.message||'Runtime config unavailable');
-runtimeConfig={previewBypassLogin:data.previewBypassLogin===true};
+const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];
+let loaded=null;
+for(const url of endpoints){
+const {res,data}=await fetchJsonSafe(url,{cache:'no-store',silentInvalidJson:true});
+if(!res.ok||!data||typeof data!=='object')continue;
+loaded=data;
+break;
+}
+if(!loaded)throw new Error('Runtime config unavailable');
+runtimeConfig={previewBypassLogin:loaded.previewBypassLogin===true};
 }catch(err){
 runtimeConfig={previewBypassLogin:false};
 console.warn('Gagal load runtime config, fallback login normal',err?.message||err);
@@ -206,12 +213,12 @@ if(Array.isArray(MODULE_CACHE_MEMORY[key]))return MODULE_CACHE_MEMORY[key];
 if(isLargeCacheKey(key))return [];
 try{return JSON.parse(localStorage.getItem(key)||"[]");}catch(_err){return [];}
 }
-function safeJsonParse(value,fallback=null){
+function safeJsonParse(value,fallback=null,logError=true){
 try{
 if(!value||typeof value!=="string")return fallback;
 return JSON.parse(value);
 }catch(_err){
-console.warn("Invalid JSON cache/response:",value);
+if(logError)console.warn("Invalid JSON cache/response:",value);
 return fallback;
 }
 }
@@ -232,9 +239,10 @@ return [];
 async function fetchJsonSafe(url,options={}){
 const res=await fetch(url,options);
 const text=await res.text();
-const data=safeJsonParse(text,null);
+const shouldLogInvalidJson=options?.silentInvalidJson!==true;
+const data=safeJsonParse(text,null,shouldLogInvalidJson);
 if(data===null){
-console.error("API returned non JSON:",url,text);
+if(shouldLogInvalidJson)console.error("API returned non JSON:",url,text);
 return {res,data:{success:false,data:[],message:"Response API bukan JSON"}};
 }
 return {res,data};
