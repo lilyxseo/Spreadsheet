@@ -143,26 +143,34 @@ appRoot.classList.remove("is-auth-checking","is-logged-out","is-logged-in");
 appRoot.classList.add(state);
 }
 
+function isTruthyFlag(value){
+const normalized=String(value??'').trim().toLowerCase();
+return value===true||normalized==='true'||normalized==='1'||normalized==='yes';
+}
+
 function isPreviewBypassLoginEnabled(){
-return runtimeConfig.previewBypassLogin===true;
+return isTruthyFlag(runtimeConfig.previewBypassLogin);
 }
 
 async function loadRuntimeConfig(){
-try{
 const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];
 let loaded=null;
 for(const url of endpoints){
+try{
 const {res,data}=await fetchJsonSafe(url,{cache:'no-store',silentInvalidJson:true});
 if(!res.ok||!data||typeof data!=='object')continue;
 loaded=data;
 break;
-}
-if(!loaded)throw new Error('Runtime config unavailable');
-runtimeConfig={previewBypassLogin:loaded.previewBypassLogin===true};
 }catch(err){
-runtimeConfig={previewBypassLogin:false};
-console.warn('Gagal load runtime config, fallback login normal',err?.message||err);
+console.warn('Runtime config endpoint gagal diakses:',url,err?.message||err);
 }
+}
+if(!loaded){
+runtimeConfig={previewBypassLogin:false};
+console.warn('Runtime config unavailable, fallback login normal');
+return;
+}
+runtimeConfig={previewBypassLogin:isTruthyFlag(loaded.previewBypassLogin)};
 }
 
 const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
