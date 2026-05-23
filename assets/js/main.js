@@ -1351,7 +1351,31 @@ const qty=parseNumber(getVal(row,["qty"]));
 const tanggal=getVal(row,["tanggal","date","created at","waktu"])||"-";
 return{sku,nama,qty,tanggal,type,sheet,row};
 }
-const STATS_STATE={page:1,pageSize:25,searchInputValue:"",debouncedSearchValue:"",sort:"absDesc",isFiltering:false,_normalizedRows:null,_debounceTimer:null,_idleTimer:null};
+const STATS_STATE={page:1,pageSize:25,searchInputValue:"",debouncedSearchValue:"",sort:"absDesc",isFiltering:false,_normalizedRows:null,_debounceTimer:null,_idleTimer:null,_computeToken:0,_sourceHash:"",_lastRenderHash:"",_pendingRaf:0};
+const STATS_CACHE_KEY="statsAccuracyCacheV1";
+
+function getStatsSourceRows(){return [...(DATA["RPL"]||[]),...(DATA["BULKY"]||[])].filter(r=>clean(getVal(r,["sku"])));}
+function getStatsSourceHash(rows){return `${rows.length}|${rows.map(r=>`${getVal(r,["sku"])}|${getVal(r,["lokasi"])}|${getVal(r,["selisih","selisih kartu stok","selisih kartu stock","selisih kartu stok vs iseller","selisih kartu stok vs netsuite"])}|${getVal(r,["nama barang","nama"])}|${getVal(r,["stok bulky"])}|${getVal(r,["stok retail"])}|${getVal(r,["stok global","kartu stok","stok kartu","stok kartu stok"])}|${getVal(r,["status"])}|${getVal(r,["ns dan iseller","iseller vs netsuite"])}`).join("~")}`;}
+function getStatsCache(){try{const raw=localStorage.getItem(STATS_CACHE_KEY);if(!raw)return null;const parsed=JSON.parse(raw);return parsed&&Array.isArray(parsed.normalizedRows)?parsed:null;}catch(_){return null;}}
+function saveStatsCache(payload){try{localStorage.setItem(STATS_CACHE_KEY,JSON.stringify(payload));}catch(_){}}
+function computeStatsFromNormalized(normRows){const totalSku=normRows.length,skuAkurat=normRows.filter(r=>r.selisih===0).length,skuTidakAkurat=totalSku-skuAkurat,akurasi=totalSku?((skuAkurat/totalSku)*100):0,selisihTotal=normRows.reduce((n,r)=>n+r.selisih,0);return {totalSku,skuAkurat,skuTidakAkurat,akurasi,selisihTotal};}
+function renderStatsSummaryFromComputed(summary){statsCards.innerHTML=[["Total SKU",summary.totalSku,""],["Akurat (%)",`${summary.akurasi.toFixed(2)}%`,"ok"],["Tidak Akurat",summary.skuTidakAkurat,"err"],["Selisih Total",summary.selisihTotal,"warn"]].map(c=>`<div class='metric ${c[2]||""}'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");}
+function hashNormalizedRows(rows){return JSON.stringify(rows.map(r=>[r.sku,r.nama,r.selisih,r.lokasiText]));}
+function buildNormalizedStatsRowsAsync(sourceRows,token){return new Promise(resolve=>{const bySku=new Map();let i=0;const step=()=>{if(token!==STATS_STATE._computeToken)return resolve(null);const end=Math.min(i+400,sourceRows.length);for(;i<end;i++){const r=sourceRows[i];const sel=parseNumber(getVal(r,["selisih","selisih kartu stok","selisih kartu stock","selisih kartu stok vs iseller","selisih kartu stok vs netsuite"]));const lokasi=getVal(r,["lokasi"])||"-";const sku=getVal(r,["sku"])||"-";const nama=getVal(r,["nama barang","nama"])||"-";const key=clean(sku);if(!key)continue;if(!bySku.has(key))bySku.set(key,{sku,nama,lokasiSet:new Set(),selisih:0,selisihAbs:0});const it=bySku.get(key);if(it.nama==="-"&&nama!=="-")it.nama=nama;if(lokasi&&lokasi!=="-")it.lokasiSet.add(String(lokasi));it.selisih+=Number(sel)||0;it.selisihAbs=Math.abs(it.selisih);}if(i<sourceRows.length){setTimeout(step,0);return;}const aggregated=[...bySku.values()].map(r=>({...r,lokasi:[...r.lokasiSet],lokasiText:[...r.lokasiSet].length?[...r.lokasiSet].join(", "):"-",_searchText:clean(`${r.sku} ${r.nama} ${[...r.lokasiSet].join(", ")}`)}));resolve(aggregated);};setTimeout(step,0);});}
+function renderStatsLayoutSkeleton(){statsChart.innerHTML=`<div class='mv-toolbar stats-toolbar'>
+<label class='stats-search-field'><span>Cari SKU / Nama / Lokasi</span><input id='statsSearch' placeholder='Ketik kata kunci...' value='${esc(STATS_STATE.searchInputValue)}'></label>
+<select id='statsSort' aria-label='Urutkan data'><option value='absDesc'>Selisih terbesar</option><option value='absAsc'>Selisih terkecil</option><option value='sku'>SKU A-Z</option></select>
+<select id='statsSize' aria-label='Jumlah data per halaman'><option value='25'>25 / halaman</option><option value='50'>50 / halaman</option><option value='100'>100 / halaman</option></select><small id='statsFilterState' class='stats-filtering-indicator'>Memuat data...</small></div>
+<div class='stats-table-shell'><div class='table-wrap table-wrap-full stats-table-wrap'><table><thead><tr><th>LOKASI</th><th>SKU</th><th>NAMA BARANG</th><th>SELISIH</th><th>AKSI</th></tr></thead><tbody id='statsTbody'><tr><td colspan='5'><div class='state'>Memuat akurasi stok...</div></td></tr></tbody></table></div></div>
+<div class='mv-pagination stats-pagination'><span id='statsPagingText'>Menampilkan 0 dari 0 data</span><div class='row'><button class='btn-ghost' id='statsPrev'>Prev</button><button class='btn-ghost' id='statsNext'>Next</button></div></div>`;
+document.getElementById("statsSearch")?.addEventListener("input",e=>{STATS_STATE.searchInputValue=e.target.value;clearTimeout(STATS_STATE._debounceTimer);STATS_STATE._debounceTimer=setTimeout(scheduleStatsFilter,350);renderStatsFilteringState();});
+document.getElementById("statsSort")&&(document.getElementById("statsSort").value=STATS_STATE.sort);
+document.getElementById("statsSize")&&(document.getElementById("statsSize").value=String(STATS_STATE.pageSize));
+document.getElementById("statsSort")?.addEventListener("change",e=>{STATS_STATE.sort=e.target.value;updateStatsTableOnly();});
+document.getElementById("statsSize")?.addEventListener("change",e=>{STATS_STATE.pageSize=Number(e.target.value)||25;STATS_STATE.page=1;updateStatsTableOnly();});
+document.getElementById("statsPrev")?.addEventListener("click",()=>{STATS_STATE.page=Math.max(1,STATS_STATE.page-1);updateStatsTableOnly();});
+document.getElementById("statsNext")?.addEventListener("click",()=>{const maxPage=Math.max(1,Math.ceil(getFilteredStatsRows().length/STATS_STATE.pageSize));STATS_STATE.page=Math.min(maxPage,STATS_STATE.page+1);updateStatsTableOnly();});}
+
 function renderStatsFilteringState(){const el=document.getElementById("statsFilterState");if(el)el.textContent=STATS_STATE.isFiltering?"Memfilter...":"";}
 function scheduleStatsFilter(){
   STATS_STATE.isFiltering=true;renderStatsFilteringState();
@@ -1374,29 +1398,16 @@ function updateStatsTableOnly(){
   if(paging)paging.textContent=`Menampilkan ${(tableRows.length?((STATS_STATE.page-1)*STATS_STATE.pageSize+1):0)}–${Math.min(STATS_STATE.page*STATS_STATE.pageSize,tableRows.length)} dari ${tableRows.length} data`;
 }
 function updateStats(){
-const rows=[...(DATA["RPL"]||[]),...(DATA["BULKY"]||[])].filter(r=>clean(getVal(r,["sku"])));
-if(!rows.length){statsCards.innerHTML="";statsChart.innerHTML="<div class='state'>Sheet RPL/BULKY belum ada data.</div>";return;}
-const norm=rows.map(r=>{const sel=parseNumber(getVal(r,["selisih","selisih kartu stok","selisih kartu stock","selisih kartu stok vs iseller","selisih kartu stok vs netsuite"]));const iseller=parseNumber(getVal(r,["stok iseller","iseller"]));const netsuite=parseNumber(getVal(r,["stok netsuite","netsuite"]));return{lokasi:getVal(r,["lokasi"])||"-",sku:getVal(r,["sku"])||"-",nama:getVal(r,["nama barang","nama"])||"-",stokBulky:parseNumber(getVal(r,["stok bulky"])),stokRetail:parseNumber(getVal(r,["stok retail"])),stokGlobal:parseNumber(getVal(r,["stok global","kartu stok","stok kartu","stok kartu stok"])),iseller,netsuite,selisih:sel,status:getVal(r,["status"])||"-",selisihAbs:Math.abs(sel),nsIseller:getVal(r,["ns dan iseller","iseller vs netsuite"])||"-"};});
-const totalSku=norm.length,skuAkurat=norm.filter(r=>r.selisih===0).length,skuTidakAkurat=totalSku-skuAkurat,akurasi=totalSku?((skuAkurat/totalSku)*100):0,selisihTotal=norm.reduce((n,r)=>n+r.selisih,0);
-statsCards.innerHTML=[["Total SKU",totalSku,""],["Akurat (%)",`${akurasi.toFixed(2)}%`,"ok"],["Tidak Akurat",skuTidakAkurat,"err"],["Selisih Total",selisihTotal,"warn"]].map(c=>`<div class='metric ${c[2]||""}'><div class='k'>${c[0]}</div><div class='v'>${esc(c[1])}</div></div>`).join("");
-const bySku=new Map();
-norm.forEach(r=>{const key=clean(r.sku);if(!key)return;if(!bySku.has(key))bySku.set(key,{sku:r.sku,nama:r.nama,lokasiSet:new Set(),selisih:0,selisihAbs:0});const it=bySku.get(key);if(it.nama==="-"&&r.nama!=="-")it.nama=r.nama;if(r.lokasi&&r.lokasi!=="-")it.lokasiSet.add(String(r.lokasi));it.selisih+=Number(r.selisih)||0;it.selisihAbs=Math.abs(it.selisih);});
-const aggregated=[...bySku.values()].map(r=>({...r,lokasi:[...r.lokasiSet],lokasiText:[...r.lokasiSet].length?[...r.lokasiSet].join(", "):"-"}));
-STATS_STATE._normalizedRows=aggregated.map(r=>({...r,_searchText:clean(`${r.sku} ${r.nama} ${r.lokasiText}`)}));
-statsChart.innerHTML=`<div class='mv-toolbar stats-toolbar'>
-<label class='stats-search-field'><span>Cari SKU / Nama / Lokasi</span><input id='statsSearch' placeholder='Ketik kata kunci...' value='${esc(STATS_STATE.searchInputValue)}'></label>
-<select id='statsSort' aria-label='Urutkan data'><option value='absDesc'>Selisih terbesar</option><option value='absAsc'>Selisih terkecil</option><option value='sku'>SKU A-Z</option></select>
-<select id='statsSize' aria-label='Jumlah data per halaman'><option value='25'>25 / halaman</option><option value='50'>50 / halaman</option><option value='100'>100 / halaman</option></select><small id='statsFilterState' class='stats-filtering-indicator'></small></div>
-<div class='stats-table-shell'><div class='table-wrap table-wrap-full stats-table-wrap'><table><thead><tr><th>LOKASI</th><th>SKU</th><th>NAMA BARANG</th><th>SELISIH</th><th>AKSI</th></tr></thead><tbody id='statsTbody'></tbody></table></div></div>
-<div class='mv-pagination stats-pagination'><span id='statsPagingText'></span><div class='row'><button class='btn-ghost' id='statsPrev'>Prev</button><button class='btn-ghost' id='statsNext'>Next</button></div></div>`;
-document.getElementById("statsSearch")?.addEventListener("input",e=>{STATS_STATE.searchInputValue=e.target.value;clearTimeout(STATS_STATE._debounceTimer);STATS_STATE._debounceTimer=setTimeout(scheduleStatsFilter,350);renderStatsFilteringState();});
-document.getElementById("statsSort")&&(document.getElementById("statsSort").value=STATS_STATE.sort);
-document.getElementById("statsSize")&&(document.getElementById("statsSize").value=String(STATS_STATE.pageSize));
-document.getElementById("statsSort")?.addEventListener("change",e=>{STATS_STATE.sort=e.target.value;updateStatsTableOnly();});
-document.getElementById("statsSize")?.addEventListener("change",e=>{STATS_STATE.pageSize=Number(e.target.value)||25;STATS_STATE.page=1;updateStatsTableOnly();});
-document.getElementById("statsPrev")?.addEventListener("click",()=>{STATS_STATE.page=Math.max(1,STATS_STATE.page-1);updateStatsTableOnly();});
-document.getElementById("statsNext")?.addEventListener("click",()=>{const maxPage=Math.max(1,Math.ceil(getFilteredStatsRows().length/STATS_STATE.pageSize));STATS_STATE.page=Math.min(maxPage,STATS_STATE.page+1);updateStatsTableOnly();});
-updateStatsTableOnly();renderStatsFilteringState();
+const rows=getStatsSourceRows();
+renderStatsLayoutSkeleton();
+if(!rows.length){statsCards.innerHTML="";const tb=document.getElementById("statsTbody");if(tb)tb.innerHTML="<tr><td colspan='5'><div class='state'>Sheet RPL/BULKY belum ada data.</div></td></tr>";const pg=document.getElementById("statsPagingText");if(pg)pg.textContent="Menampilkan 0 dari 0 data";return;}
+const sourceHash=getStatsSourceHash(rows);STATS_STATE._sourceHash=sourceHash;
+const cache=getStatsCache();
+if(cache&&cache.sourceHash===sourceHash){STATS_STATE._normalizedRows=cache.normalizedRows;renderStatsSummaryFromComputed(computeStatsFromNormalized(cache.normalizedRows));updateStatsTableOnly();renderStatsFilteringState();}
+else if(cache&&Array.isArray(cache.normalizedRows)&&cache.normalizedRows.length){STATS_STATE._normalizedRows=cache.normalizedRows;renderStatsSummaryFromComputed(computeStatsFromNormalized(cache.normalizedRows));updateStatsTableOnly();const fs=document.getElementById("statsFilterState");if(fs)fs.textContent="Menampilkan cache, sinkronisasi data terbaru...";}
+else{statsCards.innerHTML=[1,2,3,4].map(()=>"<div class='metric'><div class='k'>...</div><div class='v'>...</div></div>").join("");}
+const token=++STATS_STATE._computeToken;
+buildNormalizedStatsRowsAsync(rows,token).then(latest=>{if(!latest||token!==STATS_STATE._computeToken)return;const newHash=hashNormalizedRows(latest);if(newHash===STATS_STATE._lastRenderHash){const fs=document.getElementById("statsFilterState");if(fs)fs.textContent="";return;}STATS_STATE._normalizedRows=latest;STATS_STATE._lastRenderHash=newHash;renderStatsSummaryFromComputed(computeStatsFromNormalized(latest));updateStatsTableOnly();renderStatsFilteringState();saveStatsCache({sourceHash,normalizedRows:latest,cachedAt:Date.now()});});
 }
 function normalizeDateKey(raw){
   const s=String(raw||"").trim();
