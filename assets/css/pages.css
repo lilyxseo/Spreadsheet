@@ -1189,8 +1189,30 @@ body.light #page-abc-analisis .balikan-check{
 #page-balikan-store .editable-cell{cursor:pointer}
 #page-balikan-store .editable-cell:hover{background:var(--hover-bg)}
 #page-balikan-store .inline-edit-input{width:100%;min-width:90px;padding:6px 8px;border:1px solid var(--accent-color);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font-size:13px}
-#page-balikan-store .balikan-row-highlight{
+#page-balikan-store .balikan-table tbody tr{
+  transition:background-color .32s ease, box-shadow .32s ease, border-left-color .32s ease;
+  border-left:4px solid transparent;
+}
+#page-balikan-store .balikan-row-highlight-static{
   background:color-mix(in srgb, var(--success-color) 14%, transparent);
+}
+#page-balikan-store .balikan-row-highlight-active{
+  background:color-mix(in srgb, #22c55e 18%, var(--panel) 82%);
+  border-left-color:#16a34a;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, #16a34a 28%, transparent);
+}
+#page-balikan-store .balikan-row-highlight-fading{
+  background:color-mix(in srgb, #22c55e 8%, var(--panel) 92%);
+  border-left-color:color-mix(in srgb, #16a34a 45%, transparent);
+}
+body.dark #page-balikan-store .balikan-row-highlight-active{
+  background:color-mix(in srgb, #38bdf8 22%, var(--panel) 78%);
+  border-left-color:#38bdf8;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, #38bdf8 42%, transparent);
+}
+body.dark #page-balikan-store .balikan-row-highlight-fading{
+  background:color-mix(in srgb, #38bdf8 10%, var(--panel) 90%);
+  border-left-color:color-mix(in srgb, #38bdf8 52%, transparent);
 }
 @media (max-width: 768px){
   #page-balikan-store .balikan-table-wrapper{
