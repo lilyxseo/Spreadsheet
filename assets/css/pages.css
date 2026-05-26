@@ -1165,6 +1165,33 @@ body.light #page-abc-analisis .balikan-check{
   text-align:center !important;
   vertical-align:middle !important;
   width:80px;
+  min-width:80px;
+  position:sticky;
+  left:0;
+  z-index:8;
+  background:var(--card-bg) !important;
+}
+#page-balikan-store .balikan-table thead .col-check{
+  z-index:10;
+  background:var(--panel-soft) !important;
+}
+#page-balikan-store .balikan-table tbody .col-check{
+  background:var(--card-bg) !important;
+}
+#page-balikan-store .balikan-row-highlight-static .col-check{
+  background:color-mix(in srgb, var(--success-color) 14%, var(--card-bg)) !important;
+}
+#page-balikan-store .balikan-row-highlight-active .col-check{
+  background:color-mix(in srgb, #22c55e 18%, var(--panel) 82%) !important;
+}
+#page-balikan-store .balikan-row-highlight-fading .col-check{
+  background:color-mix(in srgb, #22c55e 8%, var(--panel) 92%) !important;
+}
+body.dark #page-balikan-store .balikan-row-highlight-active .col-check{
+  background:color-mix(in srgb, #38bdf8 22%, var(--panel) 78%) !important;
+}
+body.dark #page-balikan-store .balikan-row-highlight-fading .col-check{
+  background:color-mix(in srgb, #38bdf8 10%, var(--panel) 90%) !important;
 }
 #page-balikan-store .balikan-controls{
   display:flex;
