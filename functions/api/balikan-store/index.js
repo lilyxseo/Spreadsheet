@@ -20,8 +20,14 @@ export async function onRequestGet({ request, env }) {
       return json({ message: 'Kolom Centang tidak ditemukan' }, 400);
     }
 
+    const mappedColumns = new Set(Object.values(headerInfo.columnMap));
+    const dynamicColumns = headers
+      .map((headerName, index) => ({ index, headerName: String(headerName || '').trim() }))
+      .filter(({ index, headerName }) => headerName && !mappedColumns.has(index))
+      .map(({ index, headerName }) => ({ key: `extra_${index}`, header: headerName, colIndex: index }));
+    const dynamicColumnMap = Object.fromEntries(dynamicColumns.map((col) => [col.key, col.colIndex]));
     const getCell = (row, field) => {
-      const colIndex = headerInfo.columnMap[field];
+      const colIndex = headerInfo.columnMap[field] ?? dynamicColumnMap[field];
       if (colIndex === undefined) return '';
       return String((row || [])[colIndex] || '').trim();
     };
@@ -33,7 +39,7 @@ export async function onRequestGet({ request, env }) {
       const sku = getCell(r, 'sku');
       const namaBarang = getCell(r, 'namaBarang');
       if (!sku && !namaBarang) continue;
-      out.push({
+      const rowData = {
         rowNumber: i + 1,
         checkedRaw: (r || [])[headerInfo.columnMap.checked],
         checked: (r || [])[headerInfo.columnMap.checked],
@@ -47,8 +53,12 @@ export async function onRequestGet({ request, env }) {
         stokRetail: getCell(r, 'stokRetail'),
         status: getCell(r, 'status'),
         keterangan: getCell(r, 'keterangan')
+      };
+      dynamicColumns.forEach((col) => {
+        rowData[col.key] = getCell(r, col.key);
       });
+      out.push(rowData);
     }
-    return json({ sheetName, rows: out });
+    return json({ sheetName, rows: out, dynamicColumns: dynamicColumns.map(({ key, header }) => ({ key, header })) });
   } catch (err) { return json({ message: err?.message || 'Internal server error' }, 500); }
 }
