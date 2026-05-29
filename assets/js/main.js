@@ -2467,3 +2467,100 @@ const pager=document.getElementById("abcPager");const totalPage=isAllPageSize?1:
 document.getElementById("abcPrev")?.addEventListener("click",()=>{if(isAllPageSize)return;ABC_STATE.page=Math.max(1,ABC_STATE.page-1);updateAbcSummaryAndBodyOnly();});
 document.getElementById("abcNext")?.addEventListener("click",()=>{if(isAllPageSize)return;ABC_STATE.page=Math.min(totalPage,ABC_STATE.page+1);updateAbcSummaryAndBodyOnly();});
 }
+
+const ISELLER_PDF_HEADER_HINTS=["sku","nama produk","jumlah","qty","diterima","batal","tolak"];
+const ISELLER_SKU_REGEX=/(?:\b(?=[A-Z0-9\-]{4,}\b)(?=.*\d)[A-Z][A-Z0-9\-]{2,}|\b\d{6,}\b)/gi;
+
+async function ensurePdfJsLib(){
+if(window.pdfjsLib)return window.pdfjsLib;
+const mod=await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.min.mjs");
+mod.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.worker.min.mjs";
+window.pdfjsLib=mod;
+return mod;
+}
+function normalizeExtractedText(text){
+return String(text||"")
+.replace(/\u00A0/g," ")
+.replace(/\r/g,"\n")
+.replace(/[\t ]+/g," ")
+.replace(/ ?\n ?/g,"\n")
+.replace(/([^\n])\n(?=[a-z0-9])/gi,"$1 ")
+.replace(/\n{3,}/g,"\n\n")
+.trim();
+}
+function findHeaderStartIndex(fullText){
+const hay=fullText.toLowerCase();
+const idx=ISELLER_PDF_HEADER_HINTS.map(k=>hay.indexOf(k)).filter(i=>i>=0);
+if(idx.length<4)return -1;
+return Math.min(...idx);
+}
+function parseTransferMeta(text){
+const transferNo=(text.match(/(?:nomor\s*transfer|transfer\s*no\.?|no\.?\s*transfer)\s*[:\-]?\s*([A-Z0-9\-\/]+)/i)||[])[1]||"";
+const from=(text.match(/(?:dari|from)\s*[:\-]\s*([^\n]+)/i)||[])[1]?.trim()||"";
+const to=(text.match(/(?:kepada|to)\s*[:\-]\s*([^\n]+)/i)||[])[1]?.trim()||"";
+const tanggal=(text.match(/(?:tanggal|date)\s*[:\-]\s*([0-3]?\d[\/\-][01]?\d[\/\-]\d{2,4})/i)||[])[1]||"";
+return {transferNo,from,to,tanggal};
+}
+function parseIsellerRowsFromText(fullText){
+const headerAt=findHeaderStartIndex(fullText);
+if(headerAt<0)return {rows:[],headerAt,skuMatches:0};
+const body=fullText.slice(headerAt);
+const skuMatches=[...body.matchAll(ISELLER_SKU_REGEX)];
+const rows=[];
+for(let i=0;i<skuMatches.length;i++){
+const m=skuMatches[i];
+const sku=String(m[0]||"").trim();
+const start=m.index||0;
+const end=i<skuMatches.length-1?(skuMatches[i+1].index||body.length):body.length;
+const chunk=body.slice(start,end).replace(/\s+/g," ").trim();
+const qtyNums=(chunk.match(/\b\d+\b/g)||[]).map(Number);
+const row={sku,namaBarang:chunk.replace(new RegExp(`^${sku.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\s*`),"").replace(/\b\d+\b/g," ").replace(/\s{2,}/g," ").trim(),qty:qtyNums[1]??qtyNums[0]??null,diterima:qtyNums[2]??null,batal:qtyNums[3]??null,tolak:qtyNums[4]??null};
+const hasQty=row.qty!==null||row.diterima!==null||row.batal!==null||row.tolak!==null;
+if(row.sku&&hasQty)rows.push(row);
+}
+return {rows,headerAt,skuMatches:skuMatches.length};
+}
+async function extractIsellerPdfText(file){
+const pdfjs=await ensurePdfJsLib();
+const buffer=await file.arrayBuffer();
+const doc=await pdfjs.getDocument({data:buffer}).promise;
+const pageTexts=[];
+for(let pageNo=1;pageNo<=doc.numPages;pageNo++){
+const page=await doc.getPage(pageNo);
+const content=await page.getTextContent();
+pageTexts.push(content.items.map(i=>i.str||"").join("\n"));
+}
+const fullText=normalizeExtractedText(pageTexts.join("\n"));
+return {numPages:doc.numPages,fullText};
+}
+window.parseIsellerTransferPdf=async function(file){
+const {numPages,fullText}=await extractIsellerPdfText(file);
+const parsed=parseIsellerRowsFromText(fullText);
+const meta=parseTransferMeta(fullText);
+const totalQty=parsed.rows.reduce((s,r)=>s+(Number(r.qty)||0),0);
+const result={...meta,totalSku:parsed.rows.length,totalQty,rows:parsed.rows,debug:{numPages,totalChars:fullText.length,totalSkuDetected:parsed.skuMatches,totalRows:parsed.rows.length,firstRows:parsed.rows.slice(0,5),rawText:fullText,headerAt:parsed.headerAt}};
+console.info("[iSeller PDF Parser]",result.debug);
+return result;
+};
+
+function renderIsellerPdfPreview(result){
+const preview=document.getElementById('isellerPdfPreview');
+if(!preview)return;
+const warn=result.totalSku===0?"<div class='state warning'>Parsing gagal: 0 row. Menampilkan raw text untuk debug.</div>":"";
+const raw=result.totalSku===0?`<details open><summary>Raw Text Extraction</summary><pre style='white-space:pre-wrap;max-height:260px;overflow:auto'>${esc(result.debug.rawText||'')}</pre></details>`:"";
+const rows=result.rows.map(r=>`<tr><td>${esc(r.sku)}</td><td>${esc(r.namaBarang||'-')}</td><td>${r.qty??'-'}</td><td>${r.diterima??'-'}</td><td>${r.batal??'-'}</td><td>${r.tolak??'-'}</td></tr>`).join('')||"<tr><td colspan='6'>Tidak ada item valid.</td></tr>";
+preview.innerHTML=`${warn}<div class='subtitle'>Transfer: ${esc(result.transferNo||'-')} | Dari: ${esc(result.from||'-')} | Kepada: ${esc(result.to||'-')} | Tanggal: ${esc(result.tanggal||'-')}</div><div class='subtitle'>Total SKU: ${result.totalSku} | Total Qty: ${result.totalQty}</div>${raw}<div class='table-wrap'><table><thead><tr><th>SKU</th><th>Nama Produk</th><th>Qty</th><th>Diterima</th><th>Batal</th><th>Tolak</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function bindIsellerPdfImport(){
+const input=document.getElementById('isellerPdfInput');
+if(!input||input.dataset.bound==='1')return;
+input.dataset.bound='1';
+input.addEventListener('change',async()=>{
+const file=input.files?.[0];
+if(!file)return;
+try{const result=await window.parseIsellerTransferPdf(file);renderIsellerPdfPreview(result);}catch(err){console.error(err);const preview=document.getElementById('isellerPdfPreview');if(preview)preview.innerHTML=`<div class='state error'>Gagal parsing PDF: ${esc(err?.message||'Unknown error')}</div>`;}
+});
+}
+
+document.addEventListener('DOMContentLoaded',bindIsellerPdfImport);
