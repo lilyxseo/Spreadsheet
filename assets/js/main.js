@@ -2148,6 +2148,33 @@ function toNumberSafe(value){
   const parsed=Number(String(value??'').replace(/[^0-9.-]/g,''));
   return Number.isFinite(parsed)?parsed:0;
 }
+function getBalikanLocationSummary(rows=[]){
+  const totals=new Map();
+  (rows||[]).forEach(row=>{
+    const lokasi=String(row?.lokasi??'').trim();
+    if(!lokasi)return;
+    totals.set(lokasi,(totals.get(lokasi)||0)+toNumberSafe(row?.qty));
+  });
+  return [...totals.entries()].map(([lokasi,qty])=>({lokasi,qty})).sort((a,b)=>b.qty-a.qty||a.lokasi.localeCompare(b.lokasi,'id'));
+}
+function renderBalikanLocationCardContent(rows=[]){
+  const locations=getBalikanLocationSummary(rows);
+  if(!locations.length)return `<div class='k'>Lokasi</div><div class='v'>Tidak ada lokasi</div>`;
+  return `<div class='k'>Lokasi</div><div class='v'>${locations.length} lokasi ditemukan</div><div class='balikan-location-list'>${locations.map(item=>`<div class='balikan-location-item'><span>${esc(item.lokasi)} :</span><strong>${item.qty} pcs</strong></div>`).join('')}</div>`;
+}
+function updateBalikanLocationCard(rows=[]){
+  const card=document.getElementById('balikanLocationCard');
+  if(!card)return;
+  card.innerHTML=renderBalikanLocationCardContent(rows);
+}
+function updateBalikanLocationCardFromCurrentRows(){
+  const st=ensureBalikanFilterState();
+  const baseRows=(window.BALIKAN_ROWS||[]).map(r=>({...r}));
+  const rows=sortBalikanRows(applyBalikanTableFilters(baseRows),BALIKAN_STATE.sortBy||'default');
+  st.rows=baseRows;
+  st.filtered=rows;
+  updateBalikanLocationCard(rows);
+}
 function renderBalikanSummaryInfo(rows,baseRows){
   if(!balikanSummary)return;
   const totalRows=baseRows.length;
@@ -2157,7 +2184,7 @@ function renderBalikanSummaryInfo(rows,baseRows){
   const checkedPct=visibleRows?((checkedCount/visibleRows)*100):0;
   const totalQty=rows.reduce((sum,r)=>sum+toNumberSafe(r.qty),0);
   const progressState=checkedPct>=80?'high':checkedPct>=50?'medium':'low';
-  balikanSummary.innerHTML=`<div class='grid dashboard archive-summary balikan-summary-grid balikan-summary-compact'>    <div class='metric'><div class='k'>Baris Ditampilkan</div><div class='v'>${visibleRows}</div></div>    <div class='metric balikan-metric-progress'><div class='k'>Checklist</div><div class='v'>${checkedCount} (${checkedPct.toFixed(1)}%)</div></div>    <div class='metric'><div class='k'>Belum Checklist</div><div class='v'>${uncheckedCount}</div></div>    <div class='metric'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div>  </div><div class='balikan-progress-track balikan-progress-${progressState}' role='progressbar' aria-label='Progress checklist Balikan Store' aria-valuemin='0' aria-valuemax='100' aria-valuenow='${checkedPct.toFixed(1)}'><span class='balikan-progress-fill' style='width:${checkedPct.toFixed(1)}%'></span></div>`;
+  balikanSummary.innerHTML=`<div class='grid dashboard archive-summary balikan-summary-grid balikan-summary-compact'>    <div class='metric'><div class='k'>Baris Ditampilkan</div><div class='v'>${visibleRows}</div></div>    <div class='metric balikan-metric-progress'><div class='k'>Checklist</div><div class='v'>${checkedCount} (${checkedPct.toFixed(1)}%)</div></div>    <div class='metric'><div class='k'>Belum Checklist</div><div class='v'>${uncheckedCount}</div></div>    <div class='metric'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div>    <div id='balikanLocationCard' class='metric balikan-location-card' aria-live='polite'>${renderBalikanLocationCardContent(rows)}</div>  </div><div class='balikan-progress-track balikan-progress-${progressState}' role='progressbar' aria-label='Progress checklist Balikan Store' aria-valuemin='0' aria-valuemax='100' aria-valuenow='${checkedPct.toFixed(1)}'><span class='balikan-progress-fill' style='width:${checkedPct.toFixed(1)}%'></span></div>`;
 }
 
 function syncBalikanAutoCheckToggle(){if(!balikanAutoCheckToggle)return;const perms=getPermissions();const isOn=BALIKAN_STATE.autoCheckOnScan!==false;balikanAutoCheckToggle.checked=isOn;balikanAutoCheckToggle.setAttribute("aria-checked",isOn?"true":"false");const statusEl=document.getElementById("balikanAutoCheckStatus");if(statusEl)statusEl.textContent=isOn?"ON":"OFF";const wrap=balikanAutoCheckToggle.closest(".balikan-switch-wrap");if(wrap){wrap.classList.toggle("is-on",isOn);wrap.classList.toggle("is-off",!isOn);wrap.style.display=perms.canUpdate?"":"none";}}
@@ -2169,7 +2196,7 @@ function exportBalikanFilteredCsv(){const st=ensureBalikanFilterState();const ba
 function getBalikanEditKey(rowNumber,field){return `${Number(rowNumber)}:${String(field||"")}`;}
 function setBalikanSaveStatus(rowNumber,field,status,message=""){const key=getBalikanEditKey(rowNumber,field);if(status)BALIKAN_STATE.saveStatus[key]={status,message};else delete BALIKAN_STATE.saveStatus[key];updateBalikanCellState(rowNumber,field);}
 function getBalikanSaveStatus(rowNumber,field){return BALIKAN_STATE.saveStatus[getBalikanEditKey(rowNumber,field)]||null;}
-function updateBalikanLocalRow(rowNumber,field,value){const apply=(list)=>{if(!Array.isArray(list))return;const target=list.find(item=>Number(item.rowNumber)===Number(rowNumber));if(target&&field)target[field]=value;};apply(window.BALIKAN_ROWS);const st=ensureBalikanFilterState();apply(st.rows);if(Array.isArray(window.BALIKAN_ROWS))setBalikanRowsCache(window.currentTripSheet,{rows:window.BALIKAN_ROWS,dynamicColumns:window.BALIKAN_DYNAMIC_COLUMNS||[],checksum:checksumBalikanRows(window.BALIKAN_ROWS,window.BALIKAN_DYNAMIC_COLUMNS||[]),updatedAt:Date.now()});}
+function updateBalikanLocalRow(rowNumber,field,value){const apply=(list)=>{if(!Array.isArray(list))return;const target=list.find(item=>Number(item.rowNumber)===Number(rowNumber));if(target&&field)target[field]=value;};apply(window.BALIKAN_ROWS);const st=ensureBalikanFilterState();apply(st.rows);if(Array.isArray(window.BALIKAN_ROWS))setBalikanRowsCache(window.currentTripSheet,{rows:window.BALIKAN_ROWS,dynamicColumns:window.BALIKAN_DYNAMIC_COLUMNS||[],checksum:checksumBalikanRows(window.BALIKAN_ROWS,window.BALIKAN_DYNAMIC_COLUMNS||[]),updatedAt:Date.now()});if(field==='lokasi'||field==='qty')updateBalikanLocationCardFromCurrentRows();}
 function applyPendingBalikanEditsToRows(){const pending=BALIKAN_STATE.pendingEdits||{};Object.entries(pending).forEach(([rowNumber,fields])=>{Object.entries(fields||{}).forEach(([field,value])=>updateBalikanLocalRow(rowNumber,field,value));});}
 function renderBalikanTableWhenIdle(){if(balikanTable?.querySelector('.inline-edit-input')){setTimeout(renderBalikanTableWhenIdle,500);return;}renderVisibleBalikanRows();}
 function queueBalikanSave(delayMs=350){if(BALIKAN_STATE.saveTimer)clearTimeout(BALIKAN_STATE.saveTimer);BALIKAN_STATE.saveTimer=setTimeout(()=>flushBalikanPendingEdits(),delayMs);}
