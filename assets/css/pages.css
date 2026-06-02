@@ -1026,6 +1026,44 @@ body.dark .app-icon {
   font-weight:700;
   font-size:18px;
 }
+
+#page-balikan-store .balikan-location-card{
+  grid-column:span 2;
+  align-content:start;
+  gap:6px;
+}
+#page-balikan-store .balikan-location-card .v{
+  font-size:15px;
+  line-height:1.25;
+}
+#page-balikan-store .balikan-location-list{
+  display:grid;
+  gap:4px;
+  margin-top:4px;
+  max-height:150px;
+  overflow:auto;
+}
+#page-balikan-store .balikan-location-item{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  font-size:12px;
+  line-height:1.3;
+  color:var(--text);
+}
+#page-balikan-store .balikan-location-item span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-location-item strong{
+  flex:0 0 auto;
+  font-weight:800;
+}
+@media (max-width:768px){
+  #page-balikan-store .balikan-location-card{grid-column:1/-1}
+}
 #page-balikan-store .balikan-progress-percent{
   margin-top:2px;
   font-size:1rem;
