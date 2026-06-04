@@ -1046,10 +1046,47 @@ body.dark .app-icon {
 #page-balikan-store .balikan-location-item{
   display:flex;
   justify-content:space-between;
+  align-items:center;
   gap:12px;
+  width:100%;
+  border:1px solid color-mix(in srgb, var(--border-color,#d1d5db) 75%, transparent);
+  border-radius:999px;
+  padding:7px 10px;
+  background:color-mix(in srgb, var(--card-bg,#fff) 92%, transparent);
+  color:var(--text);
+  font:inherit;
   font-size:12px;
   line-height:1.3;
-  color:var(--text);
+  text-align:left;
+  cursor:pointer;
+  transition:opacity .16s ease,transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+#page-balikan-store .balikan-location-item:hover:not(:disabled),
+#page-balikan-store .balikan-location-item:focus-visible{
+  border-color:var(--accent-color,#2563eb);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent-color,#2563eb) 14%, transparent);
+  outline:none;
+}
+#page-balikan-store .balikan-location-item:active:not(:disabled){
+  transform:scale(.98);
+}
+#page-balikan-store .balikan-location-item.is-active{
+  border-color:var(--accent-color,#2563eb);
+  background:color-mix(in srgb, var(--accent-color,#2563eb) 18%, var(--card-bg,#fff));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent-color,#2563eb) 45%, transparent),0 8px 18px color-mix(in srgb, var(--accent-color,#2563eb) 16%, transparent);
+  color:var(--text-primary,var(--text));
+  font-weight:800;
+}
+#page-balikan-store .balikan-location-item.is-inactive{
+  opacity:.45;
+}
+#page-balikan-store .balikan-location-item.is-inactive span{
+  text-decoration:line-through;
+}
+#page-balikan-store .balikan-location-item:disabled{
+  cursor:not-allowed;
+  opacity:.55;
 }
 #page-balikan-store .balikan-location-item span{
   min-width:0;
