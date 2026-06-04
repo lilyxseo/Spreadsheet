@@ -530,6 +530,7 @@ balikanSearchInput?.addEventListener("input",e=>{window.balikanSearchKeyword=e.t
 balikanSortSelect?.addEventListener("change",e=>{BALIKAN_STATE.sortBy=e.target.value||"default";scheduleBalikanRender(false,250);});
 btnResetBalikanFilter?.addEventListener("click",()=>resetBalikanFilter());
 btnExportBalikanCsv?.addEventListener("click",()=>exportBalikanFilteredCsv());
+balikanSummary?.addEventListener("click",e=>{const btn=e.target.closest('[data-balikan-location-select]');if(btn)handleBalikanLocationSelect(btn);});
 balikanAutoCheckToggle?.addEventListener("change",e=>toggleBalikanAutoCheck(e.target?.checked===true));
 initBalikanAutoCheckPreference();syncBalikanAutoCheckToggle();
 document.getElementById("scannerCloseBtn")?.addEventListener("click",closeScannerModal);
@@ -2186,10 +2187,47 @@ function getBalikanLocationSummary(rows=[]){
   });
   return [...totals.entries()].map(([lokasi,qty])=>({lokasi,qty})).sort((a,b)=>b.qty-a.qty||a.lokasi.localeCompare(b.lokasi,'id'));
 }
+function getBalikanSkuLocationOptions(row){
+  const skuKey=clean(row?.sku);
+  const locations=new Map();
+  const addLocation=(lokasi,qty=0)=>{
+    const label=String(lokasi??'').trim();
+    const key=clean(label);
+    if(!key)return;
+    const existing=locations.get(key);
+    if(existing){
+      existing.qty+=toNumberSafe(qty);
+      return;
+    }
+    locations.set(key,{lokasi:label,qty:toNumberSafe(qty)});
+  };
+  if(skuKey){
+    (DATA["Kartu Stock"]||[]).forEach(stockRow=>{
+      if(clean(getVal(stockRow,["sku"]))!==skuKey)return;
+      const qty=toNumberSafe(getVal(stockRow,["stok akhir","closing stock","ending stock","saldo akhir","qty","stok","quantity"]));
+      splitBalikanLocationNames(getVal(stockRow,["lokasi","location","rak","bin","area"])).forEach(lokasi=>addLocation(lokasi,qty));
+    });
+  }
+  splitBalikanLocationNames(row?.lokasi).forEach(lokasi=>addLocation(lokasi,0));
+  return [...locations.values()].sort((a,b)=>b.qty-a.qty||a.lokasi.localeCompare(b.lokasi,'id'));
+}
 function renderBalikanLocationCardContent(rows=[]){
-  const locations=getBalikanLocationSummary(rows);
-  if(!locations.length)return `<div class='k'>Lokasi</div><div class='v'>Tidak ada lokasi</div>`;
-  return `<div class='k'>Lokasi</div><div class='v'>${locations.length} lokasi ditemukan</div><div class='balikan-location-list'>${locations.map(item=>`<div class='balikan-location-item'><span>${esc(item.lokasi)} :</span><strong>${item.qty} pcs</strong></div>`).join('')}</div>`;
+  if((rows||[]).length!==1){
+    const count=(rows||[]).length;
+    return `<div class='k'>Lokasi</div><div class='v'>Pilih 1 SKU dulu</div><div class='subtitle'>${count?`${count} baris masih tampil.`:'Tidak ada baris hasil pencarian.'}</div>`;
+  }
+  const row=rows[0]||{};
+  const locations=getBalikanSkuLocationOptions(row);
+  if(!locations.length)return `<div class='k'>Lokasi</div><div class='v'>Tidak ada lokasi</div><div class='subtitle'>Lokasi kosong tidak bisa dipilih.</div>`;
+  const activeKey=clean(row?.lokasi);
+  const hasActive=locations.some(item=>clean(item.lokasi)===activeKey);
+  const canUpdate=getPermissions().canUpdate!==false;
+  return `<div class='k'>Lokasi</div><div class='v'>${locations.length} lokasi ditemukan</div><div class='subtitle'>Tap lokasi untuk update kolom LOKASI.</div><div class='balikan-location-list'>${locations.map(item=>{
+    const itemKey=clean(item.lokasi);
+    const active=hasActive&&itemKey===activeKey;
+    const inactive=hasActive&&!active;
+    return `<button type='button' class='balikan-location-item ${active?'is-active':''} ${inactive?'is-inactive':''}' data-balikan-location-select='1' data-row-number='${Number(row.rowNumber)||0}' data-location='${encAttr(item.lokasi)}' ${!itemKey||!canUpdate?'disabled':''} aria-pressed='${active?'true':'false'}'><span>${esc(item.lokasi)} :</span><strong>${item.qty} pcs</strong></button>`;
+  }).join('')}</div>`;
 }
 function updateBalikanLocationCard(rows=[]){
   const card=document.getElementById('balikanLocationCard');
@@ -2203,6 +2241,42 @@ function updateBalikanLocationCardFromCurrentRows(){
   st.rows=baseRows;
   st.filtered=rows;
   updateBalikanLocationCard(rows);
+}
+function getBalikanSingleVisibleRow(){
+  const baseRows=(window.BALIKAN_ROWS||[]).map(r=>({...r}));
+  const rows=sortBalikanRows(applyBalikanTableFilters(baseRows),BALIKAN_STATE.sortBy||'default');
+  return rows.length===1?rows[0]:null;
+}
+async function handleBalikanLocationSelect(btn){
+  const location=String(btn?.dataset?.location||'').trim();
+  if(!location){
+    toast('Lokasi kosong tidak bisa dipilih.','error');
+    return;
+  }
+  const row=getBalikanSingleVisibleRow();
+  if(!row){
+    toast('Pilih 1 SKU dulu','error');
+    updateBalikanLocationCardFromCurrentRows();
+    return;
+  }
+  const oldValue=String(row.lokasi??'');
+  if(clean(oldValue)===clean(location)){
+    updateBalikanLocationCardFromCurrentRows();
+    return;
+  }
+  btn.disabled=true;
+  try{
+    await updateBalikanCell(window.currentTripSheet,row,'lokasi',location,oldValue);
+    updateBalikanLocationCardFromCurrentRows();
+    showToast(`Lokasi aktif diubah ke ${location}`,'success');
+  }catch(err){
+    toast(err?.message||'Gagal memilih lokasi','error');
+    updateBalikanLocalRow(row.rowNumber,'lokasi',oldValue);
+    updateBalikanCellText(row.rowNumber,'lokasi',oldValue);
+    updateBalikanLocationCardFromCurrentRows();
+  }finally{
+    btn.disabled=false;
+  }
 }
 function renderBalikanSummaryInfo(rows,baseRows){
   if(!balikanSummary)return;
