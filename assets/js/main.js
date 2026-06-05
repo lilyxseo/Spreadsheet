@@ -18,6 +18,12 @@ const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
 let manualRefreshNoticeTimer=null;
+let isDevAutoRefreshRunning=false;
+let isDevAutoRefreshingNow=false;
+let devAutoRefreshTimer=null;
+let devAutoRefreshCount=0;
+let devAutoRefreshLastTs=0;
+let devAutoRefreshLastError="";
 const scheduleManualRefreshRender=debounce((mode)=>{
 if(mode==='in'||mode==='out')rerenderTableWithScrollRestore(mode,true);
 },180);
@@ -91,6 +97,11 @@ syncDeveloperMenuVisibility();
 }
 function isDeveloperUser(){
 return getCurrentUser()?.isDeveloper===true;
+}
+function isToolsDevAllowed(){
+const current=getCurrentUser()||{};
+const role=String(current.role||current.user_role||"").toLowerCase();
+return isDeveloperUser()||isPreviewBypassLoginEnabled()||role.includes("admin")||role.includes("developer")||role.includes("dev");
 }
 window.currentUser=getCurrentUser();
 
@@ -490,7 +501,7 @@ await initAppData();
 await loadBalikanSheets();
 if(window.lucide)lucide.createIcons();
 });
-window.addEventListener("auth:logout",()=>{showLoginView();});
+window.addEventListener("auth:logout",()=>{stopDevAutoRefresh({log:false});showLoginView();});
 
 function bindLoginView(){
 const form=document.getElementById("loginForm"),emailEl=document.getElementById("email"),passwordEl=document.getElementById("password"),loginBtn=document.getElementById("loginBtn"),errorMsg=document.getElementById("formError"),errorText=errorMsg?.querySelector("span"),togglePasswordBtn=document.getElementById("togglePassword"),signupForm=document.getElementById("signupForm"),signupError=document.getElementById("signupError"),signupErrorText=signupError?.querySelector("span"),signupLink=document.getElementById("signupLink"),loginLink=document.getElementById("loginLink"),googleLoginBtn=document.getElementById("googleLoginBtn"),divider=document.querySelector(".divider"),rememberRow=document.querySelector(".remember-row"),loginLine=document.getElementById("loginLine"),signupBtn=document.getElementById("signupBtn");
@@ -512,7 +523,7 @@ showAuthMode("login");
 form.dataset.bound="1";
 }
 function bindNav(){
-document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
+document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}if(btn.dataset.route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
 }
 async function refreshMovementTableData(mode,{deletedRowNumbers=[]}={}){
 const sheetName=mode==='in'?'Barang Masuk':'Barang Keluar';
@@ -521,7 +532,7 @@ TABLE_STATE[mode].selected.clear();
 renderDataTablePage(mode,sheetName,false);
 }
 
-function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFilter(e.target?.value||""));sortSearch?.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter?.addEventListener("change",updateStats);darkBtnHeader?.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>{document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu));document.querySelectorAll(".mv-columns.open").forEach(panel=>positionColumnMenu(panel.id.replace("mv-cols-","")));});document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);const st=mode==='balikan'?ensureBalikanFilterState():(TABLE_STATE[mode]||{});ensureColumnFilterState(mode);if(!st.columnFilters)st.columnFilters={};st.columnFilters[col]=selected;st.openFilterCol=col;if(mode==='balikan')scheduleBalikanRender(false,250);else rerenderTableWithScrollRestore(mode,true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});document.addEventListener("click",e=>{const btn=e.target.closest("[data-search-page]");if(!btn)return;changeSearchPage(Number(btn.dataset.searchPage)||0);});anomalySeverity?.addEventListener("change",()=>applyAnomalyFilters(true));
+function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFilter(e.target?.value||""));sortSearch?.addEventListener("change",()=>renderResults(lastResults,lastQuery));statsFilter?.addEventListener("change",updateStats);darkBtnHeader?.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);bindDevAutoRefreshControls();const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>{document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu));document.querySelectorAll(".mv-columns.open").forEach(panel=>positionColumnMenu(panel.id.replace("mv-cols-","")));});document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);const st=mode==='balikan'?ensureBalikanFilterState():(TABLE_STATE[mode]||{});ensureColumnFilterState(mode);if(!st.columnFilters)st.columnFilters={};st.columnFilters[col]=selected;st.openFilterCol=col;if(mode==='balikan')scheduleBalikanRender(false,250);else rerenderTableWithScrollRestore(mode,true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});document.addEventListener("click",e=>{const btn=e.target.closest("[data-search-page]");if(!btn)return;changeSearchPage(Number(btn.dataset.searchPage)||0);});anomalySeverity?.addEventListener("change",()=>applyAnomalyFilters(true));
 searchInput?.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
 document.getElementById("btnScanSku")?.addEventListener("click",()=>{logActivitySafe({action:"SCAN_BARCODE_SKU",module:"Search",detail:"User membuka scanner barcode SKU",status:"SUCCESS"});openBarcodeScanner("searchInput",handleSearchScanResult);});
 btnScanBalikan?.addEventListener("click",()=>openBalikanScanner());
@@ -584,8 +595,13 @@ if(!user){
 if(isPreviewBypassLoginEnabled()){history.replaceState({},"","/");return showPage("dashboard");}
 return showLoginView();
 }
-if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
-function syncDeveloperMenuVisibility(){const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');if(!activityLogMenu)return;activityLogMenu.style.display=isDeveloperUser()?"":"none";}
+if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+function syncDeveloperMenuVisibility(){
+const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');
+if(activityLogMenu)activityLogMenu.style.display=isDeveloperUser()?"":"none";
+const toolsDevMenu=document.querySelector('.side-link[data-page="tools-dev"]');
+if(toolsDevMenu)toolsDevMenu.style.display=isToolsDevAllowed()?"":"none";
+}
 function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
 function handleDesktopSidebarMode(){if(window.innerWidth<900){document.body.classList.remove("sidebar-collapsed");return;}const saved=localStorage.getItem("sidebar_collapsed")==="true";document.body.classList.toggle("sidebar-collapsed",saved);}
@@ -740,6 +756,7 @@ if(page==="cycle-count")renderCycleCountPage();
 if(page==="movement")renderMovementPage();
 if(page==="import-pdf-transfer")renderImportPdfTransferPage();
 if(page==="activity-log")renderActivityLogPage();
+if(page==="tools-dev")renderToolsDevPage();
 if(page==="arsip")renderArchivePage();
 if(page==="asset-store")renderAssetStorePage();
 if(page==="balikan-store")renderBalikanTable(true);
@@ -1655,6 +1672,100 @@ function syncThemeButton(){if(!darkBtnHeader)return;const dark=document.document
 
 async function triggerManualRefresh(){logActivitySafe({action:'MANUAL_REFRESH',module:'System',detail:'Manual refresh dimulai',status:'SUCCESS'});if(getActivePage?.()==='balikan-store'){loadBalikanRows({background:true,force:true});}if(isSyncing)return;await loadAllData(true);}
 function syncRefreshButton(){if(!refreshToggleHeader)return;refreshToggleHeader.innerHTML=`<i data-lucide="refresh-cw"></i>`;refreshToggleHeader.title="Refresh data manual";refreshToggleHeader.setAttribute("aria-label","Refresh data manual");if(window.lucide)lucide.createIcons();}
+function getDevAutoRefreshEls(){
+return {
+interval:document.getElementById("devAutoRefreshInterval"),
+status:document.getElementById("devAutoRefreshStatus"),
+lastTime:document.getElementById("devAutoRefreshLastTime"),
+count:document.getElementById("devAutoRefreshCountValue"),
+lastError:document.getElementById("devAutoRefreshLastError"),
+start:document.getElementById("devAutoRefreshStart"),
+stop:document.getElementById("devAutoRefreshStop")
+};
+}
+function isDevAutoRefreshElement(el){return !!el&&typeof el==="object"&&"textContent" in el;}
+function getDevAutoRefreshIntervalMs(){
+const {interval}=getDevAutoRefreshEls();
+const raw=Number(interval?.value)||30;
+const seconds=Math.max(5,raw);
+if(interval&&String(seconds)!==String(raw))interval.value=String(seconds);
+return seconds*1000;
+}
+function formatDevAutoRefreshTime(ts){return ts?new Date(ts).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"medium"}):"-";}
+function syncDevAutoRefreshGlobals(){
+window.isDevAutoRefreshRunning=isDevAutoRefreshRunning;
+window.isDevAutoRefreshingNow=isDevAutoRefreshingNow;
+window.devAutoRefreshTimer=devAutoRefreshTimer;
+window.devAutoRefreshCount=devAutoRefreshCount;
+}
+function renderToolsDevPage(){
+const els=getDevAutoRefreshEls();
+if(!isDevAutoRefreshElement(els.status)){syncDevAutoRefreshGlobals();return;}
+const allowed=isToolsDevAllowed();
+const status=isDevAutoRefreshRunning?(isDevAutoRefreshingNow?"Running - refreshing":"Running"):"Stopped";
+els.status.textContent=allowed?status:"Restricted";
+if(isDevAutoRefreshElement(els.lastTime))els.lastTime.textContent=formatDevAutoRefreshTime(devAutoRefreshLastTs);
+if(isDevAutoRefreshElement(els.count))els.count.textContent=String(devAutoRefreshCount);
+if(isDevAutoRefreshElement(els.lastError))els.lastError.textContent=devAutoRefreshLastError||"-";
+if(els.start)els.start.disabled=!allowed||isDevAutoRefreshRunning;
+if(els.stop)els.stop.disabled=!allowed||(!isDevAutoRefreshRunning&&!devAutoRefreshTimer&&!isDevAutoRefreshingNow);
+if(els.interval)els.interval.disabled=!allowed||isDevAutoRefreshRunning;
+syncDevAutoRefreshGlobals();
+}
+function scheduleDevAutoRefreshNext(){
+if(!isDevAutoRefreshRunning)return;
+if(devAutoRefreshTimer)clearTimeout(devAutoRefreshTimer);
+devAutoRefreshTimer=setTimeout(()=>{devAutoRefreshTimer=null;runDevAutoRefreshCycle();},getDevAutoRefreshIntervalMs());
+syncDevAutoRefreshGlobals();
+}
+async function runDevAutoRefreshCycle(){
+if(!isDevAutoRefreshRunning||isDevAutoRefreshingNow)return;
+isDevAutoRefreshingNow=true;
+renderToolsDevPage();
+try{
+const refreshed=await syncData({force:true,silent:true});
+if(refreshed!==false){
+devAutoRefreshLastError="";
+devAutoRefreshCount+=1;
+devAutoRefreshLastTs=Date.now();
+logActivitySafe({action:'DEV_AUTO_REFRESH_TICK',module:'Tools Dev',detail:`Auto refresh #${devAutoRefreshCount} selesai`,status:'SUCCESS',metadata:{count:devAutoRefreshCount,intervalMs:getDevAutoRefreshIntervalMs()}});
+}else{
+logActivitySafe({action:'DEV_AUTO_REFRESH_SKIP',module:'Tools Dev',detail:'Auto refresh dilewati karena proses sync lain masih berjalan',status:'SUCCESS',metadata:{count:devAutoRefreshCount,intervalMs:getDevAutoRefreshIntervalMs()}});
+}
+}catch(err){
+devAutoRefreshLastError=err?.message||String(err||"Gagal auto refresh");
+logActivitySafe({action:'DEV_AUTO_REFRESH_TICK',module:'Tools Dev',detail:devAutoRefreshLastError,status:'FAILED',metadata:{count:devAutoRefreshCount+1,intervalMs:getDevAutoRefreshIntervalMs()}});
+}finally{
+isDevAutoRefreshingNow=false;
+renderToolsDevPage();
+scheduleDevAutoRefreshNext();
+}
+}
+function startDevAutoRefresh(){
+if(!isToolsDevAllowed()){toast('Tools Dev hanya untuk preview/development/admin','error');return;}
+if(isDevAutoRefreshRunning)return;
+isDevAutoRefreshRunning=true;
+devAutoRefreshLastError="";
+if(devAutoRefreshTimer){clearTimeout(devAutoRefreshTimer);devAutoRefreshTimer=null;}
+logActivitySafe({action:'DEV_AUTO_REFRESH_START',module:'Tools Dev',detail:`Auto refresh dimulai interval ${getDevAutoRefreshIntervalMs()/1000} detik`,status:'SUCCESS'});
+renderToolsDevPage();
+runDevAutoRefreshCycle();
+}
+function stopDevAutoRefresh({log=true}={}){
+if(devAutoRefreshTimer){clearTimeout(devAutoRefreshTimer);devAutoRefreshTimer=null;}
+const wasRunning=isDevAutoRefreshRunning||isDevAutoRefreshingNow;
+isDevAutoRefreshRunning=false;
+if(log&&wasRunning)logActivitySafe({action:'DEV_AUTO_REFRESH_STOP',module:'Tools Dev',detail:`Auto refresh dihentikan setelah ${devAutoRefreshCount} refresh`,status:'SUCCESS'});
+renderToolsDevPage();
+}
+function bindDevAutoRefreshControls(){
+const els=getDevAutoRefreshEls();
+if(els.start&&!els.start.dataset.devAutoRefreshBound){els.start.addEventListener('click',startDevAutoRefresh);els.start.dataset.devAutoRefreshBound="1";}
+if(els.stop&&!els.stop.dataset.devAutoRefreshBound){els.stop.addEventListener('click',()=>stopDevAutoRefresh());els.stop.dataset.devAutoRefreshBound="1";}
+if(els.interval&&!els.interval.dataset.devAutoRefreshBound){els.interval.addEventListener('input',renderToolsDevPage);els.interval.dataset.devAutoRefreshBound="1";}
+renderToolsDevPage();
+}
+
 function hideInitialLoader(){const ld=document.getElementById("initialLoader");if(ld)ld.remove();}
 function toggleCompact(){document.body.classList.toggle("compact");toast("Compact mode diubah");}
 function toast(msg,type="info",showClose=true){const t=document.getElementById("toast");if(!t)return;const map={success:"✓",error:"⨯",warning:"!",info:"i"};const item=document.createElement("div");item.className=`toast-item ${map[type]?type:"info"}`;const closeBtn=showClose?'<button class="toast-close" aria-label="Tutup" type="button">×</button>':"";item.innerHTML=`<span class="toast-icon" aria-hidden="true">${map[type]||map.info}</span><span class="toast-message">${esc(msg||"")}</span>${closeBtn}`;t.appendChild(item);requestAnimationFrame(()=>item.classList.add("show"));const remove=()=>{item.classList.remove("show");setTimeout(()=>item.remove(),220);};item.querySelector(".toast-close")?.addEventListener("click",remove);setTimeout(remove,2500);}
