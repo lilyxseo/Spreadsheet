@@ -1560,3 +1560,38 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
     padding-inline:10px;
   }
 }
+
+#page-balikan-store .balikan-sheet-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  min-width:58px;
+  padding:4px 9px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#2563eb,#06b6d4);
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.02em;
+  box-shadow:0 6px 14px rgba(37,99,235,.18);
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-location-sheet-list{
+  display:grid;
+  gap:5px;
+  margin-top:6px;
+  max-height:130px;
+  overflow:auto;
+}
+#page-balikan-store .balikan-location-sheet-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  font-size:12px;
+}
+body.dark #page-balikan-store .balikan-sheet-badge{
+  background:linear-gradient(135deg,#38bdf8,#22c55e);
+  color:#082f49;
+}
