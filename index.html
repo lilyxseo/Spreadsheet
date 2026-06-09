@@ -186,12 +186,62 @@
       </div>
       <div class="status-mini sidebar-status"><span class="dot"></span><span id="lastSync">Belum sinkron</span></div>
       <div class="sidebar-menu-scroll">
-      <nav class="sidebar-nav" id="menuWrap">
-        <section class="menu-group"><p class="menu-category">MAIN</p><button class="side-link nav-item active" data-page="dashboard" data-route="/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button></section>
-        <section class="menu-group"><p class="menu-category">DATA</p><button class="side-link nav-item" data-page="search" data-route="/search"><i data-lucide="search"></i><span>Cari SKU</span></button><button class="side-link nav-item" data-page="barang-masuk" data-route="/barang-masuk"><i data-lucide="package-plus"></i><span>Barang Masuk</span></button><button class="side-link nav-item" data-page="barang-keluar" data-route="/barang-keluar"><i data-lucide="package-plus"></i><span>Barang Keluar</span></button><button class="side-link nav-item" data-page="locations" data-route="/locations"><i data-lucide="map-pin"></i><span>Lokasi</span></button><button class="side-link nav-item" data-page="arsip" data-route="/arsip"><i data-lucide="archive"></i><span>Arsip</span></button><button class="side-link nav-item" data-page="asset-store" data-route="/asset-store"><i data-lucide="store"></i><span>Asset Store</span></button></section>
-        <section class="menu-group"><p class="menu-category">MONITORING STOK</p><button class="side-link nav-item" data-page="stats" data-route="/accuracy"><i data-lucide="shield-check"></i><span>Akurasi Stok</span></button><button class="side-link nav-item" data-page="abc-analisis" data-route="/abc-analisis"><i data-lucide="chart-no-axes-combined"></i><span>ABC Analisis</span></button><button class="side-link nav-item" data-page="anomaly" data-route="/warning"><i data-lucide="alert-triangle"></i><span>Warning</span></button></section>
-        <section class="menu-group"><p class="menu-category">INVENTORY</p><button class="side-link nav-item" data-page="stok-minus" data-route="/stok-minus"><i data-lucide="package-x"></i><span>Stok Minus</span></button><button class="side-link nav-item" data-page="cycle-count" data-route="/cycle-count"><i data-lucide="clipboard-check"></i><span>Cycle Count</span></button><button class="side-link nav-item" data-page="movement" data-route="/movement"><i data-lucide="arrow-right-left"></i><span>Movement</span></button><button class="side-link nav-item" data-page="balikan-store" data-route="/balikan-store"><i data-lucide="store"></i><span>Balikan Store</span></button><button class="side-link nav-item" data-page="import-pdf-transfer" data-route="/import-pdf-transfer"><i data-lucide="file-up"></i><span>Import PDF Transfer</span></button></section>
-                        <section class="menu-group"><p class="menu-category">SISTEM</p><button class="side-link nav-item" data-page="activity-log" data-route="/activity-log"><i data-lucide="scroll-text"></i><span>Activity Log</span></button><button class="side-link nav-item" data-page="tools-dev" data-route="/tools-dev"><i data-lucide="wrench"></i><span>Tools Dev</span></button><button class="side-link nav-item" data-page="settings" data-route="/settings"><i data-lucide="settings"></i><span>Pengaturan</span></button></section>
+      <nav class="sidebar-nav" id="menuWrap" aria-label="Navigasi utama">
+        <section class="menu-group menu-group-main">
+          <p class="menu-category">MAIN</p>
+          <button class="side-link nav-item active" data-page="dashboard" data-route="/" title="Dashboard">
+            <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+          </button>
+        </section>
+        <section class="menu-group" data-menu-group="data">
+          <p class="menu-category">DATA</p>
+          <button class="sidebar-parent" type="button" data-sidebar-parent="data" aria-expanded="true" aria-controls="submenu-data" title="Data">
+            <i class="sidebar-parent-icon" data-lucide="database"></i><span>Data</span><i class="menu-chevron" data-lucide="chevron-down"></i>
+          </button>
+          <div class="sidebar-submenu" id="submenu-data" data-menu-panel="data">
+            <button class="side-link nav-item submenu-item" data-page="search" data-route="/search" title="Cari SKU"><i data-lucide="search"></i><span>Cari SKU</span></button>
+            <button class="side-link nav-item submenu-item" data-page="barang-masuk" data-route="/barang-masuk" title="Barang Masuk"><i data-lucide="package-plus"></i><span>Barang Masuk</span></button>
+            <button class="side-link nav-item submenu-item" data-page="barang-keluar" data-route="/barang-keluar" title="Barang Keluar"><i data-lucide="package-plus"></i><span>Barang Keluar</span></button>
+            <button class="side-link nav-item submenu-item" data-page="locations" data-route="/locations" title="Lokasi"><i data-lucide="map-pin"></i><span>Lokasi</span></button>
+            <button class="side-link nav-item submenu-item" data-page="arsip" data-route="/arsip" title="Arsip"><i data-lucide="archive"></i><span>Arsip</span></button>
+            <button class="side-link nav-item submenu-item" data-page="asset-store" data-route="/asset-store" title="Asset Store"><i data-lucide="store"></i><span>Asset Store</span></button>
+          </div>
+        </section>
+        <section class="menu-group" data-menu-group="monitoring-stok">
+          <p class="menu-category">MONITORING STOK</p>
+          <button class="sidebar-parent" type="button" data-sidebar-parent="monitoring-stok" aria-expanded="true" aria-controls="submenu-monitoring-stok" title="Monitoring Stok">
+            <i class="sidebar-parent-icon" data-lucide="activity"></i><span>Monitoring Stok</span><i class="menu-chevron" data-lucide="chevron-down"></i>
+          </button>
+          <div class="sidebar-submenu" id="submenu-monitoring-stok" data-menu-panel="monitoring-stok">
+            <button class="side-link nav-item submenu-item" data-page="stats" data-route="/accuracy" title="Akurasi Stok"><i data-lucide="shield-check"></i><span>Akurasi Stok</span></button>
+            <button class="side-link nav-item submenu-item" data-page="abc-analisis" data-route="/abc-analisis" title="ABC Analisis"><i data-lucide="chart-no-axes-combined"></i><span>ABC Analisis</span></button>
+            <button class="side-link nav-item submenu-item" data-page="anomaly" data-route="/warning" title="Warning"><i data-lucide="alert-triangle"></i><span>Warning</span></button>
+          </div>
+        </section>
+        <section class="menu-group" data-menu-group="inventory">
+          <p class="menu-category">INVENTORY</p>
+          <button class="sidebar-parent" type="button" data-sidebar-parent="inventory" aria-expanded="true" aria-controls="submenu-inventory" title="Inventory">
+            <i class="sidebar-parent-icon" data-lucide="boxes"></i><span>Inventory</span><i class="menu-chevron" data-lucide="chevron-down"></i>
+          </button>
+          <div class="sidebar-submenu" id="submenu-inventory" data-menu-panel="inventory">
+            <button class="side-link nav-item submenu-item" data-page="stok-minus" data-route="/stok-minus" title="Stok Minus"><i data-lucide="package-x"></i><span>Stok Minus</span></button>
+            <button class="side-link nav-item submenu-item" data-page="cycle-count" data-route="/cycle-count" title="Cycle Count"><i data-lucide="clipboard-check"></i><span>Cycle Count</span></button>
+            <button class="side-link nav-item submenu-item" data-page="movement" data-route="/movement" title="Movement"><i data-lucide="arrow-right-left"></i><span>Movement</span></button>
+            <button class="side-link nav-item submenu-item" data-page="balikan-store" data-route="/balikan-store" title="Balikan Store"><i data-lucide="store"></i><span>Balikan Store</span></button>
+            <button class="side-link nav-item submenu-item" data-page="import-pdf-transfer" data-route="/import-pdf-transfer" title="Import PDF Transfer"><i data-lucide="file-up"></i><span>Import PDF Transfer</span></button>
+          </div>
+        </section>
+        <section class="menu-group" data-menu-group="sistem">
+          <p class="menu-category">SISTEM</p>
+          <button class="sidebar-parent" type="button" data-sidebar-parent="sistem" aria-expanded="true" aria-controls="submenu-sistem" title="Sistem">
+            <i class="sidebar-parent-icon" data-lucide="sliders-horizontal"></i><span>Sistem</span><i class="menu-chevron" data-lucide="chevron-down"></i>
+          </button>
+          <div class="sidebar-submenu" id="submenu-sistem" data-menu-panel="sistem">
+            <button class="side-link nav-item submenu-item" data-page="activity-log" data-route="/activity-log" title="Activity Log"><i data-lucide="scroll-text"></i><span>Activity Log</span></button>
+            <button class="side-link nav-item submenu-item" data-page="tools-dev" data-route="/tools-dev" title="Tools Dev"><i data-lucide="wrench"></i><span>Tools Dev</span></button>
+            <button class="side-link nav-item submenu-item" data-page="settings" data-route="/settings" title="Pengaturan"><i data-lucide="settings"></i><span>Pengaturan</span></button>
+          </div>
+        </section>
       </nav>
       </div>
     </div>
