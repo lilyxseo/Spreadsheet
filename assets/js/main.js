@@ -7,6 +7,7 @@ ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
+const SIDEBAR_MENU_STATE_KEY="inventory_sidebar_menu_state";
 const BARCODE_CACHE_KEY="inventory_barcode_master";
 const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",kartuStock:"kartuStockCache",rpl:"rplCache",bulky:"bulkyCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
 const ABC_ANALYSIS_CACHE_KEY="ABC_ANALYSIS_CACHE";
@@ -524,6 +525,7 @@ form.dataset.bound="1";
 }
 function bindNav(){
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}if(btn.dataset.route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
+document.querySelectorAll("[data-sidebar-parent]").forEach(btn=>btn.addEventListener("click",()=>toggleSidebarMenu(btn.dataset.sidebarParent)));
 }
 async function refreshMovementTableData(mode,{deletedRowNumbers=[]}={}){
 const sheetName=mode==='in'?'Barang Masuk':'Barang Keluar';
@@ -570,7 +572,7 @@ if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[dat
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);Object.values(TABLE_STATE).forEach(st=>{if(st)st.openFilterCol="";});ensureBalikanFilterState().openFilterCol="";});}
 document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));syncActiveSidebarParent(page);if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
@@ -602,7 +604,38 @@ if(activityLogMenu)activityLogMenu.style.display=isDeveloperUser()?"":"none";
 const toolsDevMenu=document.querySelector('.side-link[data-page="tools-dev"]');
 if(toolsDevMenu)toolsDevMenu.style.display=isToolsDevAllowed()?"":"none";
 }
-function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
+function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarMenus();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
+function getSidebarMenuState(){
+const defaults={data:true,"monitoring-stok":true,inventory:true,sistem:true};
+const saved=safeJsonParse(localStorage.getItem(SIDEBAR_MENU_STATE_KEY),null,false);
+return saved&&typeof saved==="object"?{...defaults,...saved}:defaults;
+}
+function setSidebarMenuOpen(key,isOpen,{persist=true}={}){
+if(!key)return;
+const group=document.querySelector(`[data-menu-group="${key}"]`),button=document.querySelector(`[data-sidebar-parent="${key}"]`);
+if(!group||!button)return;
+group.classList.toggle("is-open",isOpen);
+button.setAttribute("aria-expanded",String(isOpen));
+if(persist){const state=getSidebarMenuState();state[key]=isOpen;localStorage.setItem(SIDEBAR_MENU_STATE_KEY,JSON.stringify(state));}
+}
+function toggleSidebarMenu(key){
+const group=document.querySelector(`[data-menu-group="${key}"]`);
+setSidebarMenuOpen(key,!group?.classList.contains("is-open"));
+}
+function syncActiveSidebarParent(page){
+document.querySelectorAll("[data-menu-group]").forEach(group=>{
+const hasActive=!!group.querySelector(`.side-link[data-page="${page}"].active`);
+group.classList.toggle("has-active",hasActive);
+if(hasActive)setSidebarMenuOpen(group.dataset.menuGroup,true,{persist:false});
+});
+}
+function initSidebarMenus(){
+const state=getSidebarMenuState();
+document.querySelectorAll("[data-sidebar-parent]").forEach(btn=>setSidebarMenuOpen(btn.dataset.sidebarParent,state[btn.dataset.sidebarParent]!==false,{persist:false}));
+const active=document.querySelector(".side-link[data-page].active");
+if(active)syncActiveSidebarParent(active.dataset.page);
+}
+
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
 function handleDesktopSidebarMode(){if(window.innerWidth<900){document.body.classList.remove("sidebar-collapsed");return;}const saved=localStorage.getItem("sidebar_collapsed")==="true";document.body.classList.toggle("sidebar-collapsed",saved);}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
