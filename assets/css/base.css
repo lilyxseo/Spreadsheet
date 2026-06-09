@@ -423,6 +423,17 @@ textarea{resize:vertical;min-height:96px}
   border-radius:4px;
 }
 .side-link.nav-item.active i{color:#dc2626;opacity:1}
+.sidebar-tree{display:grid;gap:2px;min-width:0}
+.sidebar-parent{cursor:pointer}
+.sidebar-parent .sidebar-chevron{width:16px;height:16px;margin-left:auto;opacity:.72;transition:transform .22s ease,color .2s ease;flex-shrink:0}
+.sidebar-tree.is-expanded .sidebar-chevron{transform:rotate(90deg)}
+.sidebar-tree.has-active-child>.sidebar-parent{color:#991b1b;background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.14)}
+.sidebar-submenu{display:grid;gap:3px;max-height:0;opacity:0;overflow:hidden;transform:translateY(-4px);transition:max-height .28s ease,opacity .2s ease,transform .24s ease}
+.sidebar-tree.is-expanded .sidebar-submenu{max-height:520px;opacity:1;transform:translateY(0)}
+.side-link.nav-item.submenu-item{min-height:36px;margin-left:18px;width:calc(100% - 18px);padding:8px 10px 8px 16px;border-radius:10px;font-size:13px;position:relative}
+.side-link.nav-item.submenu-item::after{content:"";position:absolute;left:6px;top:50%;width:5px;height:5px;border-radius:999px;background:currentColor;opacity:.35;transform:translateY(-50%)}
+.side-link.nav-item.submenu-item span{font-size:13px}
+.side-link.nav-item.submenu-item.active::before{left:0;top:7px;bottom:7px;width:2px}
 
 .sidebar-item:hover,
 .sidebar-parent:hover,
@@ -502,6 +513,11 @@ body.dark .side-link.nav-item:hover{color:#f8fafc;background:rgba(148,163,184,.1
 body.dark .side-link.nav-item.active{color:#ffe4e6;background:rgba(239,68,68,.2);border-color:rgba(248,113,113,.3);box-shadow:none}
 body.dark .side-link.nav-item.active::before{background:#f87171}
 body.dark .side-link.nav-item.active i{color:#fda4af}
+body.dark .sidebar-tree.has-active-child>.sidebar-parent{color:#ffe4e6;background:rgba(239,68,68,.14);border-color:rgba(248,113,113,.24)}
+body.dark .sidebar-parent .sidebar-chevron{color:rgba(226,232,240,.82)}
+body.dark .side-link.nav-item.submenu-item{color:rgba(226,232,240,.86)}
+body.dark .side-link.nav-item.submenu-item:hover{color:#f8fafc;background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.2)}
+body.dark .side-link.nav-item.submenu-item.active{color:#ffe4e6;background:rgba(239,68,68,.2);border-color:rgba(248,113,113,.3)}
 body.dark .sidebar-footer{background:transparent;backdrop-filter:none}
 body.dark .account-card{border:1px solid rgba(148,163,184,.34);background:rgba(15,23,42,.42)}
 body.dark .account-meta strong{color:#f87171}
