@@ -50,7 +50,20 @@ function decodeJwtPayload(token) {
   }
 }
 
-function isDeveloperRequest(request) {
+function parseTrue(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+function isPreviewBypassRequest(request, env) {
+  const previewBypassLogin = parseTrue(
+    env?.PREVIEW_BYPASS_LOGIN ?? env?.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env?.VITE_PREVIEW_BYPASS_LOGIN
+  );
+  return previewBypassLogin && request.headers.get("x-preview-bypass-login") === "true";
+}
+
+function isDeveloperRequest(request, env) {
+  if (isPreviewBypassRequest(request, env)) return true;
   const auth = String(request.headers.get("authorization") || "");
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   const payload = decodeJwtPayload(token);
@@ -157,7 +170,7 @@ export async function onRequestPost({ request, env }) {
 
 export async function onRequestGet({ request, env }) {
   try {
-    if (!isDeveloperRequest(request)) return json({ success: false, error: "Akses ditolak" }, 403);
+    if (!isDeveloperRequest(request, env)) return json({ success: false, error: "Akses ditolak" }, 403);
     const url = new URL(request.url);
     const data = await supabaseGetLogs(env, Object.fromEntries(url.searchParams.entries()));
     return json({ success: true, data });

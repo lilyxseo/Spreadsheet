@@ -33,6 +33,7 @@ const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasSca
 const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],sheetCache:{},sheetChecksums:{},dynamicColumnCache:{},allTripLoading:false,highlightRowNumber:null,highlightSheetName:"",sortBy:"default",autoCheckOnScan:true,exactScanSku:"",selectedSkuRowNumber:null,selectedSkuSheetName:"",selectedSkuValue:"",lastCheckedRowId:null,lastCheckedSheetName:"",lastCheckedSku:"",lastCheckedVersion:0,lastCheckedFadeTimer:null,pendingEdits:{},pendingEditMeta:{},saveStatus:{},saveTimer:null,saveInProgress:false,saveRequested:false,isRendering:false,isRefreshing:false,pendingRender:false,lastRenderedChecksum:"",lastDataChecksum:"",lastRenderedHeaderKey:"",renderTimer:null,searchDebounceTimer:null};
 const PDF_TRANSFER_STATE={header:{},items:[],warnings:[],debugRows:[],rawText:"",logs:[],isParsing:false,isImporting:false,lastFileName:""};
+const ACTIVITY_LOG_STATE={page:1,pageSize:10,filters:{module:"",action:"",user:"",status:""}};
 if(window.lucide&&typeof window.lucide.createIcons==="function"&&!window.__lucideSafePatched){
 const _createIconsOriginal=window.lucide.createIcons.bind(window.lucide);
 window.lucide.createIcons=(...args)=>{
@@ -98,10 +99,16 @@ syncDeveloperMenuVisibility();
 function isDeveloperUser(){
 return getCurrentUser()?.isDeveloper===true;
 }
-function isToolsDevAllowed(){
+function isDeveloperRoleLike(){
 const current=getCurrentUser()||{};
 const role=String(current.role||current.user_role||"").toLowerCase();
-return isDeveloperUser()||isPreviewBypassLoginEnabled()||role.includes("admin")||role.includes("developer")||role.includes("dev");
+return role.includes("admin")||role.includes("developer")||role.includes("dev");
+}
+function isActivityLogAllowed(){
+return isDeveloperUser()||isPreviewBypassLoginEnabled()||isDeveloperRoleLike();
+}
+function isToolsDevAllowed(){
+return isActivityLogAllowed();
 }
 window.currentUser=getCurrentUser();
 
@@ -523,7 +530,7 @@ showAuthMode("login");
 form.dataset.bound="1";
 }
 function bindNav(){
-document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}if(btn.dataset.route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
+document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isActivityLogAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}if(btn.dataset.route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
 }
 async function refreshMovementTableData(mode,{deletedRowNumbers=[]}={}){
 const sheetName=mode==='in'?'Barang Masuk':'Barang Keluar';
@@ -595,10 +602,10 @@ if(!user){
 if(isPreviewBypassLoginEnabled()){history.replaceState({},"","/");return showPage("dashboard");}
 return showLoginView();
 }
-if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isDeveloperUser()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isActivityLogAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){
 const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');
-if(activityLogMenu)activityLogMenu.style.display=isDeveloperUser()?"":"none";
+if(activityLogMenu)activityLogMenu.style.display=isActivityLogAllowed()?"":"none";
 const toolsDevMenu=document.querySelector('.side-link[data-page="tools-dev"]');
 if(toolsDevMenu)toolsDevMenu.style.display=isToolsDevAllowed()?"":"none";
 }
@@ -2501,7 +2508,7 @@ form.dataset.bound="1";
 
 async function logActivitySafe(payload){try{await logActivity({...currentUserIdentity(),...payload});}catch(_){}}
 async function withActivity(payload,fn){return logActivityResult({...currentUserIdentity(),...payload},fn);}
-async function getActivityLogAccessToken(){const devRaw=localStorage.getItem("dev_auth_session");if(devRaw){try{const dev=JSON.parse(devRaw);if(dev?.session?.access_token)return dev.session.access_token;}catch(_err){}}const {data}=await supabase.auth.getSession();return data?.session?.access_token||"";}
+async function getActivityLogAccessHeaders(){const devRaw=localStorage.getItem("dev_auth_session");if(devRaw){try{const dev=JSON.parse(devRaw);if(dev?.session?.access_token)return {Authorization:`Bearer ${dev.session.access_token}`};}catch(_err){}}if(isPreviewBypassLoginEnabled())return {"X-Preview-Bypass-Login":"true"};const {data}=await supabase.auth.getSession();return data?.session?.access_token?{Authorization:`Bearer ${data.session.access_token}`}:{ };}
 
 function getPdfJsLib(){
 if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
@@ -2622,7 +2629,7 @@ try{const res=await fetch('/api/import-pdf-transfer',{method:'POST',headers:{'co
 toast(`Import sukses ke sheet ${out.sheetTitle||'-'}`,'success');
 }catch(err){toast(`Import gagal: ${err.message||err}`,'error');}finally{PDF_TRANSFER_STATE.isImporting=false;renderImportPdfTransferPage();}
 }
-async function fetchActivityLogs(){const off=(ACTIVITY_LOG_STATE.page-1)*ACTIVITY_LOG_STATE.pageSize;const qs=new URLSearchParams({limit:String(ACTIVITY_LOG_STATE.pageSize),offset:String(off)});if(ACTIVITY_LOG_STATE.filters.module)qs.set("module",ACTIVITY_LOG_STATE.filters.module);if(ACTIVITY_LOG_STATE.filters.action)qs.set("action",ACTIVITY_LOG_STATE.filters.action);if(ACTIVITY_LOG_STATE.filters.user)qs.set("user_name",ACTIVITY_LOG_STATE.filters.user);if(ACTIVITY_LOG_STATE.filters.status)qs.set("status",ACTIVITY_LOG_STATE.filters.status);const token=await getActivityLogAccessToken();const headers=token?{Authorization:`Bearer ${token}`}:{ };const res=await fetch(`/api/activity-log?${qs.toString()}`,{headers});const data=await res.json();if(!res.ok||!data?.success)throw new Error(data?.message||"Gagal memuat activity log");return Array.isArray(data.data)?data.data:[];}
+async function fetchActivityLogs(){const off=(ACTIVITY_LOG_STATE.page-1)*ACTIVITY_LOG_STATE.pageSize;const qs=new URLSearchParams({limit:String(ACTIVITY_LOG_STATE.pageSize),offset:String(off)});if(ACTIVITY_LOG_STATE.filters.module)qs.set("module",ACTIVITY_LOG_STATE.filters.module);if(ACTIVITY_LOG_STATE.filters.action)qs.set("action",ACTIVITY_LOG_STATE.filters.action);if(ACTIVITY_LOG_STATE.filters.user)qs.set("user_name",ACTIVITY_LOG_STATE.filters.user);if(ACTIVITY_LOG_STATE.filters.status)qs.set("status",ACTIVITY_LOG_STATE.filters.status);const headers=await getActivityLogAccessHeaders();const res=await fetch(`/api/activity-log?${qs.toString()}`,{headers});const data=await res.json();if(!res.ok||!data?.success)throw new Error(data?.message||"Gagal memuat activity log");return Array.isArray(data.data)?data.data:[];}
 async function renderActivityLogPage(){const root=document.getElementById("activityLogApp");if(!root)return;let rows=[];let err="";try{rows=await fetchActivityLogs();}catch(e){err=e?.message||"Gagal memuat activity log";}root.innerHTML=`<div class="card cc-card cc-section"><div class="mv-filters open"><select id="alModule"><option value="">Semua Module</option><option>Auth</option><option>Cycle Count</option><option>Movement</option><option>Search</option></select><select id="alAction"><option value="">Semua Action</option><option>LOGIN_SUCCESS</option><option>LOGIN_DEVELOPER</option><option>SUBMIT_CYCLE_COUNT</option><option>EDIT_CYCLE_COUNT</option><option>DELETE_CYCLE_COUNT</option><option>SUBMIT_MOVEMENT</option><option>EDIT_MOVEMENT</option><option>DELETE_MOVEMENT</option><option>SCAN_BARCODE_SKU</option><option>REGISTER_SUCCESS</option></select><input id="alUser" class="search-lg" placeholder="Filter user" value="${esc(ACTIVITY_LOG_STATE.filters.user)}"><select id="alStatus"><option value="">Semua Status</option><option>SUCCESS</option><option>FAILED</option></select><select id="alSize"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select><button id="alApply" class="btn-primary">Apply</button></div>${err?`<div class='state error'>${esc(err)}</div>`:''}<div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Detail</th><th>Reference</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(x=>`<tr><td>${esc(formatDateTime(x.created_at))}</td><td>${esc(x.user_name||'-')}</td><td>${esc(x.role||'-')}</td><td>${esc(x.action||'-')}</td><td>${esc(x.module||'-')}</td><td>${esc(x.detail||'-')}</td><td>${esc(x.reference||'-')}</td><td>${esc(x.status||'-')}</td></tr>`).join(''):`<tr><td colspan='8'><div class='state'>Belum ada activity log.</div></td></tr>`}</tbody></table></div><div class='mv-pagination'><span>Page ${ACTIVITY_LOG_STATE.page}</span><div class='row'><button id='alPrev' class='btn-ghost'>Prev</button><button id='alNext' class='btn-ghost'>Next</button></div></div></div>`;document.getElementById('alModule').value=ACTIVITY_LOG_STATE.filters.module;document.getElementById('alAction').value=ACTIVITY_LOG_STATE.filters.action;document.getElementById('alStatus').value=ACTIVITY_LOG_STATE.filters.status;document.getElementById('alSize').value=String(ACTIVITY_LOG_STATE.pageSize);document.getElementById('alApply').onclick=()=>{ACTIVITY_LOG_STATE.filters={module:document.getElementById('alModule').value,action:document.getElementById('alAction').value,user:document.getElementById('alUser').value.trim(),status:document.getElementById('alStatus').value};ACTIVITY_LOG_STATE.pageSize=Number(document.getElementById('alSize').value)||10;ACTIVITY_LOG_STATE.page=1;renderActivityLogPage();};document.getElementById('alPrev').onclick=()=>{ACTIVITY_LOG_STATE.page=Math.max(1,ACTIVITY_LOG_STATE.page-1);renderActivityLogPage();};document.getElementById('alNext').onclick=()=>{ACTIVITY_LOG_STATE.page+=1;renderActivityLogPage();};}
 
 window.showToast=(message,type="success")=>toast(message,type);
