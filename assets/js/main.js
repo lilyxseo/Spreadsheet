@@ -33,6 +33,58 @@ const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasSca
 const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],sheetCache:{},sheetChecksums:{},dynamicColumnCache:{},allTripLoading:false,highlightRowNumber:null,highlightSheetName:"",sortBy:"default",autoCheckOnScan:true,exactScanSku:"",selectedSkuRowNumber:null,selectedSkuSheetName:"",selectedSkuValue:"",lastCheckedRowId:null,lastCheckedSheetName:"",lastCheckedSku:"",lastCheckedVersion:0,lastCheckedFadeTimer:null,pendingEdits:{},pendingEditMeta:{},saveStatus:{},saveTimer:null,saveInProgress:false,saveRequested:false,isRendering:false,isRefreshing:false,pendingRender:false,lastRenderedChecksum:"",lastDataChecksum:"",lastRenderedHeaderKey:"",renderTimer:null,searchDebounceTimer:null};
 const PDF_TRANSFER_STATE={header:{},items:[],warnings:[],debugRows:[],rawText:"",logs:[],isParsing:false,isImporting:false,lastFileName:""};
+const SIDEBAR_EXPANDED_KEY="sidebarExpanded";
+const SIDEBAR_GROUPS=[
+{category:"MAIN",items:[{key:"dashboard",title:"Dashboard",icon:"layout-dashboard",page:"dashboard",route:"/"}]},
+{category:"DATA",items:[{key:"cariSku",title:"Cari SKU",icon:"search",page:"search",route:"/search"},{key:"barangMasuk",title:"Barang Masuk",icon:"package-plus",page:"barang-masuk",route:"/barang-masuk"},{key:"barangKeluar",title:"Barang Keluar",icon:"package-plus",page:"barang-keluar",route:"/barang-keluar"},{key:"lokasi",title:"Lokasi",icon:"map-pin",page:"locations",route:"/locations"},{key:"arsip",title:"Arsip",icon:"archive",page:"arsip",route:"/arsip"},{key:"assetStore",title:"Asset Store",icon:"store",page:"asset-store",route:"/asset-store"}]},
+{category:"MONITORING STOK",items:[{key:"akurasiStok",title:"Akurasi Stok",icon:"shield-check",page:"stats",route:"/accuracy"},{key:"abcAnalisis",title:"ABC Analisis",icon:"chart-no-axes-combined",page:"abc-analisis",route:"/abc-analisis"},{key:"warning",title:"Warning",icon:"alert-triangle",page:"anomaly",route:"/warning"}]},
+{category:"INVENTORY",items:[{key:"stokMinus",title:"Stok Minus",icon:"package-x",page:"stok-minus",route:"/stok-minus"},{key:"cycleCount",title:"Cycle Count",icon:"clipboard-check",page:"cycle-count",route:"/cycle-count"},{key:"movement",title:"Movement",icon:"arrow-right-left",page:"movement",route:"/movement"},{key:"balikanStore",title:"Balikan Store",icon:"store",page:"balikan-store",route:"/balikan-store"},{key:"importPdfTransfer",title:"Import PDF Transfer",icon:"file-up",page:"import-pdf-transfer",route:"/import-pdf-transfer"}]},
+{category:"SISTEM",items:[{key:"activityLog",title:"Activity Log",icon:"scroll-text",page:"activity-log",route:"/activity-log"},{key:"toolsDev",title:"Tools Dev",icon:"wrench",page:"tools-dev",route:"/tools-dev"},{key:"pengaturan",title:"Pengaturan",icon:"settings",page:"settings",route:"/settings"}]}
+];
+function readSidebarExpandedState(){try{const parsed=JSON.parse(localStorage.getItem(SIDEBAR_EXPANDED_KEY)||"{}");return parsed&&typeof parsed==="object"&&!Array.isArray(parsed)?parsed:{};}catch(_err){return {};}}
+function writeSidebarExpandedState(state){try{localStorage.setItem(SIDEBAR_EXPANDED_KEY,JSON.stringify(state||{}));}catch(_err){}}
+function findSidebarItem(predicate){for(const group of SIDEBAR_GROUPS){for(const item of group.items){if(predicate(item,group))return item;for(const child of item.children||[]){if(predicate(child,group,item))return child;}}}return null;}
+function isSidebarRouteMatch(item,path=location.pathname){if(!item?.route)return false;const route=item.route==="/dashboard"?"/":item.route;const cleanPath=path==="/dashboard"?"/":path;return cleanPath===route||cleanPath.startsWith(`${route}/`);}
+function itemHasActiveChild(item,path=location.pathname,page=""){return (item.children||[]).some(child=>isSidebarRouteMatch(child,path)||child.page===page);}
+function renderSidebarMenu(){
+const menu=document.getElementById("menuWrap");
+if(!menu||menu.dataset.rendered==="1")return;
+const html=SIDEBAR_GROUPS.map(group=>`<section class="menu-group"><p class="menu-category">${esc(group.category)}</p>${group.items.map(item=>renderSidebarItem(item)).join("")}</section>`).join("");
+menu.innerHTML=html;
+menu.dataset.rendered="1";
+restoreSidebarExpandedState();
+if(window.lucide)lucide.createIcons();
+}
+function renderSidebarItem(item){
+const children=Array.isArray(item.children)?item.children:[];
+if(children.length){
+const childHtml=children.map(child=>renderSidebarChild(child)).join("");
+return `<div class="sidebar-menu-node" data-sidebar-parent="${esc(item.key)}"><button class="side-link nav-item sidebar-parent" type="button" data-parent-key="${esc(item.key)}" data-route="${esc(item.route||"")}" aria-expanded="false" aria-controls="submenu-${esc(item.key)}"><i data-lucide="${esc(item.icon)}"></i><span>${esc(item.title)}</span><i class="sidebar-chevron" data-lucide="chevron-right" aria-hidden="true"></i></button><div class="sidebar-submenu" id="submenu-${esc(item.key)}" data-submenu="${esc(item.key)}">${childHtml}</div></div>`;
+}
+return `<button class="side-link nav-item" type="button" data-page="${esc(item.page)}" data-route="${esc(item.route||"")}" data-menu-key="${esc(item.key)}"><i data-lucide="${esc(item.icon)}"></i><span>${esc(item.title)}</span></button>`;
+}
+function renderSidebarChild(child){return `<button class="side-link nav-item sidebar-subitem" type="button" data-page="${esc(child.page)}" data-route="${esc(child.route||"")}" data-menu-key="${esc(child.key)}"><span>${esc(child.title)}</span></button>`;}
+function setSidebarParentExpanded(key,expanded,{persist=true}={}){
+const parent=document.querySelector(`[data-parent-key="${CSS.escape(key)}"]`),submenu=document.querySelector(`[data-submenu="${CSS.escape(key)}"]`),node=document.querySelector(`[data-sidebar-parent="${CSS.escape(key)}"]`);
+if(!parent||!submenu)return;
+parent.setAttribute("aria-expanded",String(expanded));
+parent.classList.toggle("expanded",expanded);
+node?.classList.toggle("expanded",expanded);
+submenu.classList.toggle("expanded",expanded);
+const icon=parent.querySelector(".sidebar-chevron");
+if(icon)icon.setAttribute("data-lucide",expanded?"chevron-down":"chevron-right");
+if(persist){const state=readSidebarExpandedState();state[key]=!!expanded;writeSidebarExpandedState(state);}
+if(window.lucide)lucide.createIcons();
+}
+function restoreSidebarExpandedState(){const state=readSidebarExpandedState();Object.entries(state).forEach(([key,value])=>setSidebarParentExpanded(key,!!value,{persist:false}));autoExpandSidebarForRoute(location.pathname);}
+function autoExpandSidebarForRoute(path=location.pathname,page=""){
+SIDEBAR_GROUPS.flatMap(group=>group.items).forEach(item=>{if(item.children?.length&&itemHasActiveChild(item,path,page))setSidebarParentExpanded(item.key,true,{persist:false});});
+}
+function updateSidebarActiveState(page,path=location.pathname){
+document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
+document.querySelectorAll(".sidebar-parent").forEach(btn=>{const key=btn.dataset.parentKey;const item=findSidebarItem(it=>it.key===key);btn.classList.toggle("active",!!item&&itemHasActiveChild(item,path,page));});
+autoExpandSidebarForRoute(path,page);
+}
 if(window.lucide&&typeof window.lucide.createIcons==="function"&&!window.__lucideSafePatched){
 const _createIconsOriginal=window.lucide.createIcons.bind(window.lucide);
 window.lucide.createIcons=(...args)=>{
@@ -523,7 +575,26 @@ showAuthMode("login");
 form.dataset.bound="1";
 }
 function bindNav(){
-document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}if(btn.dataset.route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
+renderSidebarMenu();
+const menu=document.getElementById("menuWrap");
+if(!menu||menu.dataset.bound==="1")return;
+menu.addEventListener("click",e=>{
+const parentBtn=e.target.closest(".sidebar-parent");
+if(parentBtn){
+const key=parentBtn.dataset.parentKey;
+const expanded=parentBtn.getAttribute("aria-expanded")==="true";
+setSidebarParentExpanded(key,!expanded);
+return;
+}
+const btn=e.target.closest(".side-link[data-route]");
+if(!btn||!menu.contains(btn))return;
+const route=btn.dataset.route;
+if(!route)return;
+if(route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}
+if(route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}
+navigateTo(route);closeSidebarMobile();
+});
+menu.dataset.bound="1";
 }
 async function refreshMovementTableData(mode,{deletedRowNumbers=[]}={}){
 const sheetName=mode==='in'?'Barang Masuk':'Barang Keluar';
@@ -570,7 +641,7 @@ if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[dat
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);Object.values(TABLE_STATE).forEach(st=>{if(st)st.openFilterCol="";});ensureBalikanFilterState().openFilterCol="";});}
 document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");updateSidebarActiveState(page,location.pathname);if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
