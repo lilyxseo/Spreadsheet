@@ -17,9 +17,16 @@ const ALLOWED_ACTIONS = new Set([
   "DELETE_MOVEMENT",
   "SCAN_BARCODE_SKU",
   "REGISTER_SUCCESS",
+  "INPUT_BARANG_MASUK_REJECT",
+  "INPUT_BARANG_KELUAR_REJECT",
+  "EDIT_BARANG_REJECT",
+  "DELETE_BARANG_REJECT",
+  "REFRESH_BARANG_REJECT",
+  "EXPORT_CSV_BARANG_REJECT",
+  "SCAN_BARCODE_REJECT",
 ]);
 
-const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search"]);
+const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search", "Barang Reject", "Barang Masuk Reject", "Barang Keluar Reject"]);
 const ALLOWED_STATUS = new Set(["SUCCESS", "FAILED"]);
 
 function sanitizeText(value, max = 500) {
