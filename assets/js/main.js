@@ -41,6 +41,108 @@ catch(err){console.warn("lucide.createIcons skipped:",err?.message||err);return 
 };
 window.__lucideSafePatched=true;
 }
+const SIDEBAR_EXPANDED_KEY="sidebarExpanded";
+const SIDEBAR_MENU=[
+{category:"MAIN",items:[{title:"Dashboard",page:"dashboard",route:"/",icon:"layout-dashboard"}]},
+{category:"DATA",items:[{title:"Cari SKU",page:"search",route:"/search",icon:"search"},{title:"Barang Masuk",page:"barang-masuk",route:"/barang-masuk",icon:"package-plus"},{title:"Barang Keluar",page:"barang-keluar",route:"/barang-keluar",icon:"package-plus"},{title:"Lokasi",page:"locations",route:"/locations",icon:"map-pin"},{title:"Arsip",page:"arsip",route:"/arsip",icon:"archive"},{title:"Asset Store",page:"asset-store",route:"/asset-store",icon:"store"}]},
+{category:"MONITORING STOK",items:[{title:"Akurasi Stok",page:"stats",route:"/accuracy",icon:"shield-check"},{title:"ABC Analisis",page:"abc-analisis",route:"/abc-analisis",icon:"chart-no-axes-combined"},{title:"Warning",page:"anomaly",route:"/warning",icon:"alert-triangle"}]},
+{category:"INVENTORY",items:[{title:"Stok Minus",page:"stok-minus",route:"/stok-minus",icon:"package-x"},{title:"Cycle Count",page:"cycle-count",route:"/cycle-count",icon:"clipboard-check"},{title:"Movement",page:"movement",route:"/movement",icon:"arrow-right-left"},{title:"Balikan Store",page:"balikan-store",route:"/balikan-store",icon:"store"},{title:"Import PDF Transfer",page:"import-pdf-transfer",route:"/import-pdf-transfer",icon:"file-up"}]},
+{category:"SISTEM",items:[{title:"Activity Log",page:"activity-log",route:"/activity-log",icon:"scroll-text"},{title:"Tools Dev",page:"tools-dev",route:"/tools-dev",icon:"wrench"},{title:"Pengaturan",page:"settings",route:"/settings",icon:"settings"}]}
+];
+function toSidebarParentKey(value){
+const words=String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g," ").trim().split(/\s+/).filter(Boolean);
+if(!words.length)return "menu";
+return words.map((word,index)=>{const lower=word.toLowerCase();return index===0?lower:lower.charAt(0).toUpperCase()+lower.slice(1);}).join("");
+}
+function getSidebarExpandedState(){
+try{const parsed=JSON.parse(localStorage.getItem(SIDEBAR_EXPANDED_KEY)||"{}");return parsed&&typeof parsed==="object"&&!Array.isArray(parsed)?parsed:{};}catch(_err){return {};}
+}
+function saveSidebarExpandedState(key,expanded){
+const state=getSidebarExpandedState();
+state[key]=!!expanded;
+localStorage.setItem(SIDEBAR_EXPANDED_KEY,JSON.stringify(state));
+}
+function createSidebarIcon(icon){
+const el=document.createElement("i");
+el.setAttribute("data-lucide",icon);
+el.setAttribute("aria-hidden","true");
+return el;
+}
+function createSidebarItem(item,{submenu=false}={}){
+const btn=document.createElement("button");
+btn.type="button";
+btn.className=`side-link nav-item${submenu?" submenu-item":""}`;
+if(item.page)btn.dataset.page=item.page;
+if(item.route)btn.dataset.route=item.route;
+if(item.icon&&!submenu)btn.appendChild(createSidebarIcon(item.icon));
+const label=document.createElement("span");
+label.textContent=item.title;
+btn.appendChild(label);
+return btn;
+}
+function setSidebarParentExpanded(parent,key,expanded,{persist=false}={}){
+if(!parent)return;
+const isExpanded=!!expanded;
+parent.classList.toggle("is-expanded",isExpanded);
+const btn=parent.querySelector(".sidebar-parent");
+const submenu=parent.querySelector(".sidebar-submenu");
+if(btn)btn.setAttribute("aria-expanded",String(isExpanded));
+if(submenu)submenu.setAttribute("aria-hidden",String(!isExpanded));
+if(persist&&key)saveSidebarExpandedState(key,isExpanded);
+}
+function renderSidebarMenu(){
+const menu=document.getElementById("menuWrap");
+if(!menu)return;
+const expandedState=getSidebarExpandedState();
+const frag=document.createDocumentFragment();
+SIDEBAR_MENU.forEach(group=>{
+const section=document.createElement("section");
+section.className="menu-group";
+const category=document.createElement("p");
+category.className="menu-category";
+category.textContent=group.category;
+section.appendChild(category);
+(group.items||[]).forEach(item=>{
+const children=Array.isArray(item.children)?item.children:[];
+if(!children.length){section.appendChild(createSidebarItem(item));return;}
+const key=item.key||toSidebarParentKey(item.title);
+const wrapper=document.createElement("div");
+wrapper.className="sidebar-tree";
+wrapper.dataset.parentKey=key;
+const parentBtn=createSidebarItem(item);
+parentBtn.classList.add("sidebar-parent");
+parentBtn.dataset.parentKey=key;
+parentBtn.removeAttribute("data-route");
+parentBtn.setAttribute("aria-expanded","false");
+parentBtn.setAttribute("aria-controls",`sidebar-submenu-${key}`);
+const chevron=document.createElement("i");
+chevron.className="sidebar-chevron";
+chevron.setAttribute("data-lucide","chevron-right");
+chevron.setAttribute("aria-hidden","true");
+parentBtn.appendChild(chevron);
+const submenu=document.createElement("div");
+submenu.className="sidebar-submenu";
+submenu.id=`sidebar-submenu-${key}`;
+submenu.setAttribute("aria-hidden","true");
+children.forEach(child=>submenu.appendChild(createSidebarItem(child,{submenu:true})));
+wrapper.append(parentBtn,submenu);
+section.appendChild(wrapper);
+setSidebarParentExpanded(wrapper,key,expandedState[key]===true);
+});
+frag.appendChild(section);
+});
+menu.replaceChildren(frag);
+if(window.lucide&&typeof window.lucide.createIcons==="function")window.lucide.createIcons();
+}
+function syncSidebarActiveState(page){
+document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
+document.querySelectorAll(".sidebar-tree").forEach(parent=>{
+const key=parent.dataset.parentKey;
+const hasActiveChild=[...parent.querySelectorAll(".submenu-item[data-page]")].some(item=>item.dataset.page===page);
+parent.classList.toggle("has-active-child",hasActiveChild);
+if(hasActiveChild)setSidebarParentExpanded(parent,key,true);
+});
+}
 const MODULE_CACHE_MEMORY={};
 const LARGE_CACHE_KEYS=new Set([MODULE_CACHE_KEYS.inventory,MODULE_CACHE_KEYS.movement,MODULE_CACHE_KEYS.barangMasuk,MODULE_CACHE_KEYS.barangKeluar,MODULE_CACHE_KEYS.kartuStock,MODULE_CACHE_KEYS.rpl,MODULE_CACHE_KEYS.bulky]);
 const HAS_INDEXED_DB=typeof window!=="undefined"&&typeof window.indexedDB!=="undefined";
@@ -523,7 +625,9 @@ showAuthMode("login");
 form.dataset.bound="1";
 }
 function bindNav(){
+renderSidebarMenu();
 document.querySelectorAll(".side-link[data-route]").forEach(btn=>btn.addEventListener("click",()=>{if(btn.dataset.route==="/activity-log"&&!isDeveloperUser()){navigateTo("/dashboard");closeSidebarMobile();return;}if(btn.dataset.route==="/tools-dev"&&!isToolsDevAllowed()){navigateTo("/dashboard");closeSidebarMobile();return;}navigateTo(btn.dataset.route);closeSidebarMobile();}));
+document.querySelectorAll(".sidebar-parent").forEach(btn=>btn.addEventListener("click",()=>{const key=btn.dataset.parentKey;const parent=btn.closest(".sidebar-tree");const expanded=btn.getAttribute("aria-expanded")==="true";setSidebarParentExpanded(parent,key,!expanded,{persist:true});}));
 }
 async function refreshMovementTableData(mode,{deletedRowNumbers=[]}={}){
 const sheetName=mode==='in'?'Barang Masuk':'Barang Keluar';
@@ -570,7 +674,7 @@ if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[dat
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);Object.values(TABLE_STATE).forEach(st=>{if(st)st.openFilterCol="";});ensureBalikanFilterState().openFilterCol="";});}
 document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");syncSidebarActiveState(page);if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
