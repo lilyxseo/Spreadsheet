@@ -2,14 +2,14 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase 
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity, logActivityResult } from "./activity-log.js";
-const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locTypeFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","abcAnalisisApp","importPdfTransferApp"];
+const ids=["searchInput","sortSearch","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locTypeFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","abcAnalisisApp","importPdfTransferApp","barangRejectApp"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search"};
 const SIDEBAR_MENU_STATE_KEY="inventory_sidebar_menu_state";
 const BARCODE_CACHE_KEY="inventory_barcode_master";
-const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",kartuStock:"kartuStockCache",rpl:"rplCache",bulky:"bulkyCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
+const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",kartuStock:"kartuStockCache",rpl:"rplCache",bulky:"bulkyCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache",barangReject:"barangRejectCache"};
 const ABC_ANALYSIS_CACHE_KEY="ABC_ANALYSIS_CACHE";
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
@@ -51,7 +51,7 @@ async function saveLargeCacheToDb(key,data){
 if(!HAS_INDEXED_DB)return;
 try{
 const db=await openCacheDb();
-await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);st.put({sheet:key,rows:Array.isArray(data)?data:[],updatedAt:Date.now(),version:CACHE_VERSION});tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
+await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);st.put({sheet:key,rows:key===MODULE_CACHE_KEYS.barangReject?normalizeBarangRejectData(data):(Array.isArray(data)?data:[]),updatedAt:Date.now(),version:CACHE_VERSION});tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
 }catch(err){console.warn("IndexedDB save module cache failed",key,err);}
 }
 async function loadLargeCacheFromDb(key){
@@ -59,12 +59,14 @@ if(!HAS_INDEXED_DB)return [];
 try{
 const db=await openCacheDb();
 const row=await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readonly");const rq=tx.objectStore(IDB_STORE).get(key);rq.onsuccess=()=>resolve(rq.result||null);rq.onerror=()=>reject(rq.error);});
+if(key===MODULE_CACHE_KEYS.barangReject)return normalizeBarangRejectData(row?.rows||{});
 return Array.isArray(row?.rows)?row.rows:[];
 }catch(err){console.warn("IndexedDB load module cache failed",key,err);return [];} 
 }
 async function hydrateModuleCachesFromDb(){
 for(const key of LARGE_CACHE_KEYS){
 const rows=await loadLargeCacheFromDb(key);
+if(key===MODULE_CACHE_KEYS.barangReject){MODULE_CACHE_MEMORY[key]=normalizeBarangRejectData(rows);continue;}
 if(Array.isArray(rows)&&rows.length)MODULE_CACHE_MEMORY[key]=rows;
 }
 }
@@ -238,14 +240,14 @@ const deletedSet=new Set((deletedRowNumbers||[]).map(Number));
 return (oldRows||[]).filter(row=>!deletedSet.has(Number(row?.rowNumber)));
 }
 function setModuleCache(key,rows){
-const normalized=Array.isArray(rows)?rows:[];
+const normalized=key===MODULE_CACHE_KEYS.barangReject?normalizeBarangRejectData(rows):(Array.isArray(rows)?rows:[]);
 MODULE_CACHE_MEMORY[key]=normalized;
 if(isLargeCacheKey(key)){saveLargeCacheToDb(key,normalized);return;}
 localStorage.setItem(key,JSON.stringify(normalized));
 }
 function getModuleCache(key){
 if(Array.isArray(MODULE_CACHE_MEMORY[key]))return MODULE_CACHE_MEMORY[key];
-if(isLargeCacheKey(key))return [];
+if(isLargeCacheKey(key))return key===MODULE_CACHE_KEYS.barangReject?normalizeBarangRejectData({}):[];
 try{return JSON.parse(localStorage.getItem(key)||"[]");}catch(_err){return [];}
 }
 function safeJsonParse(value,fallback=null,logError=true){
@@ -267,6 +269,7 @@ if(isLargeCacheKey(key))return getModuleCache(key);
 const raw=localStorage.getItem(key);
 const parsed=safeJsonParse(raw,null);
 if(Array.isArray(parsed))return parsed;
+if(key===MODULE_CACHE_KEYS.barangReject&&parsed&&typeof parsed==="object")return normalizeBarangRejectData(parsed.data||parsed);
 if(parsed&&Array.isArray(parsed.data))return parsed.data;
 if(raw!=null)localStorage.removeItem(key);
 return [];
@@ -339,27 +342,31 @@ const rows=Array.isArray(json?.data)?json.data:(Array.isArray(json?.rows)?json.r
 setCacheSafe(MODULE_CACHE_KEYS.movement,rows);return rows;
 };
 const loadBarcodeData=async()=>loadBarcodeMaster({force});
+const loadBarangRejectData=async()=>loadBarangReject({force});
 
 const results=await Promise.allSettled([
-loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData(),loadBarcodeData()
+loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData(),loadBarcodeData(),loadBarangRejectData()
 ]);
 results.forEach((res,i)=>{if(res.status==="rejected")console.error("INIT ERROR INDEX",i,res.reason);});
-const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes]=results;
+const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes,,barangRejectRes]=results;
 const inventory=inventoryRes.status==="fulfilled"?inventoryRes.value:{};
 const barangMasukRows=barangMasukRes.status==="fulfilled"?barangMasukRes.value:[];
 const barangKeluarRows=barangKeluarRes.status==="fulfilled"?barangKeluarRes.value:[];
 const movementRows=movementRes.status==="fulfilled"?movementRes.value:[];
+const barangRejectRows=barangRejectRes.status==="fulfilled"?barangRejectRes.value:{stock:[],masuk:[],keluar:[]};
 applyData(inventory,{deferRender:true});
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.inventory=inventory;
 window.APP_STATE.barangMasuk=Array.isArray(barangMasukRows)?barangMasukRows:[];
 window.APP_STATE.barangKeluar=Array.isArray(barangKeluarRows)?barangKeluarRows:[];
 window.APP_STATE.movement=Array.isArray(movementRows)?movementRows:[];
+window.APP_STATE.barangReject=normalizeBarangRejectData(barangRejectRows);
 setCacheSafe(MODULE_CACHE_KEYS.barangMasuk,window.APP_STATE.barangMasuk);
 setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
 setCacheSafe(MODULE_CACHE_KEYS.kartuStock,Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:[]);
 setCacheSafe(MODULE_CACHE_KEYS.rpl,Array.isArray(DATA["RPL"])?DATA["RPL"]:[]);
 setCacheSafe(MODULE_CACHE_KEYS.bulky,Array.isArray(DATA["BULKY"])?DATA["BULKY"]:[]);
+setBarangRejectData(window.APP_STATE.barangReject);
 DATA["Barang Masuk"]=window.APP_STATE.barangMasuk;
 DATA["Barang Keluar"]=window.APP_STATE.barangKeluar;
 await saveCache(DATA);
@@ -604,7 +611,7 @@ if(!user){
 if(isPreviewBypassLoginEnabled()){history.replaceState({},"","/");return showPage("dashboard");}
 return showLoginView();
 }
-if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isActivityLogAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/barang-reject")return showPage("barang-reject");if(path==="/activity-log"){if(!isActivityLogAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){
 const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');
 if(activityLogMenu)activityLogMenu.style.display=isActivityLogAllowed()?"":"none";
@@ -661,13 +668,15 @@ const db=await openCacheDb();
 const rows=await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readonly");const rq=tx.objectStore(IDB_STORE).getAll();rq.onsuccess=()=>resolve(rq.result||[]);rq.onerror=()=>reject(rq.error);});
 const parsed={};
 for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){const hit=rows.find(r=>r.sheet===sheet);parsed[sheet]=Array.isArray(hit?.rows)?hit.rows:[];}
+const rejectHit=rows.find(r=>r.sheet===MODULE_CACHE_KEYS.barangReject);parsed[MODULE_CACHE_KEYS.barangReject]=rejectHit?.rows&&typeof rejectHit.rows==="object"?rejectHit.rows:{stock:[],masuk:[],keluar:[]};
 return parsed;
 }catch(err){console.warn("IndexedDB load failed, fallback ke fetch API langsung", err);return null;}
 }
 async function saveCache(data){
 try{
 const db=await openCacheDb();
-await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
+await new Promise((resolve,reject)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){st.put({sheet,rows:Array.isArray(data?.[sheet])?data[sheet]:[],updatedAt:Date.now(),version:CACHE_VERSION});}
+if(window.APP_STATE?.barangReject)st.put({sheet:MODULE_CACHE_KEYS.barangReject,rows:window.APP_STATE.barangReject,updatedAt:Date.now(),version:CACHE_VERSION});tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});
 localStorage.setItem(CACHE_KEYS.lastSync,String(Date.now()));
 localStorage.setItem(CACHE_KEYS.version,CACHE_VERSION);
 updateSyncTime();
@@ -751,7 +760,8 @@ const kLast=keluar.length?String(keluar[keluar.length-1]?.rowNumber??keluar[kelu
 const kartu=(DATA["Kartu Stock"]||[]);
 const rpl=(DATA["RPL"]||[]);
 const bulky=(DATA["BULKY"]||[]);
-return `${page}|m:${masuk.length}:${mLast}|k:${keluar.length}:${kLast}|ks:${sheetChecksum(kartu)}|rpl:${sheetChecksum(rpl)}|bulky:${sheetChecksum(bulky)}|ready:${window.__isDataReady?"1":"0"}`;
+const reject=getBarangRejectData();
+return `${page}|m:${masuk.length}:${mLast}|k:${keluar.length}:${kLast}|ks:${sheetChecksum(kartu)}|rpl:${sheetChecksum(rpl)}|bulky:${sheetChecksum(bulky)}|reject:${sheetChecksum(reject.stock)}:${sheetChecksum(reject.masuk)}:${sheetChecksum(reject.keluar)}|ready:${window.__isDataReady?"1":"0"}`;
 }
 
 function updateLocalRow(moduleName,rowNumber,field,value){
@@ -795,6 +805,7 @@ if(page==="stok-minus")renderStokMinusPage();
 if(page==="cycle-count")renderCycleCountPage();
 if(page==="movement")renderMovementPage();
 if(page==="import-pdf-transfer")renderImportPdfTransferPage();
+if(page==="barang-reject")renderBarangRejectPage();
 if(page==="activity-log")renderActivityLogPage();
 if(page==="tools-dev")renderToolsDevPage();
 if(page==="arsip")renderArchivePage();
@@ -904,9 +915,10 @@ const prevKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
 const prevKartu=Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:[];
 const prevRpl=Array.isArray(DATA["RPL"])?DATA["RPL"]:[];
 const prevBulky=Array.isArray(DATA["BULKY"])?DATA["BULKY"]:[];
-const [inventorySyncRes,transaksiSyncRes]=await Promise.allSettled([
+const [inventorySyncRes,transaksiSyncRes,barangRejectSyncRes]=await Promise.allSettled([
 refreshInventoryGroupFull(),
-refreshTransaksiFull({render:false})
+refreshTransaksiFull({render:false}),
+refreshBarangRejectFull({render:false})
 ]);
 const nextMasuk=Array.isArray(window.APP_STATE?.barangMasuk)?window.APP_STATE.barangMasuk:prevMasuk;
 const nextKeluar=Array.isArray(window.APP_STATE?.barangKeluar)?window.APP_STATE.barangKeluar:prevKeluar;
@@ -920,7 +932,9 @@ const keluarChanged=sheetChecksum(prevKeluar)!==sheetChecksum(nextKeluar);
 const kartuChanged=sheetChecksum(prevKartu)!==sheetChecksum(nextKartu);
 const rplChanged=sheetChecksum(prevRpl)!==sheetChecksum(nextRpl);
 const bulkyChanged=sheetChecksum(prevBulky)!==sheetChecksum(nextBulky);
-const dataChanged=masukChanged||keluarChanged||kartuChanged||rplChanged||bulkyChanged;
+if(barangRejectSyncRes?.status==='rejected')console.error('REFRESH ERROR BARANG REJECT',barangRejectSyncRes.reason);
+const barangRejectChanged=barangRejectSyncRes?.status==='fulfilled';
+const dataChanged=masukChanged||keluarChanged||kartuChanged||rplChanged||bulkyChanged||barangRejectChanged;
 DATA["Barang Masuk"]=nextMasuk;
 console.log("MANUAL REFRESH APPLY BARANG MASUK",{rows:nextMasuk.length});
 DATA["Barang Keluar"]=nextKeluar;
@@ -954,6 +968,7 @@ bulky:Array.isArray(cacheAfterSave?.["BULKY"])?cacheAfterSave["BULKY"].length:0
 const runRender=()=>{
 if(masukChanged)scheduleManualRefreshRender("in");
 if(keluarChanged)scheduleManualRefreshRender("out");
+if(getActivePage()==="barang-reject")renderBarangRejectPage();
 console.log("RENDER AFTER MANUAL REFRESH",{page:getActivePage(),fromCache:false});
 updateDashboard();
 rerenderCurrentPage({fromCache:false});
@@ -1009,6 +1024,7 @@ if(Array.isArray(idbCache["RPL"])&&idbCache["RPL"].length)setModuleCache(MODULE_
 if(Array.isArray(idbCache["BULKY"])&&idbCache["BULKY"].length)setModuleCache(MODULE_CACHE_KEYS.bulky,idbCache["BULKY"]);
 if(Array.isArray(idbCache["Barang Masuk"])&&idbCache["Barang Masuk"].length)setModuleCache(MODULE_CACHE_KEYS.barangMasuk,idbCache["Barang Masuk"]);
 if(Array.isArray(idbCache["Barang Keluar"])&&idbCache["Barang Keluar"].length)setModuleCache(MODULE_CACHE_KEYS.barangKeluar,idbCache["Barang Keluar"]);
+if(idbCache[MODULE_CACHE_KEYS.barangReject]&&typeof idbCache[MODULE_CACHE_KEYS.barangReject]==="object")setModuleCache(MODULE_CACHE_KEYS.barangReject,idbCache[MODULE_CACHE_KEYS.barangReject]);
 }
 const cachedBarangMasuk=getCacheData(MODULE_CACHE_KEYS.barangMasuk)||[];
 const cachedBarangKeluar=getCacheData(MODULE_CACHE_KEYS.barangKeluar)||[];
@@ -1021,17 +1037,20 @@ const cachedInventory={
   "BULKY":Array.isArray(cachedBulky)?cachedBulky:[]
 };
 const cachedMovement=getCacheData(MODULE_CACHE_KEYS.movement)||[];
+const cachedBarangReject=getCacheData(MODULE_CACHE_KEYS.barangReject)||{stock:[],masuk:[],keluar:[]};
 
 window.APP_STATE.barangMasuk=Array.isArray(cachedBarangMasuk)?cachedBarangMasuk:[];
 window.APP_STATE.barangKeluar=Array.isArray(cachedBarangKeluar)?cachedBarangKeluar:[];
 window.APP_STATE.inventory=cachedInventory;
 window.APP_STATE.movement=Array.isArray(cachedMovement)?cachedMovement:[];
+window.APP_STATE.barangReject=normalizeBarangRejectData(cachedBarangReject);
 
 console.log("CACHE LOAD",{
 barangMasuk:window.APP_STATE.barangMasuk.length,
 barangKeluar:window.APP_STATE.barangKeluar.length,
 inventory:(window.APP_STATE.inventory?.["Kartu Stock"]?.length||0)+(window.APP_STATE.inventory?.["RPL"]?.length||0)+(window.APP_STATE.inventory?.["BULKY"]?.length||0),
-movement:window.APP_STATE.movement.length
+movement:window.APP_STATE.movement.length,
+barangReject:(window.APP_STATE.barangReject.stock.length+window.APP_STATE.barangReject.masuk.length+window.APP_STATE.barangReject.keluar.length)
 });
 
 if(window.APP_STATE.barangMasuk.length||window.APP_STATE.barangKeluar.length||window.APP_STATE.inventory["Kartu Stock"].length||window.APP_STATE.inventory["RPL"].length||window.APP_STATE.inventory["BULKY"].length){
@@ -2663,7 +2682,7 @@ toast(`Import sukses ke sheet ${out.sheetTitle||'-'}`,'success');
 }catch(err){toast(`Import gagal: ${err.message||err}`,'error');}finally{PDF_TRANSFER_STATE.isImporting=false;renderImportPdfTransferPage();}
 }
 async function fetchActivityLogs(){const off=(ACTIVITY_LOG_STATE.page-1)*ACTIVITY_LOG_STATE.pageSize;const qs=new URLSearchParams({limit:String(ACTIVITY_LOG_STATE.pageSize),offset:String(off)});if(ACTIVITY_LOG_STATE.filters.module)qs.set("module",ACTIVITY_LOG_STATE.filters.module);if(ACTIVITY_LOG_STATE.filters.action)qs.set("action",ACTIVITY_LOG_STATE.filters.action);if(ACTIVITY_LOG_STATE.filters.user)qs.set("user_name",ACTIVITY_LOG_STATE.filters.user);if(ACTIVITY_LOG_STATE.filters.status)qs.set("status",ACTIVITY_LOG_STATE.filters.status);const headers=await getActivityLogAccessHeaders();const res=await fetch(`/api/activity-log?${qs.toString()}`,{headers});const data=await res.json();if(!res.ok||!data?.success)throw new Error(data?.message||"Gagal memuat activity log");return Array.isArray(data.data)?data.data:[];}
-async function renderActivityLogPage(){const root=document.getElementById("activityLogApp");if(!root)return;let rows=[];let err="";try{rows=await fetchActivityLogs();}catch(e){err=e?.message||"Gagal memuat activity log";}root.innerHTML=`<div class="card cc-card cc-section"><div class="mv-filters open"><select id="alModule"><option value="">Semua Module</option><option>Auth</option><option>Cycle Count</option><option>Movement</option><option>Search</option></select><select id="alAction"><option value="">Semua Action</option><option>LOGIN_SUCCESS</option><option>LOGIN_DEVELOPER</option><option>SUBMIT_CYCLE_COUNT</option><option>EDIT_CYCLE_COUNT</option><option>DELETE_CYCLE_COUNT</option><option>SUBMIT_MOVEMENT</option><option>EDIT_MOVEMENT</option><option>DELETE_MOVEMENT</option><option>SCAN_BARCODE_SKU</option><option>REGISTER_SUCCESS</option></select><input id="alUser" class="search-lg" placeholder="Filter user" value="${esc(ACTIVITY_LOG_STATE.filters.user)}"><select id="alStatus"><option value="">Semua Status</option><option>SUCCESS</option><option>FAILED</option></select><select id="alSize"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select><button id="alApply" class="btn-primary">Apply</button></div>${err?`<div class='state error'>${esc(err)}</div>`:''}<div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Detail</th><th>Reference</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(x=>`<tr><td>${esc(formatDateTime(x.created_at))}</td><td>${esc(x.user_name||'-')}</td><td>${esc(x.role||'-')}</td><td>${esc(x.action||'-')}</td><td>${esc(x.module||'-')}</td><td>${esc(x.detail||'-')}</td><td>${esc(x.reference||'-')}</td><td>${esc(x.status||'-')}</td></tr>`).join(''):`<tr><td colspan='8'><div class='state'>Belum ada activity log.</div></td></tr>`}</tbody></table></div><div class='mv-pagination'><span>Page ${ACTIVITY_LOG_STATE.page}</span><div class='row'><button id='alPrev' class='btn-ghost'>Prev</button><button id='alNext' class='btn-ghost'>Next</button></div></div></div>`;document.getElementById('alModule').value=ACTIVITY_LOG_STATE.filters.module;document.getElementById('alAction').value=ACTIVITY_LOG_STATE.filters.action;document.getElementById('alStatus').value=ACTIVITY_LOG_STATE.filters.status;document.getElementById('alSize').value=String(ACTIVITY_LOG_STATE.pageSize);document.getElementById('alApply').onclick=()=>{ACTIVITY_LOG_STATE.filters={module:document.getElementById('alModule').value,action:document.getElementById('alAction').value,user:document.getElementById('alUser').value.trim(),status:document.getElementById('alStatus').value};ACTIVITY_LOG_STATE.pageSize=Number(document.getElementById('alSize').value)||10;ACTIVITY_LOG_STATE.page=1;renderActivityLogPage();};document.getElementById('alPrev').onclick=()=>{ACTIVITY_LOG_STATE.page=Math.max(1,ACTIVITY_LOG_STATE.page-1);renderActivityLogPage();};document.getElementById('alNext').onclick=()=>{ACTIVITY_LOG_STATE.page+=1;renderActivityLogPage();};}
+async function renderActivityLogPage(){const root=document.getElementById("activityLogApp");if(!root)return;let rows=[];let err="";try{rows=await fetchActivityLogs();}catch(e){err=e?.message||"Gagal memuat activity log";}root.innerHTML=`<div class="card cc-card cc-section"><div class="mv-filters open"><select id="alModule"><option value="">Semua Module</option><option>Auth</option><option>Cycle Count</option><option>Movement</option><option>Search</option><option>Barang Reject</option></select><select id="alAction"><option value="">Semua Action</option><option>LOGIN_SUCCESS</option><option>LOGIN_DEVELOPER</option><option>SUBMIT_CYCLE_COUNT</option><option>EDIT_CYCLE_COUNT</option><option>DELETE_CYCLE_COUNT</option><option>SUBMIT_MOVEMENT</option><option>EDIT_MOVEMENT</option><option>DELETE_MOVEMENT</option><option>SCAN_BARCODE_SKU</option><option>REGISTER_SUCCESS</option></select><input id="alUser" class="search-lg" placeholder="Filter user" value="${esc(ACTIVITY_LOG_STATE.filters.user)}"><select id="alStatus"><option value="">Semua Status</option><option>SUCCESS</option><option>FAILED</option></select><select id="alSize"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select><button id="alApply" class="btn-primary">Apply</button></div>${err?`<div class='state error'>${esc(err)}</div>`:''}<div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Detail</th><th>Reference</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(x=>`<tr><td>${esc(formatDateTime(x.created_at))}</td><td>${esc(x.user_name||'-')}</td><td>${esc(x.role||'-')}</td><td>${esc(x.action||'-')}</td><td>${esc(x.module||'-')}</td><td>${esc(x.detail||'-')}</td><td>${esc(x.reference||'-')}</td><td>${esc(x.status||'-')}</td></tr>`).join(''):`<tr><td colspan='8'><div class='state'>Belum ada activity log.</div></td></tr>`}</tbody></table></div><div class='mv-pagination'><span>Page ${ACTIVITY_LOG_STATE.page}</span><div class='row'><button id='alPrev' class='btn-ghost'>Prev</button><button id='alNext' class='btn-ghost'>Next</button></div></div></div>`;document.getElementById('alModule').value=ACTIVITY_LOG_STATE.filters.module;document.getElementById('alAction').value=ACTIVITY_LOG_STATE.filters.action;document.getElementById('alStatus').value=ACTIVITY_LOG_STATE.filters.status;document.getElementById('alSize').value=String(ACTIVITY_LOG_STATE.pageSize);document.getElementById('alApply').onclick=()=>{ACTIVITY_LOG_STATE.filters={module:document.getElementById('alModule').value,action:document.getElementById('alAction').value,user:document.getElementById('alUser').value.trim(),status:document.getElementById('alStatus').value};ACTIVITY_LOG_STATE.pageSize=Number(document.getElementById('alSize').value)||10;ACTIVITY_LOG_STATE.page=1;renderActivityLogPage();};document.getElementById('alPrev').onclick=()=>{ACTIVITY_LOG_STATE.page=Math.max(1,ACTIVITY_LOG_STATE.page-1);renderActivityLogPage();};document.getElementById('alNext').onclick=()=>{ACTIVITY_LOG_STATE.page+=1;renderActivityLogPage();};}
 
 window.showToast=(message,type="success")=>toast(message,type);
 
@@ -2679,6 +2698,23 @@ else{window.APP_STATE.barangKeluar=mergedRows;DATA["Barang Keluar"]=mergedRows;s
 await saveCache(DATA);
 rebuildSkuCache();
 }
+
+const BARANG_REJECT_SHEET_ID="1BVGcIWnYqrG-DefzmnO_hZjNn3H3c4sriI7CBAWsxw8";
+const BARANG_REJECT_STATE={activeTab:"dashboard",search:"",page:1,pageSize:25,submitting:false,loading:false,loadPromise:null,error:""};
+function normalizeBarangRejectRows(rows=[]){return (Array.isArray(rows)?rows:[]).map((row,index)=>({rowNumber:Number(row?.rowNumber)||index+2,sku:String(row?.sku||"").trim(),namaBarang:String(row?.namaBarang||row?.nama_barang||row?.nama||"").trim(),lokasi:String(row?.lokasi||"").trim(),tujuan:String(row?.tujuan||"").trim(),qty:parseNumber(row?.qty),tanggal:String(row?.tanggal||"").trim(),keterangan:String(row?.keterangan||"").trim()}));}
+function normalizeBarangRejectData(payload={}){const data=payload&&typeof payload==="object"?payload:{};return {stock:normalizeBarangRejectRows(data.stock),masuk:normalizeBarangRejectRows(data.masuk),keluar:normalizeBarangRejectRows(data.keluar),updatedAt:Number(data.updatedAt)||0,error:String(data.error||"")};}
+function getBarangRejectData(){window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangReject=normalizeBarangRejectData(window.APP_STATE.barangReject);return window.APP_STATE.barangReject;}
+function setBarangRejectData(data,{cache=true}={}){const normalized=normalizeBarangRejectData({...data,updatedAt:Date.now()});window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangReject=normalized;window.APP_STATE.data={...(window.APP_STATE.data||{}),barangReject:normalized};if(cache){setModuleCache(MODULE_CACHE_KEYS.barangReject,normalized);localStorage.setItem(MODULE_CACHE_KEYS.barangReject,JSON.stringify({timestamp:Date.now(),data:normalized}));}return normalized;}
+function rebuildRejectStock(data=getBarangRejectData()){const stockRows=Array.isArray(data.stock)?data.stock:[];if(stockRows.length)return stockRows;const map=new Map();(data.masuk||[]).forEach(row=>{const key=`${row.sku}|${row.lokasi}`;const prev=map.get(key)||{sku:row.sku,namaBarang:row.namaBarang,lokasi:row.lokasi,qty:0,keterangan:row.keterangan};prev.qty+=parseNumber(row.qty);if(row.namaBarang)prev.namaBarang=row.namaBarang;if(row.keterangan)prev.keterangan=row.keterangan;map.set(key,prev);});(data.keluar||[]).forEach(row=>{const key=`${row.sku}|${row.lokasi||row.tujuan}`;const prev=map.get(key)||{sku:row.sku,namaBarang:row.namaBarang,lokasi:row.lokasi||"",qty:0,keterangan:row.keterangan};prev.qty-=parseNumber(row.qty);map.set(key,prev);});return [...map.values()].filter(r=>r.sku||r.namaBarang||r.lokasi);}
+async function loadBarangReject({force=false}={}){if(!force){const cached=getCacheData(MODULE_CACHE_KEYS.barangReject);const normalized=normalizeBarangRejectData(cached);if(normalized.stock.length||normalized.masuk.length||normalized.keluar.length){setBarangRejectData(normalized,{cache:false});return normalized;}}return refreshBarangRejectFull({render:false});}
+async function refreshBarangRejectFull({render=true}={}){try{const {res,data:json}=await fetchJsonSafe('/api/barang-reject');if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal memuat Barang Reject');const data=setBarangRejectData(json.data||{});if(render)renderBarangRejectPage();return data;}catch(err){const previous=getBarangRejectData();const data=setBarangRejectData({...previous,error:err?.message||'Gagal memuat Barang Reject'},{cache:false});if(render||getActivePage()==='barang-reject')renderBarangRejectPage();return data;}}
+function isThisMonth(value){const d=new Date(value);if(Number.isNaN(d.getTime()))return false;const now=new Date();return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}
+function renderRejectTabs(){const tabs=[['dashboard','Dashboard Reject'],['stock','Kartu Stock Reject'],['masuk','Barang Masuk Reject'],['keluar','Barang Keluar Reject'],['input','Input Barang Masuk Reject']];return `<div class="chip-group" style="margin-bottom:14px">${tabs.map(([id,label])=>`<button class="chip ${BARANG_REJECT_STATE.activeTab===id?'active':''}" type="button" data-reject-tab="${id}">${esc(label)}</button>`).join('')}</div>`;}
+function ensureBarangRejectLoaded(){const data=getBarangRejectData();if(BARANG_REJECT_STATE.loading||data.updatedAt||data.error)return;BARANG_REJECT_STATE.loading=true;BARANG_REJECT_STATE.loadPromise=refreshBarangRejectFull({render:false}).finally(()=>{BARANG_REJECT_STATE.loading=false;BARANG_REJECT_STATE.loadPromise=null;renderBarangRejectPage();});}
+function renderBarangRejectPage(){const root=document.getElementById('barangRejectApp');if(!root)return;ensureBarangRejectLoaded();const data=getBarangRejectData();const stock=rebuildRejectStock(data);const masuk=data.masuk||[],keluar=data.keluar||[];const totalSku=new Set(stock.map(r=>r.sku).filter(Boolean)).size;const totalQty=stock.reduce((sum,row)=>sum+parseNumber(row.qty),0);const masukBulanIni=masuk.filter(r=>isThisMonth(r.tanggal)).reduce((sum,row)=>sum+parseNumber(row.qty),0);const keluarBulanIni=keluar.filter(r=>isThisMonth(r.tanggal)).reduce((sum,row)=>sum+parseNumber(row.qty),0);let body='';if(BARANG_REJECT_STATE.activeTab==='dashboard'){body=`<div class="grid dashboard"><div class="stat"><b>${totalSku.toLocaleString('id-ID')}</b><span>Total SKU reject</span></div><div class="stat"><b>${totalQty.toLocaleString('id-ID')}</b><span>Total qty reject</span></div><div class="stat"><b>${masukBulanIni.toLocaleString('id-ID')}</b><span>Barang masuk bulan ini</span></div><div class="stat"><b>${keluarBulanIni.toLocaleString('id-ID')}</b><span>Barang keluar bulan ini</span></div></div>`;}else if(BARANG_REJECT_STATE.activeTab==='stock'){const q=clean(BARANG_REJECT_STATE.search);const filtered=stock.filter(r=>!q||clean(`${r.sku} ${r.namaBarang} ${r.lokasi}`).includes(q));const totalPages=Math.max(1,Math.ceil(filtered.length/BARANG_REJECT_STATE.pageSize));BARANG_REJECT_STATE.page=Math.min(BARANG_REJECT_STATE.page,totalPages);const rows=filtered.slice((BARANG_REJECT_STATE.page-1)*BARANG_REJECT_STATE.pageSize,BARANG_REJECT_STATE.page*BARANG_REJECT_STATE.pageSize);body=`<div class="movement-toolbar"><input id="rejectSearch" class="search-lg" placeholder="Search SKU/nama/lokasi" value="${esc(BARANG_REJECT_STATE.search)}"></div><div class="subtitle">Menampilkan ${rows.length} dari ${filtered.length} SKU/lokasi</div><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Nama Barang</th><th>Lokasi</th><th>Qty</th><th>Keterangan</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td>${esc(r.sku)}</td><td>${esc(r.namaBarang)}</td><td>${esc(r.lokasi)}</td><td>${esc(r.qty)}</td><td>${esc(r.keterangan)}</td></tr>`).join(''):`<tr><td colspan="5"><div class="state">Data stock reject kosong.</div></td></tr>`}</tbody></table></div><div class="mv-pagination"><span>Halaman ${BARANG_REJECT_STATE.page} / ${totalPages}</span><div class="row"><button class="btn-ghost" data-reject-page="prev" ${BARANG_REJECT_STATE.page<=1?'disabled':''}>Prev</button><button class="btn-ghost" data-reject-page="next" ${BARANG_REJECT_STATE.page>=totalPages?'disabled':''}>Next</button></div></div>`;}else if(BARANG_REJECT_STATE.activeTab==='masuk'||BARANG_REJECT_STATE.activeTab==='keluar'){const rows=BARANG_REJECT_STATE.activeTab==='masuk'?masuk:keluar;const isMasuk=BARANG_REJECT_STATE.activeTab==='masuk';body=`<div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>${isMasuk?'Lokasi':'Tujuan'}</th><th>Keterangan</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td>${esc(r.tanggal)}</td><td>${esc(r.sku)}</td><td>${esc(r.namaBarang)}</td><td>${esc(r.qty)}</td><td>${esc(isMasuk?r.lokasi:r.tujuan)}</td><td>${esc(r.keterangan)}</td></tr>`).join(''):`<tr><td colspan="6"><div class="state">Data ${isMasuk?'barang masuk':'barang keluar'} reject kosong.</div></td></tr>`}</tbody></table></div>`;}else{body=`<form id="barangRejectForm" class="mv-filters open"><input id="rejectTanggal" type="date" value="${new Date().toISOString().slice(0,10)}"><input id="rejectSku" class="search-lg" placeholder="SKU wajib"><input id="rejectNamaBarang" class="search-lg" placeholder="Nama Barang"><input id="rejectQty" type="number" min="1" step="1" placeholder="Qty wajib"><input id="rejectLokasi" class="search-lg" placeholder="Lokasi"><input id="rejectKeterangan" class="search-lg" placeholder="Keterangan"><button class="btn-primary" type="submit" ${BARANG_REJECT_STATE.submitting?'disabled':''}>${BARANG_REJECT_STATE.submitting?'Menyimpan...':'Submit Barang Masuk Reject'}</button></form>`;}root.innerHTML=`${renderRejectTabs()}<div class="subtitle">Sheet ID: ${BARANG_REJECT_SHEET_ID}</div>${BARANG_REJECT_STATE.loading?'<div class="state">Memuat data Barang Reject...</div>':''}${data.error?`<div class="state error">${esc(data.error)}</div>`:''}${body}`;bindBarangRejectUi();if(window.lucide)lucide.createIcons();}
+function bindBarangRejectUi(){document.querySelectorAll('[data-reject-tab]').forEach(btn=>btn.onclick=()=>{BARANG_REJECT_STATE.activeTab=btn.dataset.rejectTab;BARANG_REJECT_STATE.page=1;renderBarangRejectPage();});document.getElementById('rejectSearch')?.addEventListener('input',debounce(e=>{BARANG_REJECT_STATE.search=e.target.value||'';BARANG_REJECT_STATE.page=1;renderBarangRejectPage();},250));document.querySelectorAll('[data-reject-page]').forEach(btn=>btn.onclick=()=>{BARANG_REJECT_STATE.page+=btn.dataset.rejectPage==='next'?1:-1;renderBarangRejectPage();});document.getElementById('barangRejectForm')?.addEventListener('submit',submitBarangRejectMasuk);}
+async function submitBarangRejectMasuk(e){e.preventDefault();const payload={tanggal:document.getElementById('rejectTanggal')?.value||new Date().toISOString().slice(0,10),sku:(document.getElementById('rejectSku')?.value||'').trim(),namaBarang:(document.getElementById('rejectNamaBarang')?.value||'').trim(),qty:Number(document.getElementById('rejectQty')?.value),lokasi:(document.getElementById('rejectLokasi')?.value||'').trim(),keterangan:(document.getElementById('rejectKeterangan')?.value||'').trim()};if(!payload.sku){toast('SKU wajib diisi','error');return;}if(!Number.isFinite(payload.qty)||payload.qty<=0){toast('Qty wajib lebih dari 0','error');return;}BARANG_REJECT_STATE.submitting=true;renderBarangRejectPage();try{const res=await fetch('/api/barang-reject',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const json=await res.json();if(!res.ok||!json?.success)throw new Error(json?.message||'Gagal menyimpan Barang Reject');const data=getBarangRejectData();data.masuk=[...(data.masuk||[]),{...payload,rowNumber:(data.masuk?.length||0)+2}];data.stock=[];setBarangRejectData({...data,stock:rebuildRejectStock(data)});toast(json.message||'Barang masuk reject berhasil disimpan','success');logActivitySafe({action:'CREATE_BARANG_REJECT_MASUK',module:'Barang Reject',detail:`Input barang masuk reject SKU ${payload.sku} qty ${payload.qty}`,reference:payload.sku,status:'SUCCESS',metadata:payload});BARANG_REJECT_STATE.activeTab='stock';}catch(err){toast(err?.message||'Gagal menyimpan Barang Reject','error');logActivitySafe({action:'CREATE_BARANG_REJECT_MASUK',module:'Barang Reject',detail:err?.message||'Gagal input barang reject',status:'FAILED',metadata:{sku:payload.sku}});}finally{BARANG_REJECT_STATE.submitting=false;renderBarangRejectPage();}}
+
 const ABC_STATE={periodMonths:3,orderType:"Semua",selectedTo:[],excludeTo:["REJECT","RUSAK"],sortBy:"Prioritas Order",toSearch:"",toDropdownOpen:false,selectedRows:new Set(),page:1,pageSize:25,bgComputing:false,rows:[],top10:[],toOptions:[],filteredCount:0,sourceHasData:false,lastSignature:""};
 function isStoreOrder(to){const v=String(to||"").toUpperCase();return v.includes("100")||v.includes("-BT-");}
 function parseDateSafe(value){const d=new Date(value);return Number.isNaN(d.getTime())?null:d;}

@@ -13,13 +13,14 @@ const ALLOWED_ACTIONS = new Set([
   "DELETE_CYCLE_COUNT",
   "SUBMIT_MOVEMENT",
   "CREATE_BARANG_MASUK",
+  "CREATE_BARANG_REJECT_MASUK",
   "EDIT_MOVEMENT",
   "DELETE_MOVEMENT",
   "SCAN_BARCODE_SKU",
   "REGISTER_SUCCESS",
 ]);
 
-const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search"]);
+const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search", "System", "Tools Dev", "Barang Masuk", "Barang Keluar", "Barang Reject", "Balikan Store", "ABC Analisis"]);
 const ALLOWED_STATUS = new Set(["SUCCESS", "FAILED"]);
 
 function sanitizeText(value, max = 500) {
