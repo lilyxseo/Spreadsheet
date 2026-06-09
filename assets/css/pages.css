@@ -1028,35 +1028,38 @@ body.dark .app-icon {
 }
 
 #page-balikan-store .balikan-location-card{
-  grid-column:span 2;
   align-content:start;
-  gap:6px;
+  gap:4px;
 }
 #page-balikan-store .balikan-location-card .v{
-  font-size:15px;
+  font-size:14px;
+  line-height:1.2;
+}
+#page-balikan-store .balikan-location-card .subtitle{
+  font-size:11px;
   line-height:1.25;
 }
 #page-balikan-store .balikan-location-list{
   display:grid;
-  gap:4px;
-  margin-top:4px;
-  max-height:150px;
+  gap:3px;
+  margin-top:3px;
+  max-height:104px;
   overflow:auto;
 }
 #page-balikan-store .balikan-location-item{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:12px;
+  gap:8px;
   width:100%;
   border:1px solid color-mix(in srgb, var(--border-color,#d1d5db) 75%, transparent);
   border-radius:999px;
-  padding:7px 10px;
+  padding:5px 8px;
   background:color-mix(in srgb, var(--card-bg,#fff) 92%, transparent);
   color:var(--text);
   font:inherit;
-  font-size:12px;
-  line-height:1.3;
+  font-size:11px;
+  line-height:1.2;
   text-align:left;
   cursor:pointer;
   transition:opacity .16s ease,transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease;
@@ -1105,9 +1108,9 @@ body.dark #page-balikan-store .balikan-location-item:focus-visible{
   box-shadow:0 0 0 3px rgba(56,189,248,.22);
 }
 body.dark #page-balikan-store .balikan-location-item.is-active{
-  border-color:#22c55e;
-  background:linear-gradient(135deg,rgba(34,197,94,.28),rgba(56,189,248,.18));
-  box-shadow:inset 0 0 0 1px rgba(34,197,94,.46),0 10px 24px rgba(34,197,94,.18);
+  border-color:#f87171;
+  background:linear-gradient(135deg,rgba(239,68,68,.30),rgba(185,28,28,.18));
+  box-shadow:inset 0 0 0 1px rgba(248,113,113,.46),0 10px 24px rgba(220,38,38,.18);
   color:#f8fafc;
 }
 body.dark #page-balikan-store .balikan-location-item.is-inactive{
@@ -1569,19 +1572,19 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
   min-width:58px;
   padding:4px 9px;
   border-radius:999px;
-  background:linear-gradient(135deg,#2563eb,#06b6d4);
-  color:#fff;
+  background:linear-gradient(135deg,#ef4444,#b91c1c);
+  color:#fff5f5;
   font-size:11px;
   font-weight:800;
   letter-spacing:.02em;
-  box-shadow:0 6px 14px rgba(37,99,235,.18);
+  box-shadow:0 6px 14px rgba(220,38,38,.22);
   white-space:nowrap;
 }
 #page-balikan-store .balikan-location-sheet-list{
   display:grid;
-  gap:5px;
-  margin-top:6px;
-  max-height:130px;
+  gap:4px;
+  margin-top:4px;
+  max-height:104px;
   overflow:auto;
 }
 #page-balikan-store .balikan-location-sheet-row{
@@ -1589,9 +1592,10 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
   align-items:center;
   justify-content:space-between;
   gap:8px;
-  font-size:12px;
+  font-size:11px;
 }
 body.dark #page-balikan-store .balikan-sheet-badge{
-  background:linear-gradient(135deg,#38bdf8,#22c55e);
-  color:#082f49;
+  background:linear-gradient(135deg,#f87171,#dc2626);
+  color:#fff7ed;
+  box-shadow:0 6px 14px rgba(248,113,113,.24);
 }
