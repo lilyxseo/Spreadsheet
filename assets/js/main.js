@@ -2384,15 +2384,17 @@ function renderBalikanLocationCardContent(rows=[]){
     const count=list.length;
     const bySheet=new Map();
     list.forEach(item=>{const sheet=getBalikanActiveSheetName(item)||'-';if(clean(item?.lokasi))bySheet.set(sheet,(bySheet.get(sheet)||0)+1);});
+    const sheetCount=bySheet.size;
     const sheetHtml=[...bySheet.entries()].map(([sheet,total])=>`<div class='balikan-location-sheet-row'><span class='balikan-sheet-badge'>${esc(sheet)}</span><strong>${total} lokasi</strong></div>`).join('');
-    return `<div class='k'>Lokasi</div><div class='v'>${count?`${count} lokasi ditemukan`:'Pilih 1 SKU dulu'}</div><div class='subtitle'>${count?'Seluruh hasil tampil dihitung lintas sheet. Tap SKU di tabel untuk memilih row sebelum update lokasi.':'Tidak ada baris hasil pencarian.'}</div>${sheetHtml?`<div class='balikan-location-sheet-list'>${sheetHtml}</div>`:''}`;
+    const compactInfo=count?`<span>${count.toLocaleString('id-ID')} Lokasi</span><span>${sheetCount.toLocaleString('id-ID')} Sheet TRIP</span>`:'<span>Pilih 1 SKU dulu</span>';
+    return `<div class='k'>Lokasi</div><div class='v balikan-location-count'>${compactInfo}</div><div class='subtitle'>${count?'Tap SKU di tabel untuk memilih row sebelum update lokasi.':'Tidak ada baris hasil pencarian.'}</div>${sheetHtml?`<div class='balikan-location-sheet-list'>${sheetHtml}</div>`:''}`;
   }
   const locations=getBalikanSkuLocationOptions(row);
   if(!locations.length)return `<div class='k'>Lokasi</div><div class='v'>Tidak ada lokasi</div><div class='subtitle'>Lokasi kosong tidak bisa dipilih.</div>`;
   const activeKey=clean(row?.lokasi);
   const hasActive=locations.some(item=>clean(item.lokasi)===activeKey);
   const canUpdate=getPermissions().canUpdate!==false;
-  return `<div class='k'>Lokasi</div><div class='v'>${esc(row.sku||'-')} <span class='balikan-sheet-badge'>${esc(getBalikanActiveSheetName(row)||'-')}</span></div><div class='subtitle'>${locations.length} lokasi ditemukan. Tap lokasi untuk update kolom LOKASI.</div><div class='balikan-location-list'>${locations.map(item=>{
+  return `<div class='k'>Lokasi</div><div class='v'>${esc(row.sku||'-')} <span class='balikan-sheet-badge'>${esc(getBalikanActiveSheetName(row)||'-')}</span></div><div class='subtitle'>${locations.length.toLocaleString('id-ID')} Lokasi. Tap lokasi untuk update kolom LOKASI.</div><div class='balikan-location-list'>${locations.map(item=>{
     const itemKey=clean(item.lokasi);
     const active=hasActive&&itemKey===activeKey;
     const inactive=hasActive&&!active;
