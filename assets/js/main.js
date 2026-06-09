@@ -570,7 +570,7 @@ if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[dat
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);Object.values(TABLE_STATE).forEach(st=>{if(st)st.openFilterCol="";});ensureBalikanFilterState().openFilterCol="";});}
 document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`).classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));syncActiveSidebarParent(page);if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
 function navigateTo(path){history.pushState({},"",path);routeFromPath(path);}
 function navigateToSku(sku){const cleanSku=String(sku||"" ).trim();if(!cleanSku)return;navigateTo(`/sku/${encodeURIComponent(cleanSku)}`);}
 function goBackToPreviousPage(){if(window.history.length>1){window.history.back();return;}navigateTo('/search');}
@@ -602,11 +602,49 @@ if(activityLogMenu)activityLogMenu.style.display=isDeveloperUser()?"":"none";
 const toolsDevMenu=document.querySelector('.side-link[data-page="tools-dev"]');
 if(toolsDevMenu)toolsDevMenu.style.display=isToolsDevAllowed()?"":"none";
 }
-function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
+function setupSidebar(){openSidebar.onclick=()=>document.body.classList.add("sidebar-open");closeSidebar.onclick=()=>closeSidebarFn();sidebarOverlay.onclick=()=>closeSidebarFn();initSidebarMenuGroups();initSidebarCollapse();window.addEventListener("resize",handleDesktopSidebarMode);}
 function initSidebarCollapse(){const saved=localStorage.getItem("sidebar_collapsed")==="true";const desktop=window.innerWidth>=900;document.body.classList.toggle("sidebar-collapsed",desktop&&saved);if(!sidebarToggle)return;sidebarToggle.onclick=()=>{if(window.innerWidth<900)return;const collapsed=document.body.classList.toggle("sidebar-collapsed");localStorage.setItem("sidebar_collapsed",String(collapsed));};}
 function handleDesktopSidebarMode(){if(window.innerWidth<900){document.body.classList.remove("sidebar-collapsed");return;}const saved=localStorage.getItem("sidebar_collapsed")==="true";document.body.classList.toggle("sidebar-collapsed",saved);}
 function closeSidebarFn(){document.body.classList.remove("sidebar-open");}
 function closeSidebarMobile(){if(window.innerWidth<900)closeSidebarFn();}
+const SIDEBAR_MENU_STATE_KEY="sidebar_menu_expanded";
+function getSidebarMenuState(){try{const raw=localStorage.getItem(SIDEBAR_MENU_STATE_KEY);return raw?JSON.parse(raw):{};}catch(_err){return {};}}
+function saveSidebarMenuState(state){try{localStorage.setItem(SIDEBAR_MENU_STATE_KEY,JSON.stringify(state||{}));}catch(_err){}}
+function setSidebarGroupExpanded(groupKey,expanded,{persist=true}={}){
+if(!groupKey)return;
+const parent=document.querySelector(`[data-sidebar-parent="${groupKey}"]`);
+const submenu=document.querySelector(`[data-sidebar-submenu="${groupKey}"]`);
+if(!parent||!submenu)return;
+parent.setAttribute("aria-expanded",String(!!expanded));
+submenu.classList.toggle("is-collapsed",!expanded);
+if(persist){const state=getSidebarMenuState();state[groupKey]=!!expanded;saveSidebarMenuState(state);}
+}
+function initSidebarMenuGroups(){
+const savedState=getSidebarMenuState();
+document.querySelectorAll("[data-sidebar-parent]").forEach(parent=>{
+const groupKey=parent.dataset.sidebarParent;
+const expanded=savedState[groupKey]!==false;
+setSidebarGroupExpanded(groupKey,expanded,{persist:false});
+if(parent.dataset.bound==="1")return;
+parent.addEventListener("click",()=>{
+const next=parent.getAttribute("aria-expanded")!=="true";
+setSidebarGroupExpanded(groupKey,next);
+});
+parent.dataset.bound="1";
+});
+const active=document.querySelector(".side-link[data-page].active");
+if(active)syncActiveSidebarParent(active.dataset.page);
+}
+function syncActiveSidebarParent(page){
+document.querySelectorAll("[data-sidebar-parent]").forEach(parent=>parent.classList.remove("is-active-parent"));
+const activeItem=document.querySelector(`.side-link[data-page="${page}"]`);
+const group=activeItem?.closest("[data-sidebar-group]");
+if(!group)return;
+const groupKey=group.dataset.sidebarGroup;
+const parent=group.querySelector("[data-sidebar-parent]");
+if(parent)parent.classList.add("is-active-parent");
+setSidebarGroupExpanded(groupKey,true);
+}
 async function openCacheDb(){
 return await new Promise((resolve,reject)=>{
 const req=indexedDB.open(IDB_NAME,IDB_VERSION);
