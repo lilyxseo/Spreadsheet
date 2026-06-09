@@ -33,6 +33,7 @@ const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasSca
 const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],sheetCache:{},sheetChecksums:{},dynamicColumnCache:{},allTripLoading:false,highlightRowNumber:null,highlightSheetName:"",sortBy:"default",autoCheckOnScan:true,exactScanSku:"",selectedSkuRowNumber:null,selectedSkuSheetName:"",selectedSkuValue:"",lastCheckedRowId:null,lastCheckedSheetName:"",lastCheckedSku:"",lastCheckedVersion:0,lastCheckedFadeTimer:null,pendingEdits:{},pendingEditMeta:{},saveStatus:{},saveTimer:null,saveInProgress:false,saveRequested:false,isRendering:false,isRefreshing:false,pendingRender:false,lastRenderedChecksum:"",lastDataChecksum:"",lastRenderedHeaderKey:"",renderTimer:null,searchDebounceTimer:null};
 const PDF_TRANSFER_STATE={header:{},items:[],warnings:[],debugRows:[],rawText:"",logs:[],isParsing:false,isImporting:false,lastFileName:""};
+const ACTIVITY_LOG_STATE={page:1,pageSize:10,filters:{module:"",action:"",user:"",status:""}};
 if(window.lucide&&typeof window.lucide.createIcons==="function"&&!window.__lucideSafePatched){
 const _createIconsOriginal=window.lucide.createIcons.bind(window.lucide);
 window.lucide.createIcons=(...args)=>{
