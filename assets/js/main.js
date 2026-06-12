@@ -33,7 +33,7 @@ const SEARCH_STATE={inputValue:"",filterValue:"",page:1,pageSize:50,minChars:2,d
 const SCANNER_STATE={instance:null,isScannerRunning:false,isClosing:false,hasScanned:false,targetInputId:"searchInput",resultHandler:null};
 const BALIKAN_AUTO_CHECK_KEY="balikan_auto_check_on_scan";
 const BALIKAN_STATE={sheets:[],sheetCache:{},sheetChecksums:{},dynamicColumnCache:{},allTripLoading:false,highlightRowNumber:null,highlightSheetName:"",sortBy:"default",autoCheckOnScan:true,exactScanSku:"",selectedSkuRowNumber:null,selectedSkuSheetName:"",selectedSkuValue:"",lastCheckedRowId:null,lastCheckedSheetName:"",lastCheckedSku:"",lastCheckedVersion:0,lastCheckedFadeTimer:null,pendingEdits:{},pendingEditMeta:{},saveStatus:{},saveTimer:null,saveInProgress:false,saveRequested:false,isRendering:false,isRefreshing:false,pendingRender:false,lastRenderedChecksum:"",lastDataChecksum:"",lastRenderedHeaderKey:"",renderTimer:null,searchDebounceTimer:null};
-const PDF_TRANSFER_STATE={header:{},items:[],warnings:[],debugRows:[],rawText:"",logs:[],isParsing:false,isImporting:false,lastFileName:""};
+const PDF_TRANSFER_STATE={header:{},items:[],warnings:[],debugRows:[],rawText:"",csvText:"",csvRows:[],detectedColumns:[],failedRows:[],logs:[],isParsing:false,isImporting:false,lastFileName:""};
 const ACTIVITY_LOG_STATE={page:1,pageSize:10,filters:{module:"",action:"",user:"",status:""}};
 const BARANG_REJECT_CACHE_KEY="barangRejectCacheV1";
 const BARANG_REJECT_STATE={activeTab:"dashboard",stock:[],masuk:[],keluar:[],lastSync:0,loading:false,refreshing:false,error:"",sort:{key:"qty",dir:"desc"},filters:{stockSearch:"",stockSku:"",stockNama:"",stockLokasi:"",masukSearch:"",masukTanggalFrom:"",masukTanggalTo:"",masukLokasi:"",keluarSearch:"",keluarTanggalFrom:"",keluarTanggalTo:"",keluarStatus:"",keluarPic:""},page:{stock:1,masuk:1,keluar:1},pageSize:25,submittingIn:false,submittingOut:false};
@@ -2642,74 +2642,433 @@ text=text.replace(/\bTanggal\s+Dibuat\b.*$/i,"").trim();
 text=text.replace(/\bPerkiraan\s+Tanggal\s+Sampai\b.*$/i,"").trim();
 return text.replace(/\s{2,}/g," ").trim();
 }
+function csvEscape(value){
+const text=String(value??"");
+return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+}
+function rowsToCsv(rows){return (rows||[]).map(row=>(row||[]).map(csvEscape).join(',')).join('\n');}
+function parseCsvText(text){
+const rows=[];let row=[];let cell="";let quoted=false;
+const input=String(text||"");
+for(let i=0;i<input.length;i++){
+const ch=input[i];
+if(quoted){
+if(ch==='"'&&input[i+1]==='"'){cell+='"';i++;}
+else if(ch==='"'){quoted=false;}
+else cell+=ch;
+}else{
+if(ch==='"')quoted=true;
+else if(ch===','){row.push(cell);cell="";}
+else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell="";}
+else if(ch==='\r'){}
+else cell+=ch;
+}
+}
+row.push(cell);rows.push(row);
+return rows.filter(r=>r.some(c=>String(c||"").trim()));
+}
+function normalizeTransferCsvHeader(value){return clean(String(value||"")).replace(/[^a-z0-9]+/g,' ').trim();}
+function isTransferCsvNumber(value){return /^-?\d+(?:[.,]\d+)?$/.test(String(value??'').trim().replace(/\./g,'').replace(',', '.'));}
+function splitCollapsedTransferCsvLine(line){
+const text=String(line||'').replace(/\s+/g,' ').trim();
+if(!text||/^(sku|nama\s+produk|jumlah|diterima|batal|tolak|catatan)\b/i.test(text))return null;
+const tokens=text.split(' ').filter(Boolean);
+const skuIndex=tokens.findIndex(tok=>isSkuCandidate(tok));
+if(skuIndex<0)return null;
+const sku=tokens[skuIndex];
+const tail=tokens.slice(skuIndex+1);
+const numericIndexes=[];
+for(let i=0;i<tail.length;i++)if(isTransferCsvNumber(tail[i]))numericIndexes.push(i);
+if(!numericIndexes.length)return [sku,tail.join(' '),'','','','',''];
+let qtyIndex=numericIndexes[0];
+if(numericIndexes.length>=4){
+const consecutiveStart=numericIndexes.find((idx,pos)=>numericIndexes[pos+1]===idx+1&&numericIndexes[pos+2]===idx+2&&numericIndexes[pos+3]===idx+3);
+if(consecutiveStart!==undefined)qtyIndex=consecutiveStart;
+}
+const namaProduk=tail.slice(0,qtyIndex).join(' ').trim();
+const qty=tail[qtyIndex]||'';
+const diterima=tail[qtyIndex+1]||'';
+const batal=tail[qtyIndex+2]||'';
+const tolak=tail[qtyIndex+3]||'';
+const catatan=tail.slice(qtyIndex+4).join(' ').trim();
+return [sku,namaProduk,qty,diterima,batal,tolak,catatan];
+}
+function repairTransferCsvRow(row){
+const cells=(row||[]).map(c=>String(c||'').trim());
+const nonEmpty=cells.filter(Boolean);
+if(nonEmpty.length!==1)return null;
+return splitCollapsedTransferCsvLine(nonEmpty[0]);
+}
+function isTransferNoteText(value){return /\b(RUSAK|MATI|PATAH|TIDAK|NYALA|KOTOR|MACET|PECAH|HILANG|SOBEK|RETAK)\b/i.test(String(value||''));}
+function splitQtyAndNoteFromText(value){
+const text=String(value||'').replace(/\s+/g,' ').trim();
+const match=text.match(/^(.*?)(\d+)\s+((?:RUSAK|MATI|PATAH|TIDAK|NYALA|KOTOR|MACET|PECAH|HILANG|SOBEK|RETAK)\b.*)$/i);
+if(!match)return null;
+return {prefix:match[1].trim(),qty:match[2],note:match[3].trim()};
+}
+function appendTransferText(base,value){const text=String(value||'').replace(/\s+/g,' ').trim();return text?`${String(base||'').trim()} ${text}`.trim():String(base||'').trim();}
+function cleanTransferFooterText(value){return String(value||'').replace(/\b(?:Disiapkan|Dikirimkan|Diterima)\s+Oleh\b.*$/i,'').replace(/\s+/g,' ').trim();}
+function isTransferFooterText(value){return /\b(?:Disiapkan|Dikirimkan|Diterima)\s+Oleh\b/i.test(String(value||''));}
+function isTransferHeaderLikeLine(line){return /\b(SKU|Nama\s+Produk|Nama\s+Barang|Jumlah|Qty|Diterima|Batal|Tolak|Catatan)\b/i.test(String(line||''));}
+function hasTransferQtyValue(split){return split&&String(split[2]||'').trim()&&isTransferCsvNumber(split[2]);}
+function findTransferTextTableStart(textRows){
+const rows=textRows||[];
+for(let i=0;i<Math.min(rows.length,90);i++){
+const combined=rows.slice(i,i+4).join(' ');
+if(/\bSKU\b/i.test(combined)&&/(Nama\s+Produk|Nama\s+Barang|Produk|Description)/i.test(combined)&&/(Jumlah|Qty|Diterima|Batal|Tolak)/i.test(combined))return i;
+}
+const firstData=rows.findIndex(row=>hasTransferQtyValue(splitCollapsedTransferCsvLine(row)));
+return firstData>0?firstData-1:firstData;
+}
+function textRowsToTransferCsvRows(textRows){
+const startIdx=findTransferTextTableStart(textRows);
+if(startIdx<0)return [];
+const csvRows=[['SKU','Nama Produk','Jumlah','Diterima','Batal','Tolak','Catatan']];
+let foundData=false;
+for(let i=startIdx+1;i<textRows.length;i++){
+const line=String(textRows[i]||'').replace(/\s+/g,' ').trim();
+if(!line)continue;
+if(foundData&&/^(grand\s+total|total|status\s+transfer|nomor\s+referensi|perkiraan\s+tanggal)\b/i.test(line))break;
+const split=splitCollapsedTransferCsvLine(line);
+if(split&&hasTransferQtyValue(split)){csvRows.push(split);foundData=true;continue;}
+if(!foundData&&isTransferHeaderLikeLine(line))continue;
+if(foundData&&split){csvRows.push(split);continue;}
+if(foundData)csvRows.push([line,'','','','','','']);
+}
+return csvRows.length>1?csvRows:[];
+}
+function mapTransferCsvDataRow(row,map){
+let cells=row||[];
+let rowMap=map;
+const isStructured=Array.isArray(cells)&&cells.length>1;
+const rowText=cells.map(c=>String(c||'').trim()).filter(Boolean).join(' ');
+const repaired=!isStructured?repairTransferCsvRow(cells):null;
+if(repaired){cells=repaired;rowMap={sku:0,namaProduk:1,qty:2,diterima:3,batal:4,tolak:5,catatan:6};}
+let sku=String(cells[rowMap.sku]||'').trim();
+let namaProduk=String(rowMap.namaProduk!==undefined?cells[rowMap.namaProduk]||'':'').trim();
+let qtyRaw=String(rowMap.qty!==undefined?cells[rowMap.qty]||'':'').trim().replace(/\./g,'').replace(',', '.');
+let diterima=String(rowMap.diterima!==undefined?cells[rowMap.diterima]||'':'').trim();
+let batal=String(rowMap.batal!==undefined?cells[rowMap.batal]||'':'').trim();
+let tolak=String(rowMap.tolak!==undefined?cells[rowMap.tolak]||'':'').trim();
+let catatan=String(rowMap.catatan!==undefined?cells[rowMap.catatan]||'':'').trim();
+if(!isStructured&&!repaired&&(!sku||!qtyRaw||Number.isNaN(Number(qtyRaw)))){
+const split=splitCollapsedTransferCsvLine(rowText);
+if(split){
+cells=split;sku=split[0];namaProduk=split[1];qtyRaw=String(split[2]||'').replace(/\./g,'').replace(',', '.');diterima=split[3];batal=split[4];tolak=split[5];catatan=split[6];
+}
+}
+const catatanQty=splitQtyAndNoteFromText(catatan);
+if(catatanQty&&(!qtyRaw||Number.isNaN(Number(qtyRaw))||Number(qtyRaw)>99)){
+namaProduk=appendTransferText(namaProduk,catatanQty.prefix);
+qtyRaw=catatanQty.qty;
+catatan=catatanQty.note;
+}
+const mid=[{field:'qty',value:qtyRaw},{field:'diterima',value:diterima},{field:'batal',value:batal},{field:'tolak',value:tolak}];
+if(!qtyRaw||Number.isNaN(Number(qtyRaw))){
+let qtyIdx=-1;
+for(let i=mid.length-1;i>=0;i--){if(isTransferCsvNumber(mid[i].value)){qtyIdx=i;break;}}
+if(qtyIdx>=0){
+qtyRaw=String(mid[qtyIdx].value).replace(/\./g,'').replace(',', '.');
+for(let i=0;i<mid.length;i++){
+if(i===qtyIdx)continue;
+const value=mid[i].value;
+if(!value)continue;
+if(i<qtyIdx)namaProduk=appendTransferText(namaProduk,value);
+else if(isTransferNoteText(value))catatan=appendTransferText(catatan,value);
+else namaProduk=appendTransferText(namaProduk,value);
+}
+diterima='';batal='';tolak='';
+}
+}else{
+for(const part of [diterima,batal,tolak]){
+if(!part)continue;
+if(isTransferNoteText(part))catatan=appendTransferText(catatan,part);
+else namaProduk=appendTransferText(namaProduk,part);
+}
+diterima='';batal='';tolak='';
+}
+namaProduk=cleanTransferFooterText(namaProduk);
+catatan=cleanTransferFooterText(catatan);
+const qty=Number(qtyRaw);
+const reasons=[];
+if(!sku)reasons.push('SKU kosong');
+if(!qtyRaw||Number.isNaN(qty))reasons.push('Jumlah/Qty bukan angka');
+return {item:{sku,namaProduk,qty,diterima,batal,tolak,catatan},row:cells,reason:reasons.join(', ')};
+}
+function detectTransferCsvColumnMap(headers){
+const aliases={
+sku:['sku','kode sku','kode barang','item code'],
+namaProduk:['nama produk','nama barang','produk','nama','item','description','item name'],
+qty:['jumlah','qty','quantity','kuantitas'],
+diterima:['diterima','received'],
+batal:['batal','cancel','cancelled'],
+tolak:['tolak','ditolak','reject','rejected'],
+catatan:['catatan','note','notes','keterangan']
+};
+const normalized=(headers||[]).map(normalizeTransferCsvHeader);
+const map={};
+const detected=[];
+for(const [field,names] of Object.entries(aliases)){
+const idx=normalized.findIndex(h=>names.some(name=>h===name||h.includes(name)));
+if(idx>=0){map[field]=idx;detected.push(`${headers[idx]||`Kolom ${idx+1}`} → ${field}`);}
+}
+return {map,detected,normalized};
+}
+function findTransferCsvHeaderIndex(rows){
+let best={idx:-1,score:0,map:{},detected:[]};
+(rows||[]).slice(0,40).forEach((row,idx)=>{
+const hit=detectTransferCsvColumnMap(row||[]);
+const score=(hit.map.sku!==undefined?3:0)+(hit.map.qty!==undefined?3:0)+(hit.map.namaProduk!==undefined?2:0)+Object.keys(hit.map).length;
+if(score>best.score)best={idx,score,map:hit.map,detected:hit.detected};
+});
+return best.score>=4?best:{idx:-1,score:0,map:{},detected:[]};
+}
+function parseTransferCsvRows(csvRows){
+const headerHit=findTransferCsvHeaderIndex(csvRows);
+const warnings=[];
+const failedRows=[];
+if(headerHit.idx<0){
+warnings.push('Header CSV tidak cocok. Preview CSV mentah ditampilkan untuk pengecekan.');
+return {headerIndex:-1,headers:[],items:[],warnings,failedRows,detectedColumns:[]};
+}
+const headers=csvRows[headerHit.idx]||[];
+const {map,detected}=detectTransferCsvColumnMap(headers);
+if(map.sku===undefined)warnings.push('Kolom SKU tidak terdeteksi.');
+if(map.qty===undefined)warnings.push('Kolom Jumlah/Qty tidak terdeteksi.');
+[['namaProduk','Nama Produk'],['diterima','Diterima'],['batal','Batal'],['tolak','Tolak'],['catatan','Catatan']].forEach(([field,label])=>{if(map[field]===undefined)warnings.push(`Kolom ${label} tidak terdeteksi; nilai akan kosong.`);});
+const items=[];
+for(let r=headerHit.idx+1;r<csvRows.length;r++){
+let row=csvRows[r]||[];
+const rowText=row.map(c=>String(c||'').trim()).filter(Boolean).join(' ');
+if(!rowText)continue;
+if(/^(grand\s+total|total|status\s+transfer|nomor\s+referensi)\b/i.test(rowText))break;
+const mapped=mapTransferCsvDataRow(row,map);
+if(mapped.reason){failedRows.push({rowNumber:r+1,row:mapped.row,reason:mapped.reason});continue;}
+items.push(mapped.item);
+}
+if(!items.length)warnings.push('Tidak ada row valid dari CSV. Import diblokir sampai minimal ada satu row valid.');
+return {headerIndex:headerHit.idx,headers,items,warnings,failedRows,detectedColumns:detected};
+}
+function getPdfItemX(item){return Number(item?.transform?.[4]||0);}
+function getPdfItemY(item){return Number(item?.transform?.[5]||0);}
+function groupPdfItemsByRows(items){
+const sorted=(items||[]).filter(it=>String(it?.str||'').trim()).sort((a,b)=>getPdfItemY(b)-getPdfItemY(a)||getPdfItemX(a)-getPdfItemX(b));
+const rows=[];
+for(const item of sorted){
+const y=getPdfItemY(item);
+let row=rows.find(r=>Math.abs(r.y-y)<=3);
+if(!row){row={y,items:[]};rows.push(row);}
+row.items.push(item);
+}
+rows.forEach(r=>r.items.sort((a,b)=>getPdfItemX(a)-getPdfItemX(b)));
+return rows;
+}
+function findPdfHeaderAnchor(flat,field){
+const byRaw=pattern=>flat.find(entry=>pattern.test(entry.raw));
+const byNorm=pattern=>flat.find(entry=>pattern.test(entry.norm));
+if(field==='no')return byRaw(/^#$/)||byNorm(/^(no|nomor)$/);
+if(field==='namaProduk')return byNorm(/produk|nama\s+produk|nama\s+barang|description/);
+if(field==='sku')return byNorm(/kode\s+barang|sku|kode\s+sku|item\s+code/);
+if(field==='qty')return byNorm(/^(jumlah|qty|quantity|kuantitas)$/)||byNorm(/jumlah|qty|quantity|kuantitas/);
+if(field==='diterima')return byNorm(/diterima|received/);
+if(field==='batal')return byNorm(/batal|cancel/);
+if(field==='tolak')return byNorm(/tolak|reject/);
+if(field==='catatan')return byNorm(/catatan|note|keterangan/);
+return null;
+}
+function detectPdfTableColumns(pdfRows){
+const fields=['no','namaProduk','sku','qty','diterima','batal','tolak','catatan'];
+const labels={no:'#',namaProduk:'Nama Produk',sku:'SKU',qty:'Jumlah',diterima:'Diterima',batal:'Batal',tolak:'Tolak',catatan:'Catatan'};
+for(let ri=0;ri<Math.min(pdfRows.length,120);ri++){
+const windowRows=pdfRows.slice(ri,ri+5);
+const combined=normalizeTransferCsvHeader(windowRows.map(row=>row.items.map(it=>it.str).join(' ')).join(' '));
+const hasProduct=/produk|nama\s+produk|nama\s+barang|description/.test(combined);
+const hasSku=/sku|kode\s+barang|kode\s+sku|item\s+code/.test(combined);
+const hasQty=/jumlah|qty|quantity|kuantitas/.test(combined);
+if(!(hasProduct&&hasSku&&hasQty))continue;
+const flat=[];
+windowRows.forEach((row,offset)=>row.items.forEach(it=>flat.push({it,rowIndex:ri+offset,raw:String(it.str||'').trim(),norm:normalizeTransferCsvHeader(it.str),x:getPdfItemX(it)})));
+const anchors=[];
+for(const field of fields){
+const found=findPdfHeaderAnchor(flat,field);
+if(found)anchors.push({field,label:labels[field],x:found.x,rowIndex:found.rowIndex});
+}
+if(anchors.some(a=>a.field==='namaProduk')&&anchors.some(a=>a.field==='sku')&&anchors.some(a=>a.field==='qty')){
+anchors.sort((a,b)=>a.x-b.x);
+return {headerRowIndex:Math.max(...anchors.map(a=>a.rowIndex)),columns:anchors};
+}
+}
+return {headerRowIndex:-1,columns:[]};
+}
+function appendPdfCell(target,field,value){
+const text=String(value||'').replace(/\s+/g,' ').trim();
+if(!text)return;
+target[field]=target[field]?`${target[field]} ${text}`:text;
+}
+function pdfRowsToCsvRows(pdfRows){
+const detected=detectPdfTableColumns(pdfRows);
+if(detected.headerRowIndex<0)return [];
+const columns=detected.columns;
+const boundaries=columns.map((col,idx)=>idx===0?-Infinity:(columns[idx-1].x+col.x)/2).concat([Infinity]);
+const outputFields=['sku','namaProduk','qty','diterima','batal','tolak','catatan'];
+const outputHeaders=['SKU','Nama Produk','Jumlah','Diterima','Batal','Tolak','Catatan'];
+const getRowCells=(row)=>{
+const rowCells={};
+for(const item of row.items){
+const text=String(item.str||'').trim();
+if(!text)continue;
+const x=getPdfItemX(item);
+let ci=0;
+for(let b=0;b<columns.length;b++){if(x>=boundaries[b]&&x<boundaries[b+1]){ci=b;break;}}
+const field=columns[ci]?.field;
+if(field)appendPdfCell(rowCells,field,text);
+}
+return rowCells;
+};
+const isIgnoredRow=(rowText)=>/^(transfer\s*#|dari\b|kepada\b|nomor\s+referensi|tanggal\s+dibuat|perkiraan\s+tanggal|status\s+transfer)/i.test(rowText)||isTransferFooterText(rowText)||isTransferHeaderLikeLine(rowText)&&/(kode\s+barang|sku|jumlah|qty)/i.test(rowText);
+const isSummaryQtyOnlyRow=(rowCells)=>isTransferCsvNumber(rowCells.qty)&&!String(rowCells.no||'').trim()&&!String(rowCells.sku||'').trim()&&!String(rowCells.namaProduk||'').trim()&&!String(rowCells.diterima||'').trim()&&!String(rowCells.batal||'').trim()&&!String(rowCells.tolak||'').trim()&&!String(rowCells.catatan||'').trim();
+const skuRowIndexes=[];
+for(let ri=detected.headerRowIndex+1;ri<pdfRows.length;ri++){
+const row=pdfRows[ri];
+const rowText=row.items.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim();
+if(!rowText||isIgnoredRow(rowText))continue;
+if(/^(grand\s+total|total)\b/i.test(rowText))break;
+const rowCells=getRowCells(row);
+const sku=String(rowCells.sku||'').trim();
+if(sku&&isSkuCandidate(sku))skuRowIndexes.push(ri);
+}
+const records=[];
+for(let si=0;si<skuRowIndexes.length;si++){
+const start=skuRowIndexes[si];
+const end=skuRowIndexes[si+1]||pdfRows.length;
+const record={};
+for(let ri=start;ri<end;ri++){
+const row=pdfRows[ri];
+const rowText=row.items.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim();
+if(!rowText||isIgnoredRow(rowText))continue;
+if(ri>start&&/^(grand\s+total|total)\b/i.test(rowText))break;
+const rowCells=getRowCells(row);
+if(ri>start&&isSummaryQtyOnlyRow(rowCells))break;
+if(ri===start){
+appendPdfCell(record,'sku',rowCells.sku);
+appendPdfCell(record,'namaProduk',rowCells.namaProduk);
+if(isTransferCsvNumber(rowCells.qty))appendPdfCell(record,'qty',rowCells.qty);else appendPdfCell(record,'namaProduk',rowCells.qty);
+appendPdfCell(record,'diterima',rowCells.diterima);
+appendPdfCell(record,'batal',rowCells.batal);
+appendPdfCell(record,'tolak',rowCells.tolak);
+appendPdfCell(record,'catatan',rowCells.catatan);
+continue;
+}
+appendPdfCell(record,'namaProduk',rowCells.namaProduk);
+if(rowCells.qty){
+if(!record.qty&&isTransferCsvNumber(rowCells.qty))appendPdfCell(record,'qty',rowCells.qty);
+else appendPdfCell(record,'namaProduk',rowCells.qty);
+}
+for(const field of ['diterima','batal','tolak']){
+const value=String(rowCells[field]||'').trim();
+if(!value)continue;
+if(isTransferCsvNumber(value)&&!String(record[field]||'').trim())appendPdfCell(record,field,value);
+else appendPdfCell(record,'namaProduk',value);
+}
+appendPdfCell(record,'catatan',rowCells.catatan);
+}
+if(outputFields.some(field=>String(record[field]||'').trim()))records.push(record);
+}
+const csvRows=[outputHeaders];
+for(const record of records){
+const row=outputFields.map(field=>String(record[field]||'').trim());
+if(row.some(Boolean))csvRows.push(row);
+}
+return csvRows.length>1?csvRows:[];
+}
 function renderImportPdfTransferPage(){
 const root=document.getElementById("importPdfTransferApp");if(!root)return;
 const totalQty=(PDF_TRANSFER_STATE.items||[]).reduce((n,r)=>n+(Number(r.qty)||0),0);
-root.innerHTML=`<div class='card'><div class='mv-filters open'><input id='pdfTransferFile' type='file' accept='application/pdf'/><button id='pdfTransferParseBtn' class='btn-primary' ${PDF_TRANSFER_STATE.isParsing?'disabled':''}>${PDF_TRANSFER_STATE.isParsing?'Parsing...':'Upload PDF'}</button><button id='pdfTransferImportBtn' class='btn-primary' ${PDF_TRANSFER_STATE.isImporting||!PDF_TRANSFER_STATE.items.length?'disabled':''}>${PDF_TRANSFER_STATE.isImporting?'Importing...':'Import'}</button><button id='pdfTransferResetBtn' class='btn-ghost'>Reset</button></div><div id='pdfTransferStatus' class='subtitle'></div></div><div class='card'><h4>Header Transfer</h4><div class='grid dashboard'>${[['Nomor Transfer','nomorTransfer'],['Dari','dari'],['Kepada','kepada'],['Nomor Referensi','nomorReferensi']].map(([label,key])=>`<label>${label}<input data-pdf-header='${key}' class='search-lg' value='${esc(PDF_TRANSFER_STATE.header?.[key]||'')}'/></label>`).join('')}</div></div><div class='card'><h4>Preview Item</h4><div class='subtitle'>Total SKU: ${PDF_TRANSFER_STATE.items.length} | Total Qty: ${totalQty}</div><div class='table-wrap' style='max-height:420px;overflow:auto;'><table><thead><tr><th>SKU</th><th>Nama Produk</th><th>Qty</th></tr></thead><tbody>${PDF_TRANSFER_STATE.items.map((it,idx)=>`<tr>${['sku','namaProduk','qty'].map(k=>`<td contenteditable='true' data-pdf-item='${idx}' data-field='${k}'>${esc(String(it[k]??''))}</td>`).join('')}</tr>`).join('')||"<tr><td colspan='3'><div class='state'>Belum ada item.</div></td></tr>"}</tbody></table></div>${PDF_TRANSFER_STATE.warnings.length?`<div class='state'>Warning: ${PDF_TRANSFER_STATE.warnings.map(esc).join(' | ')}</div>`:''}</div>`;
+const hasCsvRows=Boolean(PDF_TRANSFER_STATE.csvRows?.length);
+const csvPreview=hasCsvRows?(PDF_TRANSFER_STATE.csvRows||[]).slice(0,20):(PDF_TRANSFER_STATE.debugRows||[]).slice(0,20).map((row,idx)=>[`PDF row ${idx+1}`,row]);
+const debugLogs=[...(PDF_TRANSFER_STATE.logs||[])];
+if(PDF_TRANSFER_STATE.csvRows?.length)debugLogs.push(`Total row CSV: ${PDF_TRANSFER_STATE.csvRows.length}`);
+if(PDF_TRANSFER_STATE.detectedColumns?.length)debugLogs.push(`Kolom terdeteksi: ${PDF_TRANSFER_STATE.detectedColumns.join(' | ')}`);
+if(PDF_TRANSFER_STATE.failedRows?.length)debugLogs.push(`Row gagal mapping: ${PDF_TRANSFER_STATE.failedRows.length}`);
+root.innerHTML=`<div class='card'><div class='mv-filters open'><input id='pdfTransferFile' type='file' accept='application/pdf'/><button id='pdfTransferParseBtn' class='btn-primary' ${PDF_TRANSFER_STATE.isParsing?'disabled':''}>${PDF_TRANSFER_STATE.isParsing?'Convert PDF → CSV...':'Upload PDF'}</button><button id='pdfTransferImportBtn' class='btn-primary' ${PDF_TRANSFER_STATE.isImporting||!PDF_TRANSFER_STATE.items.length?'disabled':''}>${PDF_TRANSFER_STATE.isImporting?'Importing...':'Import'}</button><button id='pdfTransferResetBtn' class='btn-ghost'>Reset</button></div><div id='pdfTransferStatus' class='subtitle'>Flow: PDF → CSV → validasi CSV → preview tabel → import.</div></div><div class='card'><h4>Header Transfer</h4><div class='grid dashboard'>${[['Nomor Transfer','nomorTransfer'],['Dari','dari'],['Kepada','kepada'],['Nomor Referensi','nomorReferensi']].map(([label,key])=>`<label>${label}<input data-pdf-header='${key}' class='search-lg' value='${esc(PDF_TRANSFER_STATE.header?.[key]||'')}'/></label>`).join('')}</div></div><div class='card'><h4>Preview CSV Mentah</h4><div class='subtitle'>Total row CSV: ${PDF_TRANSFER_STATE.csvRows?.length||0}${!hasCsvRows&&PDF_TRANSFER_STATE.debugRows?.length?` | PDF rows terbaca: ${PDF_TRANSFER_STATE.debugRows.length}`:''} | Kolom terdeteksi: ${(PDF_TRANSFER_STATE.detectedColumns||[]).length?esc(PDF_TRANSFER_STATE.detectedColumns.join(' | ')):'-'}</div><div class='table-wrap' style='max-height:260px;overflow:auto;'><table><tbody>${csvPreview.length?csvPreview.map(row=>`<tr>${row.map(cell=>`<td>${esc(cell)}</td>`).join('')}</tr>`).join(''):`<tr><td><div class='state'>Belum ada CSV. Upload PDF untuk convert ke CSV.</div></td></tr>`}</tbody></table></div>${PDF_TRANSFER_STATE.warnings.length?`<div class='state'>Warning: ${PDF_TRANSFER_STATE.warnings.map(esc).join(' | ')}</div>`:''}</div><div class='card'><h4>Preview Item Tervalidasi</h4><div class='subtitle'>Total SKU valid: ${PDF_TRANSFER_STATE.items.length} | Total Qty: ${totalQty} | Gagal mapping: ${PDF_TRANSFER_STATE.failedRows.length}</div><div class='table-wrap' style='max-height:420px;overflow:auto;'><table><thead><tr><th>SKU</th><th>Nama Produk</th><th>Jumlah</th><th>Diterima</th><th>Batal</th><th>Tolak</th><th>Catatan</th></tr></thead><tbody>${PDF_TRANSFER_STATE.items.map((it,idx)=>`<tr>${['sku','namaProduk','qty','diterima','batal','tolak','catatan'].map(k=>`<td contenteditable='true' data-pdf-item='${idx}' data-field='${k}'>${esc(String(it[k]??''))}</td>`).join('')}</tr>`).join('')||"<tr><td colspan='7'><div class='state'>Belum ada item valid.</div></td></tr>"}</tbody></table></div></div><div class='card'><h4>Debug CSV Mapping</h4><pre style='white-space:pre-wrap;max-height:260px;overflow:auto;'>${esc(debugLogs.concat((PDF_TRANSFER_STATE.failedRows||[]).slice(0,30).map(f=>`CSV row ${f.rowNumber}: ${f.reason} => ${JSON.stringify(f.row)}`)).join('\n')||'-')}</pre></div>`;
 
 document.getElementById('pdfTransferParseBtn')?.addEventListener('click',parsePdfTransferFile);
 document.getElementById('pdfTransferImportBtn')?.addEventListener('click',importPdfTransferData);
-document.getElementById('pdfTransferResetBtn')?.addEventListener('click',()=>{Object.assign(PDF_TRANSFER_STATE,{header:{},items:[],warnings:[],debugRows:[],rawText:'',logs:[],isParsing:false,isImporting:false,lastFileName:''});renderImportPdfTransferPage();});
+document.getElementById('pdfTransferResetBtn')?.addEventListener('click',()=>{Object.assign(PDF_TRANSFER_STATE,{header:{},items:[],warnings:[],debugRows:[],rawText:'',csvText:'',csvRows:[],detectedColumns:[],failedRows:[],logs:[],isParsing:false,isImporting:false,lastFileName:''});renderImportPdfTransferPage();});
 root.querySelectorAll('[data-pdf-header]').forEach(el=>el.addEventListener('input',e=>{PDF_TRANSFER_STATE.header[e.target.dataset.pdfHeader]=e.target.value;}));
 root.querySelectorAll('[data-pdf-item]').forEach(el=>el.addEventListener('input',e=>{const idx=Number(e.target.dataset.pdfItem);const key=e.target.dataset.field;PDF_TRANSFER_STATE.items[idx][key]=e.target.textContent;}));
 }
 async function parsePdfTransferFile(){
 const file=document.getElementById('pdfTransferFile')?.files?.[0];if(!file)return toast('Pilih file PDF dulu','error');
-PDF_TRANSFER_STATE.isParsing=true;PDF_TRANSFER_STATE.logs=[];renderImportPdfTransferPage();
-try{const pdfjs=await getPdfJsLib();const buf=await file.arrayBuffer();const pdf=await pdfjs.getDocument({data:buf}).promise;let items=[];const rows=[];PDF_TRANSFER_STATE.logs.push(`PDF page count: ${pdf.numPages}`);
-for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const tc=await page.getTextContent();items.push(...tc.items);const grouped={};tc.items.forEach(it=>{const y=Math.round(it.transform[5]);(grouped[y]=grouped[y]||[]).push(it);});const sortedY=Object.keys(grouped).map(Number).sort((a,b)=>b-a);sortedY.forEach(y=>{const row=grouped[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(x=>x.str).join(' ').replace(/\s+/g,' ').trim();if(row)rows.push(row);});}
-PDF_TRANSFER_STATE.logs.push(`Total text items: ${items.length}`);PDF_TRANSFER_STATE.logs.push(`Total rows detected: ${rows.length}`);PDF_TRANSFER_STATE.rawText=rows.join('\n');
-const header={};const findVal=(label)=>{const rx=new RegExp(`(?:${label})\\s*[:\\-]?\\s*(.+)$`,'i');const hit=rows.find(r=>rx.test(r));return hit?(hit.match(rx)?.[1]||'').trim():''};
-const topRows=rows.slice(0,12);
-const transferTop=topRows.find(r=>/transfer\s*#\s*t[-\d]+/i.test(r))||"";
+PDF_TRANSFER_STATE.isParsing=true;PDF_TRANSFER_STATE.logs=[];PDF_TRANSFER_STATE.warnings=[];PDF_TRANSFER_STATE.items=[];PDF_TRANSFER_STATE.failedRows=[];PDF_TRANSFER_STATE.detectedColumns=[];PDF_TRANSFER_STATE.csvRows=[];PDF_TRANSFER_STATE.csvText='';PDF_TRANSFER_STATE.debugRows=[];PDF_TRANSFER_STATE.lastFileName=file.name||'';renderImportPdfTransferPage();
+try{
+const pdfjs=await getPdfJsLib();const buf=await file.arrayBuffer();const pdf=await pdfjs.getDocument({data:buf}).promise;const allItems=[];const textRows=[];const pdfRows=[];PDF_TRANSFER_STATE.logs.push(`PDF page count: ${pdf.numPages}`);
+for(let p=1;p<=pdf.numPages;p++){
+const page=await pdf.getPage(p);const tc=await page.getTextContent();allItems.push(...tc.items);
+const pageRows=groupPdfItemsByRows(tc.items);
+pdfRows.push(...pageRows);
+pageRows.forEach(row=>{const rowText=row.items.map(x=>x.str).join(' ').replace(/\s+/g,' ').trim();if(rowText)textRows.push(rowText);});
+}
+PDF_TRANSFER_STATE.logs.push(`Total text items PDF: ${allItems.length}`);
+PDF_TRANSFER_STATE.debugRows=textRows.slice(0,80);
+let csvRows=pdfRowsToCsvRows(pdfRows);
+if(!csvRows.length){
+csvRows=textRowsToTransferCsvRows(textRows);
+if(csvRows.length)PDF_TRANSFER_STATE.logs.push('Fallback CSV dari baris tabel PDF dipakai karena struktur kolom PDF tidak terdeteksi.');
+else PDF_TRANSFER_STATE.logs.push(`CSV fallback belum menemukan tabel. Sample PDF rows: ${textRows.slice(0,12).join(' || ')||'-'}`);
+}
+PDF_TRANSFER_STATE.csvRows=csvRows;
+PDF_TRANSFER_STATE.csvText=rowsToCsv(csvRows);
+PDF_TRANSFER_STATE.rawText=PDF_TRANSFER_STATE.csvText;
+PDF_TRANSFER_STATE.logs.push(`Total row CSV: ${csvRows.length}`);
+const header={};const findVal=(label)=>{const rx=new RegExp(`(?:${label})\\s*[:\\-]?\\s*(.+)$`,'i');const hit=textRows.find(r=>rx.test(r));return hit?(hit.match(rx)?.[1]||'').trim():''};
+const topRows=textRows.slice(0,12);const transferTop=topRows.find(r=>/transfer\s*#\s*t[-\d]+/i.test(r))||"";
 header.nomorTransfer=(transferTop.match(/(Transfer\s*#\s*T[-\d]+)/i)?.[1]||findVal('Nomor Transfer|No Transfer')).trim();
 header.dari=cleanupTransferHeaderValue(findVal('Dari'));
 header.kepada=cleanupTransferHeaderValue(findVal('Kepada'));
 header.nomorReferensi=findVal('Nomor Referensi|No Referensi|Reference');
-const startIdx=rows.findIndex(r=>/SKU/i.test(r)&&/Nama\s*Produk/i.test(r)&&/Jumlah/i.test(r));
-const parsed=[];const skipped=[];
-const skuMasterMap=buildKartuStockSkuMap();
-const skuMasterNormMap=new Map();
-for(const [k,v] of skuMasterMap.entries()){
-const nk=normalizeSkuKey(k);
-if(nk&&!skuMasterNormMap.has(nk))skuMasterNormMap.set(nk,v);
+let parsed=parseTransferCsvRows(parseCsvText(PDF_TRANSFER_STATE.csvText));
+if(!parsed.items.length){
+const fallbackCsvRows=textRowsToTransferCsvRows(textRows);
+if(fallbackCsvRows.length&&rowsToCsv(fallbackCsvRows)!==PDF_TRANSFER_STATE.csvText){
+PDF_TRANSFER_STATE.logs.push('Fallback CSV repair dipakai karena CSV awal tidak menghasilkan row valid.');
+csvRows=fallbackCsvRows;
+PDF_TRANSFER_STATE.csvRows=csvRows;
+PDF_TRANSFER_STATE.csvText=rowsToCsv(csvRows);
+PDF_TRANSFER_STATE.rawText=PDF_TRANSFER_STATE.csvText;
+parsed=parseTransferCsvRows(parseCsvText(PDF_TRANSFER_STATE.csvText));
 }
-PDF_TRANSFER_STATE.logs.push(`SKU master loaded: ${skuMasterMap.size}`);
-const itemRows=startIdx>=0?rows.slice(startIdx+1):rows;
-for(let i=0;i<itemRows.length;i++){const row=itemRows[i];if(parsed.length&&/grand total|^total\b|status transfer|nomor referensi|perkiraan tanggal/i.test(row))break;const line=String(row||'').replace(/\s+/g,' ').trim();if(!line)continue;const tokens=line.split(' ').filter(Boolean);
-const skuIdx=tokens.findIndex(tok=>{
-if(!isSkuCandidate(tok))return false;
-const key=clean(tok);
-const nkey=normalizeSkuKey(tok);
-return skuMasterMap.has(key)||skuMasterNormMap.has(nkey);
+}
+PDF_TRANSFER_STATE.header=header;
+PDF_TRANSFER_STATE.items=parsed.items;
+PDF_TRANSFER_STATE.warnings=parsed.warnings;
+PDF_TRANSFER_STATE.failedRows=parsed.failedRows;
+PDF_TRANSFER_STATE.detectedColumns=parsed.detectedColumns;
+PDF_TRANSFER_STATE.logs.push(`Kolom yang terdeteksi: ${parsed.detectedColumns.join(' | ')||'-'}`);
+PDF_TRANSFER_STATE.logs.push(`Parsed row valid: ${parsed.items.length}`);
+PDF_TRANSFER_STATE.logs.push(`Row gagal mapping + alasan: ${parsed.failedRows.length}`);
+if(!parsed.items.length)PDF_TRANSFER_STATE.logs.push(`Sample PDF rows untuk debug: ${textRows.slice(0,20).join(' || ')||'-'}`);
+if(parsed.items.length)toast('CSV berhasil dibaca dan preview siap diedit','success');
+else toast('CSV terbaca, tapi belum ada row valid','error');
+}catch(err){PDF_TRANSFER_STATE.logs.push(`ERROR: ${err.message||err}`);toast('Gagal convert PDF ke CSV','error');}
+finally{PDF_TRANSFER_STATE.isParsing=false;renderImportPdfTransferPage();}
+}
+function getValidatedPdfTransferRowsForImport(){
+const failed=[];
+const valid=[];
+(PDF_TRANSFER_STATE.items||[]).forEach((row,idx)=>{
+const sku=String(row.sku||'').trim();
+const qty=Number(String(row.qty??'').trim().replace(/\./g,'').replace(',', '.'));
+const reasons=[];
+if(!sku)reasons.push('SKU kosong');
+if(String(row.qty??'').trim()===''||Number.isNaN(qty))reasons.push('Jumlah/Qty bukan angka');
+if(reasons.length)failed.push({rowNumber:idx+1,row:Object.values(row),reason:reasons.join(', ')});
+else valid.push({...row,sku,qty});
 });
-if(skuIdx<0){
-const isHeaderLike=/^(sku|nama produk|jumlah|diterima|batal|tolak|catatan|kode barang|status transfer|nomor referensi)$/i.test(line);
-const isShortNoteLike=/^[A-Za-z][A-Za-z\s\-\/]{1,64}$/.test(line)&&!/\d/.test(line)&&line.trim().split(/\s+/).length<=6;
-if(parsed.length&&!isHeaderLike&&isShortNoteLike){
-const prev=parsed[parsed.length-1];
-const upperLine=String(line||"").trim().toUpperCase();
-const upperNama=String(prev?.namaProduk||"").toUpperCase();
-const isPartOfProductName=upperNama.includes(upperLine);
-if(!isPartOfProductName){
-prev.catatan=`${prev.catatan||""} ${line}`.trim();
-continue;
+return {valid,failed};
 }
-}
-skipped.push(`${line} => sku tidak ditemukan`);continue;}
-const sku=tokens[skuIdx];const after=tokens.slice(skuIdx+1);
-const numericIndices=[];for(let ai=0;ai<after.length;ai++){if(/^\d+$/.test(after[ai]))numericIndices.push(ai);}
-const qty=Number((numericIndices.length?after[numericIndices[0]]:0)||0);
-const skuRef=skuMasterMap.get(clean(sku))||skuMasterNormMap.get(normalizeSkuKey(sku))||{};
-const namaProduk=skuRef.nama||getNamaProdukBySkuFromKartuStock(sku)||'-';
-parsed.push({sku:skuRef.sku||sku,namaProduk,qty});
-}
-const warnings=[];parsed.forEach((r,ix)=>{if(!r.sku)warnings.push(`Row ${ix+1}: SKU kosong, tidak akan diimport`);if(r.qty===0)warnings.push(`Row ${ix+1}: qty kosong diset 0`);});
-PDF_TRANSFER_STATE.header=header;PDF_TRANSFER_STATE.items=parsed;PDF_TRANSFER_STATE.warnings=warnings;PDF_TRANSFER_STATE.logs.push(`Total SKU detected: ${parsed.length}`);PDF_TRANSFER_STATE.logs.push(`Parsed rows: ${parsed.length}`);PDF_TRANSFER_STATE.logs.push(`Rows skipped + alasan: ${skipped.length}`);if(skipped.length)PDF_TRANSFER_STATE.logs.push(...skipped.slice(0,30));toast('Parsing selesai','success');
-}catch(err){PDF_TRANSFER_STATE.logs.push(`ERROR: ${err.message||err}`);toast('Gagal parsing PDF','error');}finally{PDF_TRANSFER_STATE.isParsing=false;renderImportPdfTransferPage();}
-}
-async function importPdfTransferData(){if(PDF_TRANSFER_STATE.isImporting)return;const validRows=PDF_TRANSFER_STATE.items.filter(r=>String(r.sku||'').trim());if(!validRows.length){toast('Tidak ada SKU valid untuk import','error');return;}PDF_TRANSFER_STATE.isImporting=true;renderImportPdfTransferPage();
-try{const res=await fetch('/api/import-pdf-transfer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({header:PDF_TRANSFER_STATE.header,items:validRows})});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal import');
+async function importPdfTransferData(){if(PDF_TRANSFER_STATE.isImporting)return;const {valid,failed}=getValidatedPdfTransferRowsForImport();if(failed.length){PDF_TRANSFER_STATE.failedRows=failed;PDF_TRANSFER_STATE.warnings=[`Masih ada ${failed.length} row preview gagal validasi. Perbaiki sebelum import.`];renderImportPdfTransferPage();toast('Perbaiki row yang gagal validasi sebelum import','error');return;}if(!valid.length){toast('Tidak ada row CSV valid untuk import','error');return;}PDF_TRANSFER_STATE.isImporting=true;renderImportPdfTransferPage();
+try{const res=await fetch('/api/import-pdf-transfer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({header:PDF_TRANSFER_STATE.header,items:valid,source:'csv'})});const out=await res.json();if(!res.ok||!out?.success)throw new Error(out?.message||'Gagal import');
 toast(`Import sukses ke sheet ${out.sheetTitle||'-'}`,'success');
 }catch(err){toast(`Import gagal: ${err.message||err}`,'error');}finally{PDF_TRANSFER_STATE.isImporting=false;renderImportPdfTransferPage();}
 }
