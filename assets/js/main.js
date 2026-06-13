@@ -1501,8 +1501,13 @@ html+="</div>";detail.innerHTML=html;}
 function renderTable(rows){if(!rows.length) return `<div class='empty-card'><strong>Data kosong</strong><div>Tidak ada baris untuk sumber ini.</div></div>`;const headers=Object.keys(rows[0]);let h=`<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${esc(String(x).toUpperCase())}</th>`).join("")}</tr></thead><tbody>`;rows.forEach(r=>h+=`<tr>${headers.map(k=>`<td>${esc(r[k])}</td>`).join("")}</tr>`);h+=`</tbody></table></div><div class='mv-pagination'><span>Menampilkan ${rows.length} dari ${rows.length} data</span></div>`;return h;}
 
 function renderInsightCard(insight){
-if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
-return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
+if(!insight||insight.empty)return `<div class='insight-card insight-card--empty'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
+if(Array.isArray(insight.insights)){
+const items=insight.insights.slice(0,10).map(it=>`<li class='auto-insight-list-item tone-${esc(it.tone||'info')}'><span class='auto-insight-list-icon'>${it.icon||'•'}</span><span class='auto-insight-list-text'>${it.text||''}</span></li>`).join('');
+const important=insight.important?`<div class='auto-insight-important tone-${esc(insight.important.tone||'info')}'><strong>${insight.important.icon||'💡'} Insight Terpenting Hari Ini:</strong><span>${esc(insight.important.text||'')}</span></div>`:'';
+return `<section class='insight-card auto-insight-panel auto-insight-panel--compact'><div class='auto-insight-title'><div><h4>${esc(insight.title||'💡 Auto Insight Bulanan')}</h4><p>${esc(insight.subtitle||'Insight otomatis berdasarkan aktivitas gudang bulan ini.')}</p></div><span class='auto-insight-period'>${esc(insight.monthLabel||'Bulan ini')}</span></div>${important}<ul class='auto-insight-list'>${items||'<li class="auto-insight-list-item tone-info"><span class="auto-insight-list-icon">💡</span><span class="auto-insight-list-text">Belum ada insight prioritas untuk bulan ini.</span></li>'}</ul></section>`;
+}
+return `<div class='insight-card'>${(insight.categories||[]).map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
 function normalizeStatus(value){return String(value??"").trim().toLowerCase();}
 function isBarangMasukCountRow(row){return normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))==="barang masuk";}
@@ -1535,7 +1540,7 @@ const cards=[
 ];
 dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
-const dashInsight=buildAutoInsight({"Barang Masuk":getBarangMasukRows(),"Barang Keluar":getBarangKeluarRows(),"Kartu Stock":DATA["Kartu Stock"]||[],"RPL":DATA["RPL"]||[],"BULKY":DATA["BULKY"]||[]},{accuracyRows:[]});
+const dashInsight=buildAutoInsight({"Barang Masuk":getBarangMasukRows(),"Barang Keluar":getBarangKeluarRows(),"Kartu Stock":DATA["Kartu Stock"]||[],"RPL":DATA["RPL"]||[],"BULKY":DATA["BULKY"]||[]},{movementRows:window.APP_STATE?.movement||[],accuracyRows:window.ACCURACY_ROWS||[],anomalyRows:window.ANOMALY_ROWS||[],stokMinusRows:window.STOK_MINUS_ROWS||[],balikanRows:window.BALIKAN_ROWS||[],barangReject:BARANG_REJECT_STATE});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
 ${renderDashboardTableSection("Barang Masuk","Data terbaru dari sheet Barang Masuk",inRows,"b-in")}
 ${renderDashboardTableSection("Barang Keluar","Data terbaru dari sheet Barang Keluar",outRows,"b-out")}
