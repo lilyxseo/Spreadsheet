@@ -1094,6 +1094,50 @@ body.dark .app-icon {
 #page-balikan-store .balikan-location-item strong{
   color:var(--text-primary,var(--text));
 }
+
+#page-balikan-store .balikan-keterangan-card,
+#page-balikan-store .balikan-invent-card{
+  align-content:start;
+  gap:4px;
+}
+#page-balikan-store .balikan-invent-card .v{
+  font-size:16px;
+  line-height:1.2;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-keterangan-value{
+  max-height:112px;
+  overflow:auto;
+  margin-top:3px;
+  padding:7px 8px;
+  border:1px solid color-mix(in srgb, var(--border-color,#d1d5db) 70%, transparent);
+  border-radius:10px;
+  background:color-mix(in srgb, var(--card-bg,#fff) 92%, transparent);
+  color:var(--text);
+  font-size:12px;
+  line-height:1.45;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+#page-balikan-store .balikan-keterangan-value.is-empty,
+#page-balikan-store .balikan-keterangan-empty,
+#page-balikan-store .balikan-invent-value.is-empty{
+  color:var(--muted);
+  font-style:italic;
+}
+body.dark #page-balikan-store .balikan-keterangan-value{
+  border-color:rgba(148,163,184,.42);
+  background:rgba(15,23,42,.82);
+  color:#e2e8f0;
+}
+body.dark #page-balikan-store .balikan-keterangan-value.is-empty,
+body.dark #page-balikan-store .balikan-keterangan-empty,
+body.dark #page-balikan-store .balikan-invent-value.is-empty{
+  color:#94a3b8;
+}
 body.dark #page-balikan-store .balikan-location-item{
   border-color:rgba(148,163,184,.42);
   background:rgba(15,23,42,.82);
