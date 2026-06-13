@@ -1501,8 +1501,16 @@ html+="</div>";detail.innerHTML=html;}
 function renderTable(rows){if(!rows.length) return `<div class='empty-card'><strong>Data kosong</strong><div>Tidak ada baris untuk sumber ini.</div></div>`;const headers=Object.keys(rows[0]);let h=`<div class='table-wrap'><table><thead><tr>${headers.map(x=>`<th>${esc(String(x).toUpperCase())}</th>`).join("")}</tr></thead><tbody>`;rows.forEach(r=>h+=`<tr>${headers.map(k=>`<td>${esc(r[k])}</td>`).join("")}</tr>`);h+=`</tbody></table></div><div class='mv-pagination'><span>Menampilkan ${rows.length} dari ${rows.length} data</span></div>`;return h;}
 
 function renderInsightCard(insight){
-if(!insight||insight.empty)return `<div class='insight-card'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
-return `<div class='insight-card'>${insight.categories.map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
+if(!insight||insight.empty)return `<div class='insight-card insight-card--empty'><div class='state'>Belum ada data untuk dianalisis</div></div>`;
+if(Array.isArray(insight.cards)){
+const cards=insight.cards.map(c=>{
+if(c.type==='ranking')return `<article class='auto-insight-tile auto-insight-tile--ranking'><div class='auto-insight-head'><span class='auto-insight-icon'>${c.icon}</span><div><h5>${esc(c.title)}</h5><span class='auto-insight-badge neutral'>Bulan ini</span></div></div><ol class='auto-insight-rank'>${(c.items||[]).length?c.items.map(it=>`<li><span>${it.sku?`<button class='btn-link' onclick="showDetail(decodeURIComponent('${encAttr(it.sku)}'));navigateTo('/sku/'+encodeURIComponent(decodeURIComponent('${encAttr(it.sku)}')))" style='padding:0;border:none;background:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit'>${esc(it.sku)}</button>`:'-'}</span><strong>${Number(it.qty||0).toLocaleString('id-ID')} pcs</strong><em>${it.pct||0}%</em></li>`).join(''):`<li><span>Belum ada data</span><strong>-</strong><em>0%</em></li>`}</ol></article>`;
+return `<article class='auto-insight-tile tone-${esc(c.tone||'neutral')}'><div class='auto-insight-head'><span class='auto-insight-icon'>${c.icon}</span><div><h5>${esc(c.title)}</h5><span class='auto-insight-badge ${esc(c.trend?.className||'neutral')}'>${esc(c.trend?.label||'Bulan ini')}</span></div></div><div class='auto-insight-value'>${c.value||'-'}</div><div class='auto-insight-detail'>${c.detail||''}</div></article>`;
+}).join('');
+const recs=(insight.recommendations||[]).map(r=>`<li>${esc(r)}</li>`).join('')||'<li>Belum ada rekomendasi. Data bulan ini masih aman.</li>';
+return `<section class='insight-card auto-insight-panel'><div class='auto-insight-title'><div><h4>${esc(insight.title||'📈 Auto Insight Bulanan')}</h4><p>${esc(insight.subtitle||'Insight otomatis berdasarkan aktivitas gudang bulan ini.')}</p></div><span class='auto-insight-period'>${esc(insight.monthLabel||'Bulan ini')}</span></div><div class='auto-insight-grid'>${cards}</div><div class='auto-insight-recommendation'><strong>💡 Rekomendasi</strong><ul>${recs}</ul></div></section>`;
+}
+return `<div class='insight-card'>${(insight.categories||[]).map(cat=>`<div class='insight-group'><h4>${cat.title}</h4><ul>${cat.items.map(it=>`<li><span class='insight-dot'>•</span><span>${it}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
 }
 function normalizeStatus(value){return String(value??"").trim().toLowerCase();}
 function isBarangMasukCountRow(row){return normalizeStatus(getVal(row,["status","status movement","status_movement","movement status"]))==="barang masuk";}
@@ -1535,7 +1543,7 @@ const cards=[
 ];
 dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
 const inRows=getLatestRows("Barang Masuk",50,true),outRows=getLatestRows("Barang Keluar",50);
-const dashInsight=buildAutoInsight({"Barang Masuk":getBarangMasukRows(),"Barang Keluar":getBarangKeluarRows(),"Kartu Stock":DATA["Kartu Stock"]||[],"RPL":DATA["RPL"]||[],"BULKY":DATA["BULKY"]||[]},{accuracyRows:[]});
+const dashInsight=buildAutoInsight({"Barang Masuk":getBarangMasukRows(),"Barang Keluar":getBarangKeluarRows(),"Kartu Stock":DATA["Kartu Stock"]||[],"RPL":DATA["RPL"]||[],"BULKY":DATA["BULKY"]||[]},{movementRows:window.APP_STATE?.movement||[],accuracyRows:window.ACCURACY_ROWS||[],anomalyRows:window.ANOMALY_ROWS||[],stokMinusRows:window.STOK_MINUS_ROWS||[],balikanRows:window.BALIKAN_ROWS||[],barangReject:BARANG_REJECT_STATE});
 recentMove.innerHTML=`${renderInsightCard(dashInsight)}<div class='dashboard-sections'>
 ${renderDashboardTableSection("Barang Masuk","Data terbaru dari sheet Barang Masuk",inRows,"b-in")}
 ${renderDashboardTableSection("Barang Keluar","Data terbaru dari sheet Barang Keluar",outRows,"b-out")}
