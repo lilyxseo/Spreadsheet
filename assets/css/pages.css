@@ -1094,6 +1094,44 @@ body.dark .app-icon {
 #page-balikan-store .balikan-location-item strong{
   color:var(--text-primary,var(--text));
 }
+
+#page-balikan-store .balikan-keterangan-card,
+#page-balikan-store .balikan-invent-card{
+  align-content:start;
+  gap:7px;
+}
+#page-balikan-store .balikan-keterangan-card .k,
+#page-balikan-store .balikan-invent-card .k{
+  margin-bottom:1px;
+}
+#page-balikan-store .balikan-keterangan-card .v,
+#page-balikan-store .balikan-invent-card .v{
+  font-size:16px;
+  line-height:1.25;
+  min-width:0;
+}
+#page-balikan-store .balikan-keterangan-card .v,
+#page-balikan-store .balikan-invent-card .v{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-keterangan-value,
+#page-balikan-store .balikan-invent-value{
+  color:inherit;
+  font:inherit;
+}
+#page-balikan-store .balikan-keterangan-value.is-empty,
+#page-balikan-store .balikan-keterangan-empty,
+#page-balikan-store .balikan-invent-value.is-empty{
+  color:var(--muted);
+  font-style:italic;
+}
+body.dark #page-balikan-store .balikan-keterangan-value.is-empty,
+body.dark #page-balikan-store .balikan-keterangan-empty,
+body.dark #page-balikan-store .balikan-invent-value.is-empty{
+  color:#94a3b8;
+}
 body.dark #page-balikan-store .balikan-location-item{
   border-color:rgba(148,163,184,.42);
   background:rgba(15,23,42,.82);
