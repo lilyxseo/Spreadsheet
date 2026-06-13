@@ -328,7 +328,6 @@ textarea{resize:vertical;min-height:96px}
 .search-layout{display:grid;gap:10px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft)}
 .search-toolbar{justify-content:space-between}
 .chip-group{display:flex;flex-wrap:wrap;gap:8px}
-#sortSearch{min-width:170px}
 
 .movement-layout{display:grid;gap:12px}
 .movement-toolbar{display:grid;grid-template-columns:1fr;gap:8px}
