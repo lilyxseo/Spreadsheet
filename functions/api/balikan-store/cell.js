@@ -11,6 +11,14 @@ const EDITABLE_FIELDS = {
   keterangan: 'Keterangan'
 };
 
+
+const decodeLocationValue = (value) => {
+  const raw = value == null ? '' : String(value).trim();
+  if (!/%[0-9A-Fa-f]{2}/.test(raw)) return raw;
+  try { return decodeURIComponent(raw).trim(); }
+  catch (_err) { return raw; }
+};
+
 const colToLetter = (colIndex) => {
   let n = colIndex;
   let letter = '';
@@ -29,7 +37,7 @@ export async function onRequestPatch({ request, env }) {
     const sheetName = String(body?.sheetName || '').trim();
     const rowNumber = Number(body?.rowNumber);
     const field = String(body?.field || '').trim();
-    const value = body?.value == null ? '' : String(body.value);
+    const value = field === 'lokasi' ? decodeLocationValue(body?.value) : (body?.value == null ? '' : String(body.value));
 
     if (!sheetName) return json({ message: 'sheetName wajib diisi' }, 400);
     if (!Number.isInteger(rowNumber) || rowNumber <= 1) return json({ message: 'rowNumber tidak valid' }, 400);

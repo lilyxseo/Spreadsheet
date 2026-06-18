@@ -11,6 +11,14 @@ const EDITABLE_FIELDS = {
   keterangan: 'Keterangan'
 };
 
+
+const decodeLocationValue = (value) => {
+  const raw = value == null ? '' : String(value).trim();
+  if (!/%[0-9A-Fa-f]{2}/.test(raw)) return raw;
+  try { return decodeURIComponent(raw).trim(); }
+  catch (_err) { return raw; }
+};
+
 const colToLetter = (colIndex) => {
   let n = colIndex;
   let letter = '';
@@ -80,7 +88,7 @@ export async function onRequestPost({ request, env }) {
         seen.add(key);
         data.push({
           range: `${escSheet(sheetName)}!${colToLetter(colIndex)}${rowNumber}`,
-          values: [[rawValue == null ? '' : String(rawValue)]]
+          values: [[field === 'lokasi' ? decodeLocationValue(rawValue) : (rawValue == null ? '' : String(rawValue))]]
         });
       }
     }
