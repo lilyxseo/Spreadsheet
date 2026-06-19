@@ -2384,8 +2384,41 @@ function checksumBalikanRows(rows=[],dynamicColumns=[]){try{return JSON.stringif
 function getBalikanRowsCache(sheetName){try{const parsed=JSON.parse(localStorage.getItem(getBalikanCacheKey(sheetName))||'null');return parsed&&Array.isArray(parsed.rows)?parsed:null;}catch(_err){return null;}}
 function setBalikanRowsCache(sheetName,payload){try{localStorage.setItem(getBalikanCacheKey(sheetName),JSON.stringify(payload));}catch(_err){}}
 function getBalikanSearchTokens(query){return clean(query).split(' ').filter(Boolean);}
+function normalizeBalikanLocationSearchValue(value){
+  return decodeBalikanLocationValue(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[\u2010-\u2015]/g,'-')
+    .replace(/[\/_]+/g,'-')
+    .replace(/\s*-\s*/g,'-')
+    .replace(/\s+/g,' ')
+    .replace(/\s/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'');
+}
+function isBalikanLocationSearchQuery(query){
+  const raw=String(query||'').trim();
+  const normalized=normalizeBalikanLocationSearchValue(raw);
+  if(!normalized)return false;
+  if(/\b(area|ruang|rak|bin|hold|tr)\b/i.test(raw))return true;
+  if(/[\s\-\/_]/.test(raw)&&/[a-z]/i.test(raw)&&/\d/.test(raw))return true;
+  return /^[a-z]{1,6}\d{1,4}-\d/.test(normalized)||/^[a-z]{1,6}-\d{1,4}(?:-[a-z0-9]+)+$/i.test(normalized);
+}
+function getBalikanRowLocationSearchValues(row){
+  const parts=splitBalikanLocationNames(row?.lokasi);
+  const values=parts.length?parts:[row?.lokasi];
+  return values.map(normalizeBalikanLocationSearchValue).filter(Boolean);
+}
+function isBalikanPartialLocationQuery(queryNormalized){
+  return String(queryNormalized||'').split('-').filter(Boolean).length<=2;
+}
+function matchesBalikanLocationQuery(row,queryNormalized){
+  if(!queryNormalized)return true;
+  const allowPartial=isBalikanPartialLocationQuery(queryNormalized);
+  return getBalikanRowLocationSearchValues(row).some(location=>location===queryNormalized||(allowPartial&&(location.startsWith(`${queryNormalized}-`)||location.includes(queryNormalized))));
+}
 function getBalikanSearchText(row){return clean(`${row?.sku??''} ${row?.barcode??''} ${row?.namaBarang??''} ${row?.lokasi??''} ${row?.status??''} ${row?.keterangan??''} ${Object.values(row||{}).join(' ')}`);}
-function applyBalikanTableFilters(rows,mode='balikan',omitCol=''){const st=ensureBalikanFilterState();const q=clean(window.balikanSearchKeyword||'');const qTokens=getBalikanSearchTokens(q);const exactScanSku=clean(BALIKAN_STATE.exactScanSku||'');const selectedSku=clean(BALIKAN_STATE.selectedSkuValue||'');return rows.filter(r=>{if(BALIKAN_FILTERABLE_COLUMNS.some(col=>{if(col===omitCol)return false;const selected=st.columnFilters[col]||[];if(!selected.length)return false;return !selected.includes(sanitizeFilterValue(r[col]));}))return false;if(exactScanSku&&clean(r.sku)!==exactScanSku)return false;if(selectedSku&&q===selectedSku&&clean(r.sku)!==selectedSku)return false;if(qTokens.length){const rowText=getBalikanSearchText(r);if(!qTokens.every(token=>rowText.includes(token)))return false;}return true;});}
+function applyBalikanTableFilters(rows,mode='balikan',omitCol=''){const st=ensureBalikanFilterState();const rawQuery=window.balikanSearchKeyword||'';const q=clean(rawQuery);const qTokens=getBalikanSearchTokens(q);const isLocationQuery=isBalikanLocationSearchQuery(rawQuery);const locationQuery=normalizeBalikanLocationSearchValue(rawQuery);const exactScanSku=clean(BALIKAN_STATE.exactScanSku||'');const selectedSku=clean(BALIKAN_STATE.selectedSkuValue||'');return rows.filter(r=>{if(BALIKAN_FILTERABLE_COLUMNS.some(col=>{if(col===omitCol)return false;const selected=st.columnFilters[col]||[];if(!selected.length)return false;return !selected.includes(sanitizeFilterValue(r[col]));}))return false;if(exactScanSku&&clean(r.sku)!==exactScanSku)return false;if(selectedSku&&q===selectedSku&&clean(r.sku)!==selectedSku)return false;if(qTokens.length){if(isLocationQuery){if(!matchesBalikanLocationQuery(r,locationQuery))return false;}else{const rowText=getBalikanSearchText(r);if(!qTokens.every(token=>rowText.includes(token)))return false;}}return true;});}
 
 
 
