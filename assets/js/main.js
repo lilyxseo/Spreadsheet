@@ -2384,7 +2384,20 @@ function getBalikanCacheKey(sheetName){return `${MODULE_CACHE_KEYS.balikanStore}
 function checksumBalikanRows(rows=[],dynamicColumns=[]){try{return JSON.stringify({cols:(dynamicColumns||[]).map(c=>[c.key,c.header]),rows:(rows||[]).map(r=>[r.rowNumber,r.no,r.sku,r.namaBarang,r.qty,r.rakTujuan,r.lokasi,r.stokBulky,r.stokRetail,r.status,r.keterangan,r.checked,...(dynamicColumns||[]).map(c=>r?.[c.key])])});}catch(_err){return `${rows?.length||0}:${Date.now()}`;}}
 function getBalikanRowsCache(sheetName){try{const parsed=JSON.parse(localStorage.getItem(getBalikanCacheKey(sheetName))||'null');return parsed&&Array.isArray(parsed.rows)?parsed:null;}catch(_err){return null;}}
 function setBalikanRowsCache(sheetName,payload){try{localStorage.setItem(getBalikanCacheKey(sheetName),JSON.stringify(payload));}catch(_err){}}
-function getBalikanSearchTokens(query){return normalizeSearch(query).split(' ').filter(Boolean);}
+function normalizeBalikanRawSearch(value){return String(value||"").toLowerCase().trim().replace(/\s+/g," ");}
+function getBalikanSearchTokens(query){return normalizeBalikanRawSearch(query).split(' ').filter(Boolean);}
+function getBalikanSkuBarcodeSearchValues(row){
+  const values=[row?.sku,row?.barcode];
+  Object.entries(row||{}).forEach(([key,value])=>{
+    if(/barcode|sku|kode/i.test(key))values.push(value);
+  });
+  return values.map(normalizeBalikanRawSearch).filter(Boolean);
+}
+function matchesBalikanSkuBarcodeRaw(row,query){
+  const q=normalizeBalikanRawSearch(query);
+  if(!q)return false;
+  return getBalikanSkuBarcodeSearchValues(row).some(value=>value.includes(q));
+}
 function normalizeBalikanLocationSearchValue(value){
   return decodeBalikanLocationValue(value)
     .toLowerCase()
@@ -2419,7 +2432,7 @@ function matchesBalikanLocationQuery(row,queryNormalized){
   return getBalikanRowLocationSearchValues(row).some(location=>location===queryNormalized||(allowPartial&&(location.startsWith(`${queryNormalized}-`)||location.includes(queryNormalized))));
 }
 function getBalikanSearchText(row){return normalizeSearch(`${row?.sku??''} ${row?.barcode??''} ${row?.namaBarang??''} ${row?.lokasi??''} ${row?.status??''} ${row?.keterangan??''} ${Object.values(row||{}).join(' ')}`);}
-function applyBalikanTableFilters(rows,mode='balikan',omitCol=''){const st=ensureBalikanFilterState();const rawQuery=window.balikanSearchKeyword||'';const q=normalizeSearch(rawQuery);const qTokens=getBalikanSearchTokens(q);const isLocationQuery=isBalikanLocationSearchQuery(rawQuery);const locationQuery=normalizeBalikanLocationSearchValue(rawQuery);const exactScanSku=normalizeSearch(BALIKAN_STATE.exactScanSku||'');const selectedSku=normalizeSearch(BALIKAN_STATE.selectedSkuValue||'');return rows.filter(r=>{if(BALIKAN_FILTERABLE_COLUMNS.some(col=>{if(col===omitCol)return false;const selected=st.columnFilters[col]||[];if(!selected.length)return false;return !selected.includes(sanitizeFilterValue(r[col]));}))return false;if(exactScanSku&&normalizeSearch(r.sku)!==exactScanSku)return false;if(selectedSku&&q===selectedSku&&normalizeSearch(r.sku)!==selectedSku)return false;if(qTokens.length){if(isLocationQuery){if(!matchesBalikanLocationQuery(r,locationQuery))return false;}else{const rowText=getBalikanSearchText(r);if(!qTokens.every(token=>rowText.includes(token)))return false;}}return true;});}
+function applyBalikanTableFilters(rows,mode='balikan',omitCol=''){const st=ensureBalikanFilterState();const rawQuery=window.balikanSearchKeyword||'';const q=normalizeBalikanRawSearch(rawQuery);const qTokens=getBalikanSearchTokens(q);const isLocationQuery=isBalikanLocationSearchQuery(rawQuery);const locationQuery=normalizeBalikanLocationSearchValue(rawQuery);const exactScanSku=normalizeBalikanRawSearch(BALIKAN_STATE.exactScanSku||'');const selectedSku=normalizeBalikanRawSearch(BALIKAN_STATE.selectedSkuValue||'');return rows.filter(r=>{if(BALIKAN_FILTERABLE_COLUMNS.some(col=>{if(col===omitCol)return false;const selected=st.columnFilters[col]||[];if(!selected.length)return false;return !selected.includes(sanitizeFilterValue(r[col]));}))return false;if(exactScanSku&&normalizeBalikanRawSearch(r.sku)!==exactScanSku)return false;if(selectedSku&&q===selectedSku&&normalizeBalikanRawSearch(r.sku)!==selectedSku)return false;if(qTokens.length){if(matchesBalikanSkuBarcodeRaw(r,q))return true;if(isLocationQuery){if(!matchesBalikanLocationQuery(r,locationQuery))return false;}else{const rowText=getBalikanSearchText(r);if(!qTokens.every(token=>rowText.includes(token)))return false;}}return true;});}
 
 
 
