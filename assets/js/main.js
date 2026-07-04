@@ -2521,6 +2521,25 @@ function getBalikanLocationCardRow(rows=[]){
   }
   return list.length===1?list[0]:null;
 }
+function isBalikanLocationRowSelected(row){
+  const selectedRowNumber=Number(BALIKAN_STATE.selectedSkuRowNumber)||0;
+  if(!selectedRowNumber||!row)return false;
+  return Number(row?.rowNumber)===selectedRowNumber&&(!BALIKAN_STATE.selectedSkuSheetName||getBalikanActiveSheetName(row)===BALIKAN_STATE.selectedSkuSheetName);
+}
+function getBalikanStatusBadgeClass(status){
+  const normalized=clean(status);
+  if(normalized==='sesuai')return 'is-sesuai';
+  if(normalized==='lebih kirim')return 'is-lebih-kirim';
+  if(normalized==='kurang kirim')return 'is-kurang-kirim';
+  return '';
+}
+function renderBalikanStatusBadge(row){
+  if(!isBalikanLocationRowSelected(row))return '';
+  const status=String(row?.status??'').trim();
+  const cls=getBalikanStatusBadgeClass(status);
+  if(!status||!cls)return '';
+  return `<span class='balikan-status-badge ${cls}'>${esc(status)}</span>`;
+}
 function renderBalikanLocationCardContent(rows=[]){
   const list=Array.isArray(rows)?rows:[];
   const row=getBalikanLocationCardRow(list);
@@ -2536,13 +2555,16 @@ function renderBalikanLocationCardContent(rows=[]){
   const activeKey=normalizeBalikanLocation(row?.lokasi);
   const hasActive=locations.some(item=>normalizeBalikanLocation(item.rawLocation||item.lokasi)===activeKey);
   const canUpdate=getPermissions().canUpdate!==false;
-  return `<div class='k'>Lokasi</div><div class='v'>${esc(row.sku||'-')} <span class='balikan-sheet-badge'>${esc(getBalikanActiveSheetName(row)||'-')}</span></div><div class='subtitle'>${locations.length} lokasi ditemukan. Tap lokasi untuk update kolom LOKASI.</div><div class='balikan-location-list'>${locations.map(item=>{
+  const sheetBadge=`<span class='balikan-sheet-badge'>${esc(getBalikanActiveSheetName(row)||'-')}</span>`;
+  const statusBadge=renderBalikanStatusBadge(row);
+  const selectedMeta=isBalikanLocationRowSelected(row)?`${sheetBadge}${statusBadge}`:sheetBadge;
+  return `<div class='k'>Lokasi</div><div class='v balikan-location-title'><span>${esc(row.sku||'-')}</span> ${selectedMeta}</div><div class='subtitle'>${locations.length} lokasi ditemukan. Tap lokasi untuk update kolom LOKASI.</div><div class='balikan-location-list'>${locations.map(item=>{
     const displayLabel=decodeBalikanLocationValue(item.displayLabel||item.lokasi);
     const rawLocation=decodeBalikanLocationValue(item.rawLocation||item.lokasi);
     const itemKey=normalizeBalikanLocation(rawLocation);
     const active=hasActive&&itemKey===activeKey;
     const inactive=hasActive&&!active;
-    return `<button type='button' class='balikan-location-item ${active?'is-active':''} ${inactive?'is-inactive':''}' data-balikan-location-select='1' data-row-number='${Number(row.rowNumber)||0}' data-location='${esc(rawLocation)}' ${!itemKey||!canUpdate?'disabled':''} aria-pressed='${active?'true':'false'}'><span>${esc(displayLabel)} :</span><strong>${item.qty} pcs</strong></button>`;
+    return `<button type='button' class='balikan-location-item ${active?'is-active':''} ${inactive?'is-inactive':''}' data-balikan-location-select='1' data-row-number='${Number(row.rowNumber)||0}' data-location='${esc(rawLocation)}' ${!itemKey||!canUpdate?'disabled':''} aria-pressed='${active?'true':'false'}'><span class='balikan-location-name'>${esc(displayLabel)} :</span><strong>${item.qty} pcs</strong></button>`;
   }).join('')}</div>`;
 }
 function getBalikanInventFieldKey(){
