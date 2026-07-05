@@ -1,3 +1,4 @@
+import { requirePicRole } from './_authz.js';
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const PRIMARY_SHEET_RANGE = "Barang Masuk!A:I";
@@ -143,6 +144,8 @@ function parseRows(values = []) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const authz = await requirePicRole({ request, env, action: 'CREATE' });
+  if (!authz.ok) return authz.response;
   try {
     const spreadsheetId = sanitize(env.SHEET_ID_2026);
     if (!spreadsheetId) return json({ success: false, message: "SHEET_ID_2026 belum diset" }, 500);

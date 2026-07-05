@@ -1,4 +1,4 @@
-import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase } from "./supabase.js";
+import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase, getAuthHeaders } from "./supabase.js";
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity, logActivityResult } from "./activity-log.js";
@@ -122,6 +122,17 @@ function isToolsDevAllowed(){
 return isActivityLogAllowed();
 }
 window.currentUser=getCurrentUser();
+const nativeFetch=window.fetch.bind(window);
+window.fetch=async(input,init={})=>{
+  const url=typeof input==='string'?input:String(input?.url||'');
+  if(url.startsWith('/api/')){
+    const headers=new Headers(init.headers||(input instanceof Request?input.headers:{}));
+    const authHeaders=await getAuthHeaders().catch(()=>({}));
+    Object.entries(authHeaders).forEach(([key,value])=>{if(!headers.has(key))headers.set(key,value);});
+    return nativeFetch(input,{...init,headers});
+  }
+  return nativeFetch(input,init);
+};
 
 function toUserSnapshot(profile,authUser){
 const name=String(profile?.full_name||profile?.name||profile?.username||authUser?.user_metadata?.full_name||authUser?.email||"").trim();
@@ -148,24 +159,54 @@ function getCurrentUserRole() {
   return found?.role || "";
 }
 window.getCurrentUserRole=getCurrentUserRole;
+const READ_ONLY_TOOLTIP="Akses read-only. Hanya PIC atau Developer yang bisa mengubah data.";
 function isPicRole(){
-  return true;
+  return String(getCurrentUserRole()||"").toLowerCase().includes("pic");
 }
+function canCrud(){
+  return isPicRole()||isDeveloperUser();
+}
+function canRead(){return true;}
+function canCreate(){return canCrud();}
+function canUpdate(){return canCrud();}
+function canDelete(){return canCrud();}
 function getPermissions(){
-  const canRead=true;
-  const canCreate=true;
-  const canUpdate=true;
-  const canDelete=true;
-  const canSync=true;
-  return {canCreate,canRead,canUpdate,canDelete,canSync};
+  const crud=canCrud();
+  return {canCreate:crud,canRead:true,canUpdate:crud,canDelete:crud,canSync:crud,canCrud:crud};
 }
+window.canRead=canRead;
+window.canCreate=canCreate;
+window.canUpdate=canUpdate;
+window.canDelete=canDelete;
+window.canCrud=canCrud;
 window.getPermissions=getPermissions;
 function renderReadOnlyBadge(){
-  return;
+  if(canCrud())return "";
+  return `<span class='read-only-badge' title='${READ_ONLY_TOOLTIP}'>Read-only</span>`;
 }
 function applyRoleBasedUi(){
-  return;
+  const crud=canCrud();
+  document.body?.classList.toggle("is-read-only",!crud);
+  document.querySelectorAll('[data-crud-action], [data-mv-delete], [data-mv-bulk-delete], [data-mv-bulk-edit], #sheetSubmitBtn, #pdfTransferImportBtn').forEach(el=>{
+    if(!crud){
+      el.setAttribute('title',READ_ONLY_TOOLTIP);
+      el.setAttribute('aria-disabled','true');
+      if('disabled' in el)el.disabled=true;
+      el.classList.add('is-read-only-disabled');
+    }else{
+      if(el.getAttribute('title')===READ_ONLY_TOOLTIP)el.removeAttribute('title');
+      el.removeAttribute('aria-disabled');
+      el.classList.remove('is-read-only-disabled');
+    }
+  });
 }
+function guardCrudAction(action='CRUD',page=location.pathname){
+  if(canCrud())return true;
+  toast(READ_ONLY_TOOLTIP,'error');
+  logActivitySafe({action:`DENIED_${action}`,module:page,detail:READ_ONLY_TOOLTIP,status:'FAILED',metadata:{user:currentUserIdentity(),reason:'READ_ONLY_ROLE',page,timestamp:new Date().toISOString()}});
+  return false;
+}
+window.guardCrudAction=guardCrudAction;
 function setAppAuthState(state){
 const appRoot=document.getElementById("appRoot");
 if(!appRoot)return;
@@ -181,6 +222,18 @@ return value===true||normalized==='true'||normalized==='1'||normalized==='yes';
 function isPreviewBypassLoginEnabled(){
 return isTruthyFlag(runtimeConfig.previewBypassLogin);
 }
+
+document.addEventListener('click',e=>{
+  const target=e.target?.closest?.('[data-crud-action], [data-mv-delete], [data-mv-bulk-delete], [data-mv-bulk-edit], #sheetSubmitBtn, #pdfTransferImportBtn, [data-action="delete"], [data-action="edit"]');
+  if(target&&!guardCrudAction(target.dataset?.crudAction||target.dataset?.action||'CRUD')){e.preventDefault();e.stopImmediatePropagation();}
+},true);
+document.addEventListener('submit',e=>{
+  const id=e.target?.id||'';
+  if((id==='sheetInputForm'||id==='rejectInForm'||e.target?.matches?.('[data-crud-form]'))&&!guardCrudAction('SUBMIT')){e.preventDefault();e.stopImmediatePropagation();}
+},true);
+document.addEventListener('dblclick',e=>{
+  if(e.target?.closest?.('[data-mv-cell], [contenteditable="true"], .editable-cell')&&!guardCrudAction('INLINE_EDIT')){e.preventDefault();e.stopImmediatePropagation();}
+},true);
 
 async function loadRuntimeConfig(){
 const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];

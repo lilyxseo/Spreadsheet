@@ -1,3 +1,4 @@
+import { requirePicRole } from './_authz.js';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 const REJECT_SPREADSHEET_ID = '1BVGcIWnYqrG-DefzmnO_hZjNn3H3c4sriI7CBAWsxw8';
@@ -94,6 +95,8 @@ export async function onRequestGet({ env }) {
   }
 }
 export async function onRequestPost({ request, env }) {
+  const authz = await requirePicRole({ request, env, action: 'CREATE' });
+  if (!authz.ok) return authz.response;
   try {
     const body = await request.json().catch(() => ({}));
     const action = norm(body.action).toLowerCase();
