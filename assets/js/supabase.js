@@ -66,6 +66,22 @@ export async function loginWithEmailPassword(username, password) {
   return { data, error: null };
 }
 
+
+export async function getAuthHeaders() {
+  const session = await ensureAuthSession();
+  const token = session?.access_token || session?.session?.access_token || "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function authFetch(input, init = {}) {
+  const headers = new Headers(init.headers || {});
+  const authHeaders = await getAuthHeaders();
+  Object.entries(authHeaders).forEach(([key, value]) => {
+    if (!headers.has(key)) headers.set(key, value);
+  });
+  return fetch(input, { ...init, headers });
+}
+
 export async function logout() {
   localStorage.removeItem(DEV_SESSION_KEY);
   return supabase.auth.signOut();

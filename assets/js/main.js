@@ -1,4 +1,4 @@
-import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase } from "./supabase.js";
+import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase, getAuthHeaders } from "./supabase.js";
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity, logActivityResult } from "./activity-log.js";
@@ -108,7 +108,21 @@ window.currentUser=null;
 syncDeveloperMenuVisibility();
 }
 function isDeveloperUser(){
-return getCurrentUser()?.isDeveloper===true;
+  const readJson = (storage, key) => {
+    try { return JSON.parse(storage.getItem(key) || "null"); } catch (_err) { return null; }
+  };
+  const sources = [
+    window.currentUser,
+    window.APP_STATE?.currentUser,
+    getCurrentUser(),
+    readJson(localStorage, "currentUser"),
+    readJson(localStorage, "user"),
+    readJson(sessionStorage, "currentUser"),
+    readJson(sessionStorage, "user"),
+    readJson(localStorage, "dev_auth_session")?.user,
+    readJson(localStorage, "dev_auth_session")?.session
+  ];
+  return sources.some(src => src?.isDeveloper === true) || document.cookie.split(';').some(part => part.trim().toLowerCase() === 'developer=true');
 }
 function isDeveloperRoleLike(){
 const current=getCurrentUser()||{};
@@ -122,6 +136,17 @@ function isToolsDevAllowed(){
 return isActivityLogAllowed();
 }
 window.currentUser=getCurrentUser();
+const nativeFetch=window.fetch.bind(window);
+window.fetch=async(input,init={})=>{
+  const url=typeof input==='string'?input:String(input?.url||'');
+  if(url.startsWith('/api/')){
+    const headers=new Headers(init.headers||(input instanceof Request?input.headers:{}));
+    const authHeaders=await getAuthHeaders().catch(()=>({}));
+    Object.entries(authHeaders).forEach(([key,value])=>{if(!headers.has(key))headers.set(key,value);});
+    return nativeFetch(input,{...init,headers});
+  }
+  return nativeFetch(input,init);
+};
 
 function toUserSnapshot(profile,authUser){
 const name=String(profile?.full_name||profile?.name||profile?.username||authUser?.user_metadata?.full_name||authUser?.email||"").trim();
@@ -148,24 +173,56 @@ function getCurrentUserRole() {
   return found?.role || "";
 }
 window.getCurrentUserRole=getCurrentUserRole;
+const READ_ONLY_TOOLTIP="Akses read-only. Hanya PIC atau Developer yang bisa mengubah data.";
 function isPicRole(){
-  return true;
+  return String(getCurrentUserRole()||"").toLowerCase().includes("pic");
 }
+function canCrud(){
+  const isDeveloper=isDeveloperUser();
+  const isPic=String(getCurrentUserRole()||"").toLowerCase().includes("pic");
+  return isDeveloper||isPic;
+}
+function canRead(){return true;}
+function canCreate(){return canCrud();}
+function canUpdate(){return canCrud();}
+function canDelete(){return canCrud();}
 function getPermissions(){
-  const canRead=true;
-  const canCreate=true;
-  const canUpdate=true;
-  const canDelete=true;
-  const canSync=true;
-  return {canCreate,canRead,canUpdate,canDelete,canSync};
+  const crud=canCrud();
+  return {canCreate:crud,canRead:true,canUpdate:crud,canDelete:crud,canSync:crud,canCrud:crud};
 }
+window.canRead=canRead;
+window.canCreate=canCreate;
+window.canUpdate=canUpdate;
+window.canDelete=canDelete;
+window.canCrud=canCrud;
 window.getPermissions=getPermissions;
 function renderReadOnlyBadge(){
-  return;
+  if(canCrud())return "";
+  return `<span class='read-only-badge' title='${READ_ONLY_TOOLTIP}'>Read-only</span>`;
 }
 function applyRoleBasedUi(){
-  return;
+  const crud=canCrud();
+  document.body?.classList.toggle("is-read-only",!crud);
+  document.querySelectorAll('[data-crud-action], [data-mv-delete], [data-mv-bulk-delete], [data-mv-bulk-edit], #sheetSubmitBtn, #pdfTransferImportBtn').forEach(el=>{
+    if(!crud){
+      el.setAttribute('title',READ_ONLY_TOOLTIP);
+      el.setAttribute('aria-disabled','true');
+      if('disabled' in el)el.disabled=true;
+      el.classList.add('is-read-only-disabled');
+    }else{
+      if(el.getAttribute('title')===READ_ONLY_TOOLTIP)el.removeAttribute('title');
+      el.removeAttribute('aria-disabled');
+      el.classList.remove('is-read-only-disabled');
+    }
+  });
 }
+function guardCrudAction(action='CRUD',page=location.pathname){
+  if(canCrud())return true;
+  toast(READ_ONLY_TOOLTIP,'error');
+  logActivitySafe({action:`DENIED_${action}`,module:page,detail:READ_ONLY_TOOLTIP,status:'FAILED',metadata:{user:currentUserIdentity(),reason:'READ_ONLY_ROLE',page,timestamp:new Date().toISOString()}});
+  return false;
+}
+window.guardCrudAction=guardCrudAction;
 function setAppAuthState(state){
 const appRoot=document.getElementById("appRoot");
 if(!appRoot)return;
@@ -181,6 +238,18 @@ return value===true||normalized==='true'||normalized==='1'||normalized==='yes';
 function isPreviewBypassLoginEnabled(){
 return isTruthyFlag(runtimeConfig.previewBypassLogin);
 }
+
+document.addEventListener('click',e=>{
+  const target=e.target?.closest?.('[data-crud-action], [data-mv-delete], [data-mv-bulk-delete], [data-mv-bulk-edit], #sheetSubmitBtn, #pdfTransferImportBtn, [data-action="delete"], [data-action="edit"]');
+  if(target&&!guardCrudAction(target.dataset?.crudAction||target.dataset?.action||'CRUD')){e.preventDefault();e.stopImmediatePropagation();}
+},true);
+document.addEventListener('submit',e=>{
+  const id=e.target?.id||'';
+  if((id==='sheetInputForm'||id==='rejectInForm'||e.target?.matches?.('[data-crud-form]'))&&!guardCrudAction('SUBMIT')){e.preventDefault();e.stopImmediatePropagation();}
+},true);
+document.addEventListener('dblclick',e=>{
+  if(e.target?.closest?.('[data-mv-cell], [contenteditable="true"], .editable-cell')&&!guardCrudAction('INLINE_EDIT')){e.preventDefault();e.stopImmediatePropagation();}
+},true);
 
 async function loadRuntimeConfig(){
 const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];
@@ -534,7 +603,7 @@ const mapSignupError=(err)=>{const msg=String(err?.message||"").toLowerCase();if
 togglePasswordBtn?.addEventListener("click",(e)=>{e.preventDefault();passwordEl.type=passwordEl.type==="password"?"text":"password";const isVisible=passwordEl.type==="text";togglePasswordBtn.setAttribute("aria-pressed",String(isVisible));togglePasswordBtn.innerHTML=`<i data-lucide="${isVisible?"eye":"eye-off"}"></i>`;if(window.lucide)lucide.createIcons();});
 signupLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("signup");});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:data?.mode==="dev"||profile?.isDeveloper===true});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
 await loadBalikanSheets();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);let authUserId=authData?.user?.id;if(signupErr){const signupMsg=String(signupErr?.message||"").toLowerCase();const emailExists=signupMsg.includes("email")&&(signupMsg.includes("already")||signupMsg.includes("registered")||signupMsg.includes("exists")||signupMsg.includes("duplicate"));if(!emailExists)throw signupErr;const {data:sessionData,error:sessionErr}=await supabase.auth.getSession();if(sessionErr)throw sessionErr;const {data:userData,error:getUserErr}=await supabase.auth.getUser();if(getUserErr)throw getUserErr;authUserId=userData?.user?.id||sessionData?.session?.user?.id||"";if(!authUserId)throw signupErr;}if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"Warga KST"};console.log("payload public.users",profilePayload);const {error:upsertErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(upsertErr){console.log("error upsert",upsertErr);const upsertMsg=String(upsertErr?.message||"").toLowerCase();if(upsertErr?.code==="42501"||upsertMsg.includes("row-level security")||upsertMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw upsertErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"Warga KST",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
