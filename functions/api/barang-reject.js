@@ -5,6 +5,9 @@ const REJECT_SPREADSHEET_ID = '1BVGcIWnYqrG-DefzmnO_hZjNn3H3c4sriI7CBAWsxw8';
 const STOCK_SHEET = 'KARTU STOCK KST';
 const IN_SHEET = 'Barang Masuk';
 const OUT_SHEET = 'Barang Keluar';
+const SERVER_CACHE_TTL_MS = 5 * 60 * 1000;
+let serverBarangRejectCache = null;
+let serverBarangRejectLoading = null;
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 const toB64 = input => btoa(typeof input === 'string' ? input : JSON.stringify(input)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -29,6 +32,17 @@ async function token(env) {
   return data.access_token;
 }
 function ssId(env) { return String(env.BARANG_REJECT_SHEET_ID || env.SHEET_ID_BARANG_REJECT || REJECT_SPREADSHEET_ID).trim(); }
+function isQuotaError(err) {
+  const msg = String(err?.message || err || '');
+  return /quota|read requests per minute|rate limit/i.test(msg);
+}
+function cachePayload(spreadsheetId, data) {
+  serverBarangRejectCache = { success: true, spreadsheetId, sheets: { stock: STOCK_SHEET, masuk: IN_SHEET, keluar: OUT_SHEET }, ...data, lastSync: Date.now(), fromCache: false };
+  return serverBarangRejectCache;
+}
+function isServerCacheFresh() {
+  return !!serverBarangRejectCache && (Date.now() - Number(serverBarangRejectCache.lastSync || 0)) < SERVER_CACHE_TTL_MS;
+}
 async function valuesGet(access, spreadsheetId, range) {
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`, { headers: { Authorization: `Bearer ${access}` } });
   const data = await res.json().catch(() => ({}));
@@ -101,14 +115,24 @@ function validateCommon(body) {
 function duplicateRecent(rows, probe) {
   return rows.slice(-50).some(r => Object.entries(probe).every(([k, v]) => norm(r[k]) === norm(v)));
 }
-export async function onRequestGet({ env }) {
+export async function onRequestGet({ request, env }) {
+  const force = new URL(request.url).searchParams.get('force') === '1';
+  if (!force && isServerCacheFresh()) return json({ ...serverBarangRejectCache, fromCache: true });
   try {
-    const access = await token(env);
-    const spreadsheetId = ssId(env);
-    const data = await readAll(access, spreadsheetId);
-    return json({ success: true, spreadsheetId, sheets: { stock: STOCK_SHEET, masuk: IN_SHEET, keluar: OUT_SHEET }, ...data });
+    if (!serverBarangRejectLoading) {
+      serverBarangRejectLoading = (async () => {
+        const access = await token(env);
+        const spreadsheetId = ssId(env);
+        const data = await readAll(access, spreadsheetId);
+        return cachePayload(spreadsheetId, data);
+      })().finally(() => { serverBarangRejectLoading = null; });
+    }
+    return json(await serverBarangRejectLoading);
   } catch (err) {
-    return json({ success: false, message: err?.message || 'Internal server error' }, 500);
+    if (serverBarangRejectCache && isQuotaError(err)) {
+      return json({ ...serverBarangRejectCache, success: true, fromCache: true, warning: 'Google Sheets quota limit. Coba lagi beberapa menit.' });
+    }
+    return json({ success: false, message: isQuotaError(err) ? 'Google Sheets quota limit. Coba lagi beberapa menit.' : (err?.message || 'Internal server error') }, 500);
   }
 }
 export async function onRequestPost({ request, env }) {
@@ -135,6 +159,7 @@ export async function onRequestPost({ request, env }) {
       const hit = stockRows.find(r => key(r.sku, r.lokasi) === key(sku, lokasi));
       if (hit) await valuesUpdate(access, spreadsheetId, `${STOCK_SHEET}!A${hit.rowNumber}:D${hit.rowNumber}`, [[lokasi, sku, namaBarang || hit.namaBarang, Number(hit.qty || 0) + qty]]);
       else await valuesAppend(access, spreadsheetId, `${STOCK_SHEET}!A:D`, [lokasi, sku, namaBarang, qty]);
+      serverBarangRejectCache = null;
       return json({ success: true, message: 'Barang masuk reject berhasil disimpan' });
     }
     if (action === 'keluar') {
@@ -150,6 +175,7 @@ export async function onRequestPost({ request, env }) {
       const statusProses = norm(body.statusProses) || statusBarang;
       await valuesAppend(access, spreadsheetId, `${OUT_SHEET}!A:N`, [tanggal, from, norm(body.to), sku, namaBarang || hit.namaBarang, qty, statusBarang, norm(body.pic), norm(body.keterangan), norm(body.noIseller), norm(body.netsuite), norm(body.keteranganLainnya), statusProses, norm(body.lokasiSuratJalan)]);
       await valuesUpdate(access, spreadsheetId, `${STOCK_SHEET}!A${hit.rowNumber}:D${hit.rowNumber}`, [[hit.lokasi, hit.sku, hit.namaBarang, nextQty]]);
+      serverBarangRejectCache = null;
       return json({ success: true, message: 'Barang keluar reject berhasil disimpan' });
     }
     return json({ success: false, message: 'action tidak valid' }, 400);
