@@ -57,18 +57,35 @@ function mapStock(values) {
   const start = values.length && isHeader(values[0], ['sku']) ? 1 : 0;
   return values.slice(start).map((r, i) => ({ rowNumber: start + i + 1, lokasi: r[0] || '', sku: r[1] || '', namaBarang: r[2] || '', qty: Number(r[3] || 0) || 0, status: (Number(r[3] || 0) || 0) > 0 ? 'Ada Stok' : 'Kosong', lastUpdate: '' })).filter(r => norm(r.sku) || norm(r.lokasi) || norm(r.namaBarang));
 }
-function mapIn(values) {
+function mapRejectMovement(values, type) {
   const start = values.length && isHeader(values[0], ['tanggal', 'sku']) ? 1 : 0;
-  return values.slice(start).map((r, i) => ({ rowNumber: start + i + 1, tanggal: r[0] || '', lokasi: r[1] || '', sku: r[2] || '', namaBarang: r[3] || '', qty: Number(r[4] || 0) || 0, user: r[5] || '', keterangan: r[6] || '' })).filter(r => norm(r.sku) || norm(r.namaBarang));
+  return values.slice(start).map((r, i) => ({
+    rowNumber: start + i + 1,
+    type,
+    tanggal: r[0] || '',
+    from: r[1] || '',
+    to: r[2] || '',
+    sku: r[3] || '',
+    namaBarang: r[4] || '',
+    qty: Number(r[5] || 0) || 0,
+    statusBarang: r[6] || '',
+    status: r[6] || '',
+    pic: r[7] || '',
+    keterangan: r[8] || '',
+    noIseller: r[9] || '',
+    netsuite: r[10] || '',
+    keteranganLainnya: r[11] || '',
+    statusProses: type === 'keluar' ? (r[12] || '') : '',
+    lokasiSuratJalan: type === 'masuk' ? (r[12] || '') : (r[13] || ''),
+    stckoutReject: type === 'masuk' ? (r[13] || '') : ''
+  })).filter(r => norm(r.sku) || norm(r.namaBarang));
 }
-function mapOut(values) {
-  const start = values.length && isHeader(values[0], ['tanggal', 'sku']) ? 1 : 0;
-  return values.slice(start).map((r, i) => ({ rowNumber: start + i + 1, tanggal: r[0] || '', from: r[1] || '', to: r[2] || '', sku: r[3] || '', namaBarang: r[4] || '', qty: Number(r[5] || 0) || 0, status: r[6] || r[12] || '', pic: r[7] || '', keterangan: r[8] || r[11] || '', noIseller: r[9] || '', netsuite: r[10] || '', keteranganLainnya: r[11] || '', lokasiSuratJalan: r[13] || '' })).filter(r => norm(r.sku) || norm(r.namaBarang));
-}
+const mapIn = values => mapRejectMovement(values, 'masuk');
+const mapOut = values => mapRejectMovement(values, 'keluar');
 async function readAll(access, spreadsheetId) {
   const [stockValues, inValues, outValues] = await Promise.all([
     valuesGet(access, spreadsheetId, `${STOCK_SHEET}!A1:D20000`),
-    valuesGet(access, spreadsheetId, `${IN_SHEET}!A1:G20000`),
+    valuesGet(access, spreadsheetId, `${IN_SHEET}!A1:N20000`),
     valuesGet(access, spreadsheetId, `${OUT_SHEET}!A1:N20000`),
   ]);
   return { stock: mapStock(stockValues), masuk: mapIn(inValues), keluar: mapOut(outValues) };
@@ -107,11 +124,14 @@ export async function onRequestPost({ request, env }) {
     const { sku, namaBarang, qty } = validateCommon(body);
     const tanggal = norm(body.tanggal) || new Date().toISOString().slice(0, 10);
     if (action === 'masuk') {
-      const lokasi = norm(body.lokasi);
-      if (!lokasi) throw new Error('Lokasi wajib diisi');
-      const masukRows = mapIn(await valuesGet(access, spreadsheetId, `${IN_SHEET}!A1:G20000`));
-      if (duplicateRecent(masukRows, { tanggal, lokasi, sku, qty })) return json({ success: false, message: 'Submit duplikat terdeteksi' }, 409);
-      await valuesAppend(access, spreadsheetId, `${IN_SHEET}!A:G`, [tanggal, lokasi, sku, namaBarang, qty, norm(body.user), norm(body.keterangan)]);
+      const from = norm(body.from || body.lokasi);
+      const to = norm(body.to);
+      const lokasi = to || from;
+      if (!from) throw new Error('From wajib diisi');
+      const masukRows = mapIn(await valuesGet(access, spreadsheetId, `${IN_SHEET}!A1:N20000`));
+      if (duplicateRecent(masukRows, { tanggal, from, sku, qty })) return json({ success: false, message: 'Submit duplikat terdeteksi' }, 409);
+      const statusBarang = norm(body.statusBarang || body.status);
+      await valuesAppend(access, spreadsheetId, `${IN_SHEET}!A:N`, [tanggal, from, to, sku, namaBarang, qty, statusBarang, norm(body.pic), norm(body.keterangan), norm(body.noIseller), norm(body.netsuite), norm(body.keteranganLainnya), norm(body.lokasiSuratJalan), norm(body.stckoutReject)]);
       const hit = stockRows.find(r => key(r.sku, r.lokasi) === key(sku, lokasi));
       if (hit) await valuesUpdate(access, spreadsheetId, `${STOCK_SHEET}!A${hit.rowNumber}:D${hit.rowNumber}`, [[lokasi, sku, namaBarang || hit.namaBarang, Number(hit.qty || 0) + qty]]);
       else await valuesAppend(access, spreadsheetId, `${STOCK_SHEET}!A:D`, [lokasi, sku, namaBarang, qty]);
@@ -126,8 +146,9 @@ export async function onRequestPost({ request, env }) {
       if (nextQty < 0) throw new Error(`Stok tidak boleh minus. Stok tersedia: ${hit.qty}`);
       const keluarRows = mapOut(await valuesGet(access, spreadsheetId, `${OUT_SHEET}!A1:N20000`));
       if (duplicateRecent(keluarRows, { tanggal, from, sku, qty })) return json({ success: false, message: 'Submit duplikat terdeteksi' }, 409);
-      const status = norm(body.status) || 'Reject Keluar';
-      await valuesAppend(access, spreadsheetId, `${OUT_SHEET}!A:N`, [tanggal, from, norm(body.to), sku, namaBarang || hit.namaBarang, qty, status, norm(body.pic), norm(body.keterangan), norm(body.noIseller), norm(body.netsuite), '', status, norm(body.lokasiSuratJalan)]);
+      const statusBarang = norm(body.statusBarang || body.status) || 'Reject Keluar';
+      const statusProses = norm(body.statusProses) || statusBarang;
+      await valuesAppend(access, spreadsheetId, `${OUT_SHEET}!A:N`, [tanggal, from, norm(body.to), sku, namaBarang || hit.namaBarang, qty, statusBarang, norm(body.pic), norm(body.keterangan), norm(body.noIseller), norm(body.netsuite), norm(body.keteranganLainnya), statusProses, norm(body.lokasiSuratJalan)]);
       await valuesUpdate(access, spreadsheetId, `${STOCK_SHEET}!A${hit.rowNumber}:D${hit.rowNumber}`, [[hit.lokasi, hit.sku, hit.namaBarang, nextQty]]);
       return json({ success: true, message: 'Barang keluar reject berhasil disimpan' });
     }
