@@ -236,7 +236,6 @@
             <button class="side-link nav-item submenu-item" data-page="barang-reject-dashboard" data-route="/barang-reject" title="Dashboard Reject"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
             <button class="side-link nav-item submenu-item" data-page="barang-reject-masuk" data-route="/barang-reject/masuk" title="Barang Masuk Reject"><i data-lucide="package-plus"></i><span>Barang Masuk</span></button>
             <button class="side-link nav-item submenu-item" data-page="barang-reject-keluar" data-route="/barang-reject/keluar" title="Barang Keluar Reject"><i data-lucide="package-minus"></i><span>Barang Keluar</span></button>
-            <button class="side-link nav-item submenu-item" data-page="barang-reject-input" data-route="/barang-reject/input" title="Input Barang Masuk Reject"><i data-lucide="square-pen"></i><span>Input Barang Masuk</span></button>
           </div>
         </section>
         <section class="menu-group" data-menu-group="sistem">
@@ -319,6 +318,25 @@
     <section id="page-movement" class="panel page hidden"><h3 class="page-title">Movement Barang</h3><div id="movementApp"></div></section>
     <section id="page-balikan-store" class="panel page hidden"><h3 class="page-title">Balikan Store</h3><div class="mv-filters open balikan-controls" style="margin-top:10px"><select id="balikanSheetSelect"><option value="">Pilih sheet TRIP</option></select><div class="balikan-search-row"><input id="balikanSearchInput" class="search-lg" type="search" placeholder="Cari SKU, nama barang, lokasi, status, keterangan"><button id="btnScanBalikan" class="icon-btn" type="button" aria-label="Scan barcode Balikan Store" title="Scan barcode Balikan Store"><i data-lucide="scan-line"></i></button></div><div class="balikan-filter-row"><select id="balikanSortSelect" aria-label="Urutkan berdasarkan"><option value="default">Urutkan berdasarkan</option><option value="skuAsc">SKU A-Z</option><option value="skuDesc">SKU Z-A</option><option value="namaAsc">Nama A-Z</option><option value="namaDesc">Nama Z-A</option><option value="qtyDesc">Qty terbesar</option><option value="qtyAsc">Qty terkecil</option><option value="checkedFirst">Dicentang dulu</option><option value="uncheckedFirst">Belum dicentang dulu</option></select><button id="btnResetBalikanFilter" class="btn-ghost" type="button">Reset Filter</button><button id="btnExportBalikanCsv" class="btn-ghost" type="button">Export CSV</button><label class="balikan-switch-wrap" for="balikanAutoCheckToggle"><span class="balikan-switch-label">Scan Auto Checklist</span><input id="balikanAutoCheckToggle" class="balikan-switch-input" type="checkbox" role="switch" aria-label="Scan Auto Checklist"><span class="balikan-switch-track" aria-hidden="true"><span class="balikan-switch-thumb"></span></span><span id="balikanAutoCheckStatus" class="balikan-switch-status" aria-live="polite">ON</span></label></div></div><div id="balikanSummary" class="subtitle" style="margin-top:8px"></div><div id="balikanTable" style="margin-top:10px"></div></section>
 
+
+    <section id="page-barang-reject" class="panel page hidden">
+      <div class="section-header reject-page-header">
+        <div>
+          <h3 class="page-title">Barang Reject</h3>
+          <small class="section-subtitle">Dashboard, barang masuk, dan barang keluar reject dari sheet KARTU STOCK KST.</small>
+        </div>
+        <div class="row reject-header-actions">
+          <span id="rejectPermissionBadge" class="read-only-badge" hidden>Read-only</span>
+          <button id="rejectRefreshBtn" class="btn-ghost" type="button"><i data-lucide="refresh-cw"></i><span>Refresh</span></button>
+        </div>
+      </div>
+      <div class="reject-tabs" aria-label="Menu Barang Reject">
+        <button class="btn-ghost" type="button" data-reject-tab="dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+        <button class="btn-ghost" type="button" data-reject-tab="masuk"><i data-lucide="package-plus"></i><span>Barang Masuk</span></button>
+        <button class="btn-ghost" type="button" data-reject-tab="keluar"><i data-lucide="package-minus"></i><span>Barang Keluar</span></button>
+      </div>
+      <div id="barangRejectApp" class="reject-app"></div>
+    </section>
     <section id="page-import-pdf-transfer" class="panel page hidden"><div id="importPdfTransferApp"></div></section>
     <section id="page-activity-log" class="panel page hidden"><h3 class="page-title">Activity Log</h3><div id="activityLogApp"></div></section>
 
