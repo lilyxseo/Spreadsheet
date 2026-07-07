@@ -18,6 +18,8 @@ const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
 const DATA = {}; let CACHE_SKU = new Map(); let currentFilter="Semua", lastResults=[], lastQuery="", selectedQuickSku="", apiConnected=false, currentSku="", isSyncing=false, searchModalOpen=false, prevRouteBeforeSearch="/";
+const REFRESH_STATE={isRefreshing:false,lastRefreshAt:0,refreshQueue:[],dataVersion:0,cacheVersion:0,modules:{},pendingRenderModules:new Set(),refreshPromise:null};
+window.REFRESH_STATE=REFRESH_STATE;
 let manualRefreshNoticeTimer=null;
 let isDevAutoRefreshRunning=false;
 let isDevAutoRefreshingNow=false;
@@ -785,8 +787,9 @@ barangKeluar:window.APP_STATE.barangKeluar?.length||0
 const hasAnyData = SHEETS.some(sheet => (DATA[sheet]||[]).length>0);
 window.__isDataReady = hasAnyData;
 console.log("DATA READY", window.__isDataReady);
-rebuildSkuCache();
+scheduleRebuildSkuCache();
 apiConnected=true;
+updateRefreshMeta({changed:true,fromCache});
 updateApiState();
 updateSyncTime();
 updateSettings();
@@ -804,10 +807,32 @@ if(typeof updateSettingsDashboard==='function')updateSettingsDashboard();
 console.log("LAST SYNC UPDATED",localStorage.getItem(CACHE_KEYS.lastSync));
 }
 
-function scheduleUIWork(cb){
-const runner=()=>setTimeout(cb,16);
-if(typeof window.requestIdleCallback==="function")return window.requestIdleCallback(runner,{timeout:120});
-return setTimeout(cb,16);
+function scheduleUIWork(cb,{timeout=120,delay=16}={}){
+const runner=()=>setTimeout(cb,delay);
+if(typeof window.requestIdleCallback==="function")return window.requestIdleCallback(runner,{timeout});
+return setTimeout(cb,delay);
+}
+function runChunked(items,worker,{chunkSize=500,timeout=80}={}){
+const list=Array.isArray(items)?items:[];let index=0;
+return new Promise((resolve,reject)=>{
+const step=()=>{
+try{const end=Math.min(index+chunkSize,list.length);for(;index<end;index++)worker(list[index],index);if(index<list.length){scheduleUIWork(step,{timeout,delay:0});return;}resolve();}
+catch(err){reject(err);}
+};
+scheduleUIWork(step,{timeout,delay:0});
+});
+}
+function updateRefreshMeta({module,changed=false,fromCache=false}={}){
+const now=Date.now();
+if(fromCache)REFRESH_STATE.cacheVersion+=1;
+if(changed){REFRESH_STATE.dataVersion+=1;if(module)REFRESH_STATE.modules[module]=(REFRESH_STATE.modules[module]||0)+1;}
+if(changed||fromCache)REFRESH_STATE.lastRefreshAt=now;
+}
+function setRefreshIndicator(active,msg="Refreshing..."){
+REFRESH_STATE.isRefreshing=!!active;
+if(active){setStatus("loading",msg);refreshToggleHeader?.classList.add("is-syncing");}
+else{refreshToggleHeader?.classList.remove("is-syncing");}
+updateSyncUI();
 }
 let renderTimer=null;
 function scheduleRenderDashboard(){
@@ -899,7 +924,7 @@ const freshData={};
 for(const sheet of INVENTORY_PRELOAD_SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
-freshData[sheet]=parseSheet(raw,sheet);
+freshData[sheet]=await parseSheetChunked(raw);
 console.log("FETCH RESULT",sheet,Array.isArray(raw)?raw.length:0);
 console.log("PARSED DATA",sheet,freshData[sheet].length);
 }
@@ -907,12 +932,12 @@ return freshData;
 }
 async function refreshRplFull(){
 const raw=await fetchSheet("RPL");
-const rows=parseSheet(raw,"RPL");
+const rows=await parseSheetChunked(raw);
 return rows;
 }
 async function refreshBulkyFull(){
 const raw=await fetchSheet("BULKY");
-const rows=parseSheet(raw,"BULKY");
+const rows=await parseSheetChunked(raw);
 console.log("FETCH RESULT BULKY",Array.isArray(raw)?raw.length:0);
 return rows;
 }
@@ -979,9 +1004,9 @@ if(bulkyRes.status==='rejected')console.error('REFRESH ERROR BULKY',bulkyRes.rea
 return {inventoryRes,rplRes,bulkyRes,parsedKartuStock,parsedRpl,parsedBulky};
 }
 async function syncData({force=false,silent=true}={}){
-if(isSyncing)return false;
+if(REFRESH_STATE.isRefreshing||isSyncing){REFRESH_STATE.refreshQueue.push({force,silent,skippedAt:Date.now()});return REFRESH_STATE.refreshPromise||false;}
 isSyncing=true;
-updateSyncUI();
+setRefreshIndicator(true,"Refreshing...");
 if(!force&&!silent&&Object.keys(DATA).length===0){setStatus("loading","Memuat data dari Google Sheets...");setMainContentLoading(true);}
 if(silent)setStatus("loading","Sinkronisasi...");
 try{
@@ -1026,7 +1051,7 @@ window.mainDataCache={
 "Barang Masuk":nextMasuk,
 "Barang Keluar":nextKeluar
 };
-rebuildSkuCache();
+scheduleRebuildSkuCache();
 
 if(force){
 if(dataChanged){
@@ -1053,11 +1078,13 @@ setStatus('ok','Data sudah terbaru');
 manualRefreshNoticeTimer=setTimeout(()=>setStatus('ok',''),1800);
 }
 }else{
-renderDataTablePage("in","Barang Masuk",true);
-renderDataTablePage("out","Barang Keluar",true);
+const active=getActivePage();
+if(active==="barang-masuk")scheduleManualRefreshRender("in");
+else if(active==="barang-keluar")scheduleManualRefreshRender("out");
 scheduleRenderDashboard();
 if(dataChanged)await saveCache(DATA);
 }
+if(dataChanged)updateRefreshMeta({changed:true,module:"all"});
 if(force)applyManualRefreshLastSync();
 setStatus('ok','');
 return true;
@@ -1068,18 +1095,21 @@ if(hasCache){setStatus('error','Gagal sync, memakai cache');return false;}
 setStatus('error','Gagal memuat data: '+err.message);renderError('results','Data belum berhasil dimuat');renderState('dashboardCards','Data belum berhasil dimuat');throw err;
 }finally{
 isSyncing=false;
-updateSyncUI();
+REFRESH_STATE.refreshPromise=null;
+setRefreshIndicator(false);
 hideInitialLoader();
 setMainContentLoading(false);
 }
 }
 function refreshTransaksiPageInBackground(page){
 if(page!=="barang-masuk"&&page!=="barang-keluar")return;
+if(REFRESH_STATE.isRefreshing)return;
+setRefreshIndicator(true,"Refreshing...");
 refreshTransaksiFull({render:false}).then(()=>{
-renderDataTablePage("in","Barang Masuk",true);
-renderDataTablePage("out","Barang Keluar",true);
+const mode=page==="barang-masuk"?"in":"out";
+rerenderTableWithScrollRestore(mode,true);
 scheduleRenderDashboard();
-}).catch(err=>console.error("Background transaksi refresh error",err));
+}).catch(err=>console.error("Background transaksi refresh error",err)).finally(()=>setRefreshIndicator(false));
 }
 async function initAppData(){
 if(hasInitializedDataFlow)return;
@@ -1191,6 +1221,7 @@ console.log("[initAppData] refresh dari window.mainDataPromise setelah cache");
 applyData(preloadedData,{deferRender:true});
 await saveCache(preloadedData);
 rerenderCurrentPage();
+updateRefreshMeta({changed:true,module:"movement"});
 }).catch(err=>console.warn("Preload utama gagal setelah cache",err));
 }
 return;
@@ -1230,15 +1261,17 @@ startAutoSync();
 }
 async function refreshDataInBackground(){
 if(!isInitialDataLoaded)return;
+if(REFRESH_STATE.isRefreshing)return;
 if(isPreloadStarted&&!isPreloadFinished)return;
 if(isCacheFresh())return;
 console.log("BACKGROUND REFRESH START");
+setRefreshIndicator(true,"Refreshing...");
 try{
 const [barangMasuk,barangKeluar]=await Promise.allSettled([
 loadBarangMasuk({mode:"full"}),
 loadBarangKeluar({mode:"full"})
 ]);
-const inventoryRes=await Promise.allSettled(INVENTORY_PRELOAD_SHEETS.map(sheet=>fetchSheet(sheet).then(raw=>parseSheet(raw,sheet))));
+const inventoryRes=await Promise.allSettled(INVENTORY_PRELOAD_SHEETS.map(sheet=>fetchSheet(sheet).then(raw=>parseSheetChunked(raw))));
 if(barangMasuk.status==="fulfilled"&&Array.isArray(barangMasuk.value)&&barangMasuk.value.length){
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasuk.value;
@@ -1271,15 +1304,16 @@ console.log("MANUAL REFRESH APPLY BARANG MASUK",{rows:nextMasuk.length});
 DATA["Barang Keluar"]=nextKeluar;
 console.log("MANUAL REFRESH APPLY BARANG KELUAR",{rows:nextKeluar.length});
 rerenderCurrentPage();
+updateRefreshMeta({changed:true,module:"movement"});
 }
 if(inventoryChanged||changed)await saveCache(DATA);
 }catch(err){
 console.error("Background refresh error",err);
-}
+}finally{setRefreshIndicator(false);}
 }
 function getLastSyncTs(){return Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);}
 function shouldAutoSyncNow(){const ts=getLastSyncTs();return !ts||Date.now()-ts>=AUTO_SYNC_INTERVAL_MS;}
-function maybeAutoSync(){if(shouldAutoSyncNow())syncData({force:true,silent:true});}
+function maybeAutoSync(){if(REFRESH_STATE.isRefreshing||isSyncing)return;if(shouldAutoSyncNow())syncData({force:true,silent:true});}
 function startAutoSync(){
 maybeAutoSync();
 setInterval(maybeAutoSync,AUTO_SYNC_CHECK_INTERVAL_MS);
@@ -1323,6 +1357,12 @@ if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error
 return json.values||[];
 }
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
+async function parseSheetChunked(values){
+if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];
+const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];const body=values.slice(h+1);
+await runChunked(body,(row)=>{if(!row?.length||row.every(c=>!String(c||"").trim()))return;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);},{chunkSize:600,timeout:120});
+return rows;
+}
 function splitBarcodeTokens(raw){
 return String(raw||"").split(/[\n,;|]+/).map(v=>cleanScannedSku(v)).filter(Boolean);
 }
@@ -1398,7 +1438,20 @@ function getRowSearchText(row){return withAlphaNumericSearchVariants([
   getVal(row,["invent","inventory","inventaris"]),
   Object.values(row||{}).filter(value=>typeof value!=="object").join(" ")
 ].join(" "));}
-function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[],_searchText:"",_skuClean:"",_nameClean:"",_skuDigits:""});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}for(const it of CACHE_SKU.values()){const rowsText=(it.rows||[]).map(x=>getRowSearchText(x?.row)).filter(Boolean).join(" ");it._skuClean=normalizeSearch(it.sku||"");it._nameClean=normalizeSearch(it.nama||"");it._skuDigits=String(it.sku||"").replace(/\D/g,"");it._searchText=normalizeSearch(`${it.sku||""} ${it.nama||""} ${rowsText}`);}}
+let skuCacheBuildToken=0;
+function rebuildSkuCache(){scheduleRebuildSkuCache();}
+function scheduleRebuildSkuCache(){
+const token=++skuCacheBuildToken;const next=new Map();const sheets=[...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"];
+(async()=>{
+for(const sheet of sheets){
+const rows=DATA[sheet]||[];
+await runChunked(rows,(row)=>{const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)return;if(!next.has(key))next.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[],_searchText:"",_skuClean:"",_nameClean:"",_skuDigits:""});const it=next.get(key);it.sources.add(sheet);it.rows.push({sheet,row});},{chunkSize:700,timeout:120});
+if(token!==skuCacheBuildToken)return;
+}
+await runChunked([...next.values()],(it)=>{const rowsText=(it.rows||[]).map(x=>getRowSearchText(x?.row)).filter(Boolean).join(" ");it._skuClean=normalizeSearch(it.sku||"");it._nameClean=normalizeSearch(it.nama||"");it._skuDigits=String(it.sku||"").replace(/\D/g,"");it._searchText=normalizeSearch(`${it.sku||""} ${it.nama||""} ${rowsText}`);},{chunkSize:500,timeout:120});
+if(token===skuCacheBuildToken)CACHE_SKU=next;
+})().catch(err=>console.warn("SKU cache build failed",err));
+}
 function scheduleSearchFilter(nextValue){
 SEARCH_STATE.inputValue=String(nextValue||"");
 clearTimeout(SEARCH_STATE.debounceTimer);
