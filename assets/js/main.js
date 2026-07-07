@@ -1387,7 +1387,17 @@ BARCODE_STATE.loaded=true;
 return BARCODE_STATE;
 }
 function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
-function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[],_searchText:"",_skuClean:"",_nameClean:"",_skuDigits:""});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}for(const it of CACHE_SKU.values()){const locations=(it.rows||[]).map(x=>getVal(x?.row,["lokasi","location","rak","bin","area"])).filter(Boolean).join(" ");const descriptions=(it.rows||[]).map(x=>getVal(x?.row,["description","item name","item","nama barang","nama"])).filter(Boolean).join(" ");it._skuClean=normalizeSearch(it.sku||"");it._nameClean=normalizeSearch(it.nama||"");it._skuDigits=String(it.sku||"").replace(/\D/g,"");it._searchText=normalizeSearch(`${it.sku||""} ${it.nama||""} ${descriptions} ${locations}`);}}
+function getRowSearchText(row){return normalizeSearch([
+  getVal(row,["sku","kode sku","item code"]),
+  getVal(row,["barcode","kode barcode"]),
+  getVal(row,["nama barang","nama","item","item name","description"]),
+  getVal(row,["lokasi","location","rak","bin","area"]),
+  getVal(row,["keterangan","catatan","remark","remarks","note","notes"]),
+  getVal(row,["status","status barang","status proses"]),
+  getVal(row,["invent","inventory","inventaris"]),
+  Object.values(row||{}).filter(value=>typeof value!=="object").join(" ")
+].join(" "));}
+function rebuildSkuCache(){CACHE_SKU=new Map();for(const sheet of [...INVENTORY_PRELOAD_SHEETS,"Barang Masuk","Barang Keluar"]){for(const row of DATA[sheet]||[]){const sku=getVal(row,["sku"]);const name=getVal(row,["nama barang","nama","item","description"]);const key=clean(sku||name);if(!key)continue;if(!CACHE_SKU.has(key))CACHE_SKU.set(key,{sku:sku||"-",nama:name||"-",sources:new Set(),rows:[],_searchText:"",_skuClean:"",_nameClean:"",_skuDigits:""});const it=CACHE_SKU.get(key);it.sources.add(sheet);it.rows.push({sheet,row});}}for(const it of CACHE_SKU.values()){const rowsText=(it.rows||[]).map(x=>getRowSearchText(x?.row)).filter(Boolean).join(" ");it._skuClean=normalizeSearch(it.sku||"");it._nameClean=normalizeSearch(it.nama||"");it._skuDigits=String(it.sku||"").replace(/\D/g,"");it._searchText=normalizeSearch(`${it.sku||""} ${it.nama||""} ${rowsText}`);}}
 function scheduleSearchFilter(nextValue){
 SEARCH_STATE.inputValue=String(nextValue||"");
 clearTimeout(SEARCH_STATE.debounceTimer);
