@@ -3,7 +3,7 @@ const TOKEN_URL="https://oauth2.googleapis.com/token";
 const SCOPE="https://www.googleapis.com/auth/spreadsheets";
 const SHEET_MAP={movement:env=>env.SHEET_ID_2026,cycle_count:env=>env.SHEET_ID_INVENTORY};
 const SHEET_WHITELIST=new Set(["Movement","Cycle Count"]);
-const COLS={"Movement":["tanggal","from","to","sku","nama","stok_lokasi_awal","stok_aktual","keterangan"],"Cycle Count":["tanggal","lokasi","sku","nama","bulky","retail","aktualBulky","aktualRetail","catatan"]};
+const COLS={"Movement":["tanggal","from","to","sku","nama","stok_lokasi_awal","stok_aktual","keterangan"],"Cycle Count":["tanggal","lokasi","sku","nama","stok","aktual","catatan"]};
 const toB64=(i)=>btoa(typeof i==="string"?i:JSON.stringify(i)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
 const pemToBuf=p=>{const c=String(p||"").replace(/\\n/g,"\n").replace("-----BEGIN PRIVATE KEY-----","").replace("-----END PRIVATE KEY-----","").replace(/\s/g,"");const b=atob(c);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer;};
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json; charset=utf-8"}});
