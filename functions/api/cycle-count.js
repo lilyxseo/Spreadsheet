@@ -1,7 +1,7 @@
 import { requirePicRole } from './_authz.js';
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
-const SHEET_RANGE = "Cycle Count!A4:I";
+const SHEET_RANGE = "Cycle Count!A4:G";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -97,30 +97,23 @@ function formatTanggal(date) {
 function validateItem(item, index) {
   const lokasi = String(item?.lokasi || "").trim();
   const sku = String(item?.sku || "").trim();
-  const namaBarang = String(item?.nama_barang || "").trim();
-  const bulky = toNumberOrNull(item?.bulky);
-  const retail = toNumberOrNull(item?.retail);
-  const aktualBulky = toNumberOrNull(item?.aktual_bulky);
-  const aktualRetail = toNumberOrNull(item?.aktual_retail);
+  const namaBarang = String(item?.nama_barang || item?.namaBarang || "").trim();
+  const stok = toNumberOrNull(item?.stok);
+  const aktual = toNumberOrNull(item?.aktual);
   const catatan = String(item?.catatan || "").trim();
 
-  if (!lokasi) return { error: `items[${index}].lokasi wajib diisi` };
   if (!sku) return { error: `items[${index}].sku wajib diisi` };
-  if (!namaBarang) return { error: `items[${index}].nama_barang wajib diisi` };
-  if (bulky === null) return { error: `items[${index}].bulky wajib angka` };
-  if (retail === null) return { error: `items[${index}].retail wajib angka` };
-  if (aktualBulky === null) return { error: `items[${index}].aktual_bulky wajib angka` };
-  if (aktualRetail === null) return { error: `items[${index}].aktual_retail wajib angka` };
+  if (!lokasi) return { error: `items[${index}].lokasi wajib diisi` };
+  if (stok === null) return { error: `items[${index}].stok wajib angka` };
+  if (aktual === null) return { error: `items[${index}].aktual wajib angka` };
 
   return {
     value: {
       lokasi,
       sku,
       nama_barang: namaBarang,
-      bulky,
-      retail,
-      aktual_bulky: aktualBulky,
-      aktual_retail: aktualRetail,
+      stok,
+      aktual,
       catatan,
     },
   };
@@ -169,10 +162,8 @@ export async function onRequestPost({ request, env }) {
       item.lokasi,
       item.sku,
       item.nama_barang,
-      item.bulky,
-      item.retail,
-      item.aktual_bulky,
-      item.aktual_retail,
+      item.stok,
+      item.aktual,
       item.catatan,
     ]);
 
