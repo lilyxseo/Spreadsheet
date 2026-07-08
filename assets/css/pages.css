@@ -1405,6 +1405,20 @@ body.dark #page-balikan-store .balikan-row-highlight-fading .col-check{
 #page-balikan-store .balikan-search-row{display:flex;gap:8px;align-items:center;width:100%}
 #page-balikan-store .balikan-search-row input{flex:1 1 auto;min-width:220px}
 #page-balikan-store .balikan-filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
+
+#page-balikan-store .balikan-search-history{width:100%;display:block;margin-top:-2px}
+#page-balikan-store .balikan-history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 4px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.01em}
+#page-balikan-store .balikan-history-clear{min-height:26px;padding:3px 8px;border-radius:999px;font-size:11px;line-height:1}
+#page-balikan-store .balikan-history-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#page-balikan-store .balikan-history-chip{display:inline-flex;align-items:center;gap:5px;max-width:min(220px,100%);min-height:28px;padding:4px 5px 4px 9px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--panel) 88%,var(--primary) 12%);color:var(--text);font-size:12px;font-weight:600;line-height:1.2;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+#page-balikan-store .balikan-history-chip span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-balikan-store .balikan-history-chip:hover{border-color:color-mix(in srgb,var(--primary) 45%,var(--line));background:color-mix(in srgb,var(--panel) 78%,var(--primary) 22%)}
+#page-balikan-store .balikan-history-remove{display:inline-grid;place-items:center;flex:0 0 auto;width:18px;height:18px;border-radius:50%;background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted);font-size:14px;font-weight:800;line-height:1}
+#page-balikan-store .balikan-history-remove:hover{background:rgba(239,68,68,.16);color:#ef4444}
+body.dark #page-balikan-store .balikan-history-chip{background:color-mix(in srgb,var(--panel) 82%,#38bdf8 18%);box-shadow:none}
+body.dark #page-balikan-store .balikan-history-chip:hover{background:color-mix(in srgb,var(--panel) 72%,#38bdf8 28%)}
+@media (max-width:640px){#page-balikan-store .balikan-history-head{align-items:flex-start}#page-balikan-store .balikan-history-clear{margin-left:auto}#page-balikan-store .balikan-history-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}#page-balikan-store .balikan-history-chip{max-width:70vw;flex:0 0 auto}}
+
 #page-balikan-store .balikan-switch-wrap{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);min-height:34px}
 #page-balikan-store .balikan-switch-label{font-size:12px;font-weight:600;color:var(--muted)}
 #page-balikan-store .balikan-switch-input{position:absolute;opacity:0;pointer-events:none}
