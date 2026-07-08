@@ -1687,6 +1687,66 @@ body.dark #outResults input[type='checkbox'][data-mv-select-all]{accent-color:#f
   box-shadow:0 6px 14px rgba(220,38,38,.22);
   white-space:nowrap;
 }
+#page-balikan-store .balikan-sheet-status-wrap{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+#page-balikan-store .balikan-status-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  max-width:100%;
+  padding:4px 9px;
+  border:1px solid transparent;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--panel-soft,#f1f5f9) 80%, #94a3b8 20%);
+  color:var(--muted,#64748b);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.01em;
+  line-height:1.15;
+  white-space:nowrap;
+}
+#page-balikan-store .balikan-status-badge.is-sesuai{
+  background:color-mix(in srgb,#22c55e 16%, transparent);
+  border-color:color-mix(in srgb,#22c55e 28%, transparent);
+  color:#15803d;
+}
+#page-balikan-store .balikan-status-badge.is-lebih-kirim{
+  background:linear-gradient(135deg,color-mix(in srgb,#3b82f6 15%, transparent),color-mix(in srgb,#facc15 20%, transparent));
+  border-color:color-mix(in srgb,#3b82f6 24%, #facc15 18%);
+  color:#1d4ed8;
+}
+#page-balikan-store .balikan-status-badge.is-kurang-kirim{
+  background:color-mix(in srgb,#ef4444 14%, transparent);
+  border-color:color-mix(in srgb,#ef4444 26%, transparent);
+  color:#dc2626;
+}
+body.dark #page-balikan-store .balikan-status-badge{
+  background:color-mix(in srgb,#334155 72%, transparent);
+  color:#cbd5e1;
+}
+body.dark #page-balikan-store .balikan-status-badge.is-sesuai{
+  background:color-mix(in srgb,#22c55e 22%, transparent);
+  border-color:color-mix(in srgb,#22c55e 34%, transparent);
+  color:#86efac;
+}
+body.dark #page-balikan-store .balikan-status-badge.is-lebih-kirim{
+  background:linear-gradient(135deg,color-mix(in srgb,#60a5fa 22%, transparent),color-mix(in srgb,#fde047 18%, transparent));
+  border-color:color-mix(in srgb,#60a5fa 26%, #fde047 18%);
+  color:#bfdbfe;
+}
+body.dark #page-balikan-store .balikan-status-badge.is-kurang-kirim{
+  background:color-mix(in srgb,#ef4444 22%, transparent);
+  border-color:color-mix(in srgb,#ef4444 34%, transparent);
+  color:#fca5a5;
+}
+@media (max-width:640px){
+  #page-balikan-store .balikan-sheet-status-wrap{gap:4px}
+  #page-balikan-store .balikan-status-badge{padding:3px 7px;font-size:10px}
+}
 #page-balikan-store .balikan-location-sheet-list{
   display:grid;
   gap:4px;
