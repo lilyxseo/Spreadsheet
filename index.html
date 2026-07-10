@@ -359,59 +359,41 @@
     
     <section id="page-sheet-input" class="panel page hidden"><h3 class="page-title">Input Google Sheet</h3><div class="card sheet-input-card"><form id="sheetInputForm" class="sheet-input-form" novalidate><div class="sheet-grid"><label>Tanggal<input type="date" id="sheetTanggal" /></label><label>SKU *<input type="text" id="sheetSku" required /></label><label>Nama Barang *<input type="text" id="sheetNamaBarang" required /></label><label>Qty *<input type="number" id="sheetQty" min="0" step="1" required /></label><label>Lokasi *<input type="text" id="sheetLokasi" required /></label><label>Keterangan<textarea id="sheetKeterangan" rows="3" placeholder="Opsional"></textarea></label></div><button id="sheetSubmitBtn" type="submit" class="btn-primary sheet-submit-btn"><span class="sheet-submit-label">Simpan</span><span class="btn-spinner" aria-hidden="true" hidden></span></button></form></div></section>
 
-    <section id="page-settings" class="panel page hidden">
-      <h3 class="page-title">Pengaturan & Informasi Sistem</h3>
-      <div class="settings-layout">
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="monitor-cog"></i><h4>Informasi Sistem</h4></div>
-          <div class="settings-grid">
-            <div class="settings-item"><small>Nama aplikasi</small><strong>Mini WMS - Goto Living</strong></div>
-            <div class="settings-item"><small>Versi aplikasi</small><strong>v1.0.0</strong></div>
-            <div class="settings-item"><small>Terakhir refresh data</small><strong id="settingsLastRefresh">-</strong></div>
-            <div class="settings-item"><small>Total data terbaca</small><strong id="settingsTotalRows">0 row</strong></div>
-          </div>
-          <div class="settings-status"><span id="settingsSystemDot" class="status-dot loading"></span><i data-lucide="activity"></i><span>Status sistem:</span><strong id="settingsSystemStatus">Loading</strong></div>
-        </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="database"></i><h4>Sumber Data</h4></div>
-          <div id="settingsDataSources" class="settings-list"></div>
-        </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="hard-drive"></i><h4>Cache & Data</h4></div>
-          <div class="settings-grid settings-grid--cache">
-            <div class="settings-item"><small>Status cache</small><strong id="settingsCacheStatus">-</strong></div>
-            <div class="settings-item"><small>Waktu terakhir cache</small><strong id="settingsCacheTime">-</strong></div>
-          </div>
-          <div class="row settings-actions">
-            <button class="btn-primary" data-refresh-btn onclick="loadAllData(true)">Refresh Data</button>
-            <button class="btn-ghost" onclick="clearSystemCache()">Clear Cache</button>
-          </div>
-        </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="file-output"></i><h4>Export & Laporan</h4></div>
-          <div class="settings-grid">
-            <div class="settings-item"><small>Format default</small><strong>CSV</strong></div>
-            <div class="settings-item"><small>Struktur export</small><strong>Mengikuti tabel aktif</strong></div>
-            <div class="settings-item"><small>Include header</small><strong>Aktif</strong></div>
-            <div class="settings-item"><small>Separator</small><strong>Koma (,)</strong></div>
-          </div>
-        </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="info"></i><h4>Tentang Aplikasi</h4></div>
-          <p class="settings-desc">Sistem monitoring dan analisis stok gudang berbasis data sheet.</p>
-          <ul class="settings-feature-list">
-            <li><i data-lucide="layout-dashboard"></i><span>Dashboard</span></li>
-            <li><i data-lucide="alert-triangle"></i><span>Warning</span></li>
-            <li><i data-lucide="trending-down"></i><span>Stok minus</span></li>
-            <li><i data-lucide="map-pin"></i><span>Lokasi</span></li>
-            <li><i data-lucide="clipboard-check"></i><span>Cycle count</span></li>
-          </ul>
-          <small class="settings-note">Data berasal dari Google Sheet, gunakan dengan hati-hati.</small>
-        </article>
+    <section id="page-settings" class="panel page hidden settings-page" data-settings-dirty="false">
+      <header class="settings-topbar">
+        <div>
+          <h3 class="page-title">⚙️ Pengaturan</h3>
+          <p class="subtitle">Pusat konfigurasi aplikasi yang aman, modular, dan cache-aware.</p>
+        </div>
+        <div class="settings-save-state" aria-live="polite">
+          <small>Last Saved</small><strong id="settingsLastSaved">Belum ada</strong>
+          <span id="settingsSavedDot" class="settings-dot ok"></span><span id="settingsSavedText">Semua tersimpan</span>
+          <em id="settingsUnsavedBadge" class="settings-unsaved" hidden>Belum Disimpan</em>
+        </div>
+      </header>
+      <div class="settings-search-row">
+        <input id="settingsSearch" class="search-lg" type="search" placeholder="Cari pengaturan..." autocomplete="off" />
+        <div id="settingsSearchResults" class="settings-search-results" role="listbox" hidden></div>
       </div>
-      <div class="settings-legacy hidden">
-        <p><strong>Status API:</strong> <span id="settingsApiState">-</span></p><p><strong>Data loaded:</strong> <span id="loadedState">-</span></p><p><strong>Jumlah data per sheet:</strong> <span id="countPerSheet">-</span></p><p><strong>Spreadsheet ID:</strong> <code id="spreadsheetInfo"></code></p><p><strong>Sheet digunakan:</strong> <span id="sheetInfo"></span></p>
+      <div class="settings-shell">
+        <aside class="settings-sidebar" aria-label="Navigasi pengaturan">
+          <select id="settingsMobileSelect" class="settings-mobile-select" aria-label="Pilih section pengaturan"></select>
+          <nav id="settingsNav" class="settings-nav"></nav>
+        </aside>
+        <div id="settingsContent" class="settings-content">
+          <div class="settings-section" id="settings-general" data-section="general" data-title="Umum"><div class="settings-section-title"><h4>Umum</h4><span>Preferensi dasar aplikasi</span></div><article class="card settings-card"><div class="settings-form-grid"><label>Nama aplikasi<input class="settings-input" data-setting-field="appName" value="Mini WMS - Goto Living"></label><label>Zona waktu<select class="settings-input" data-setting-field="timezone"><option>Asia/Jakarta</option><option>Etc/UTC</option></select></label><label>Format tanggal<select class="settings-input" data-setting-field="dateFormat"><option>DD/MM/YYYY</option><option>YYYY-MM-DD</option></select></label><label>Bahasa<select class="settings-input" data-setting-field="language"><option>Indonesia</option><option>English</option></select></label><label>Default halaman<select class="settings-input" data-setting-field="defaultPage"><option>Dashboard</option><option>Cari SKU</option><option>Cycle Count</option></select></label><label class="settings-switch-row">Auto refresh default<input type="checkbox" data-setting-field="autoRefreshDefault" role="switch"></label></div></article></div>
+          <div class="settings-section" id="settings-sources" data-section="sources" data-title="Sumber Data"><div class="settings-section-title"><h4>Sumber Data</h4><span>Koneksi Google Sheet tanpa menampilkan ID sensitif</span></div><div id="settingsDataSources" class="settings-source-grid"></div></div>
+          <div class="settings-section" id="settings-mapping" data-section="mapping" data-title="Mapping Sheet"><div class="settings-section-title"><h4>Mapping Sheet</h4><span>Validasi header per modul</span></div><div id="settingsMappingGrid" class="settings-source-grid"></div></div>
+          <div class="settings-section" id="settings-sync" data-section="sync" data-title="Sinkronisasi"><div class="settings-section-title"><h4>Sinkronisasi</h4><span>Guard refresh paralel dan spam request</span></div><article class="card settings-card"><div class="settings-form-grid"><label class="settings-switch-row">Auto Refresh<input type="checkbox" data-setting-field="syncAuto" role="switch"></label><label>Refresh Interval<select class="settings-input" data-setting-field="refreshInterval"><option value="60">1 menit</option><option value="300">5 menit</option><option value="900">15 menit</option></select></label><label class="settings-switch-row">Refresh Saat Startup<input type="checkbox" data-setting-field="refreshStartup" role="switch" checked></label><label class="settings-switch-row">Refresh Saat Tab Aktif<input type="checkbox" data-setting-field="refreshActiveTab" role="switch" checked></label><label>Retry<input class="settings-input" type="number" min="0" max="5" value="2" data-setting-field="retry"></label></div><div class="row settings-actions"><button class="btn-primary" data-refresh-btn onclick="loadAllData(true)">Refresh Semua</button></div><div class="settings-grid settings-grid--cache"><div class="settings-item"><small>Last Sync</small><strong id="settingsLastRefresh">-</strong></div><div class="settings-item"><small>Source</small><strong>Google Sheet</strong></div><div class="settings-item"><small>Rows</small><strong id="settingsTotalRows">0 row</strong></div><div class="settings-item"><small>Duration</small><strong>&lt; 1s cached</strong></div></div><div class="settings-status"><span id="settingsSystemDot" class="status-dot loading"></span><span>Status:</span><strong id="settingsSystemStatus">Loading</strong></div></article></div>
+          <div class="settings-section" id="settings-cache" data-section="cache" data-title="Cache & Performa"><div class="settings-section-title"><h4>Cache & Performa</h4><span>Monitoring cache lokal</span></div><article class="card settings-card"><div class="settings-grid settings-grid--cache"><div class="settings-item"><small>Cache Size</small><strong id="settingsCacheSize">-</strong></div><div class="settings-item"><small>Cache TTL</small><strong>5 menit</strong></div><div class="settings-item"><small>Cache Storage</small><strong id="settingsCacheStatus">-</strong></div><div class="settings-item"><small>Cache Hit</small><strong>Aktif</strong></div><div class="settings-item"><small>Cache Miss</small><strong>On refresh</strong></div><div class="settings-item"><small>Waktu cache</small><strong id="settingsCacheTime">-</strong></div></div><div id="settingsPerfRecommendation" class="settings-recommendation">Cache sehat.</div><div class="row settings-actions"><button class="btn-ghost" onclick="clearSystemCache()">Clear Cache</button><button class="btn-ghost" data-settings-clear-module>Clear Module</button></div></article></div>
+          <div class="settings-section" id="settings-permission" data-section="permission" data-title="Hak Akses"><div class="settings-section-title"><h4>Hak Akses</h4><span>Readonly sesuai role user</span></div><article class="card settings-card" id="settingsPermissionCard"></article></div>
+          <div class="settings-section" id="settings-appearance" data-section="appearance" data-title="Tampilan"><div class="settings-section-title"><h4>Tampilan</h4><span>Preview langsung</span></div><article class="card settings-card"><div class="settings-form-grid"><label>Theme<select class="settings-input" data-setting-field="theme"><option value="dark">Dark</option><option value="light">Light</option></select></label><label>Density<select class="settings-input" data-setting-field="density"><option>Comfortable</option><option>Compact</option></select></label><label>Sidebar<select class="settings-input" data-setting-field="sidebar"><option>Expanded</option><option>Collapsed</option></select></label><label class="settings-switch-row">Sticky Header<input type="checkbox" data-setting-field="stickyHeader" checked></label><label class="settings-switch-row">Animation<input type="checkbox" data-setting-field="animation" checked></label><label>Rows Per Page<input class="settings-input" type="number" min="10" max="200" value="50" data-setting-field="rowsPerPage"></label></div><div class="settings-preview">Preview card • table • button</div></article></div>
+          <div class="settings-section" id="settings-notification" data-section="notification" data-title="Notifikasi"><div class="settings-section-title"><h4>Notifikasi</h4><span>Kontrol toast dan error</span></div><article class="card settings-card"><div class="settings-form-grid"><label class="settings-switch-row">Toast<input type="checkbox" data-setting-field="notifToast" checked></label><label class="settings-switch-row">Google Sheet Error<input type="checkbox" data-setting-field="notifGoogleSheetError" checked></label><label class="settings-switch-row">Quota<input type="checkbox" data-setting-field="notifQuota" checked></label><label class="settings-switch-row">Sync<input type="checkbox" data-setting-field="notifSync" checked></label><label class="settings-switch-row">Permission<input type="checkbox" data-setting-field="notifPermission" checked></label><label class="settings-switch-row">Duration<input type="checkbox" data-setting-field="notifDuration" checked></label></div></article></div>
+          <div class="settings-section" id="settings-developer" data-section="developer" data-title="Developer Tools"><div class="settings-section-title"><h4>Developer Tools</h4><span>Hanya developer</span></div><article class="card settings-card" id="settingsDeveloperCard"></article></div>
+          <div class="settings-section" id="settings-backup" data-section="backup" data-title="Backup & Restore"><div class="settings-section-title"><h4>Backup & Restore</h4><span>Preview sebelum restore</span></div><article class="card settings-card"><div class="settings-backup-actions"><button class="btn-ghost" data-settings-export>Export Config</button><button class="btn-ghost" data-settings-import>Import Config</button><button class="btn-ghost" data-settings-restore>Restore</button><button class="btn-ghost" data-settings-reset>Reset</button></div><pre id="settingsBackupPreview" class="settings-preview">Preview konfigurasi akan tampil di sini.</pre></article></div>
+        </div>
       </div>
+      <footer class="settings-footer"><div class="settings-legacy hidden"><span id="settingsApiState">-</span><span id="loadedState">-</span><span id="countPerSheet">-</span><code id="spreadsheetInfo"></code><span id="sheetInfo"></span></div><button class="btn-ghost" id="settingsDiscardBtn" type="button">Buang</button><button class="btn-primary" id="settingsSaveBtn" type="button">Simpan</button></footer>
     </section>
     </div>
   </main>
