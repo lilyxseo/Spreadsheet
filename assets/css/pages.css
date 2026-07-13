@@ -982,6 +982,13 @@ body.dark .app-icon {
 }
 #page-movement .table-wrap tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--panel) 88%, var(--bg) 12%)}
 #page-movement .cc-session-wrap input{min-width:120px}
+#page-movement .cc-session-wrap .mv-compact-input{
+  width:10ch;
+  min-width:8ch;
+  max-width:12ch;
+}
+#page-movement .cc-session-wrap .mv-to-input{width:9ch}
+#page-movement .cc-session-wrap .mv-stock-input{width:8ch}
 #page-movement .mv-history-section{margin-top:24px}
 @media (max-width:760px){
   #page-movement{padding:16px}
