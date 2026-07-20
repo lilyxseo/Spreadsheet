@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {detectMissingOutbound,detectMissingInbound,detectPossibleMinus,detectDuplicateTransactions,detectSkuInconsistency,normalizeLocation,detectStatusMismatch,detectMovement,detectCycleCount,detectSyncDelay,detectInvalidQuantity,mergeWarnings} from '../assets/js/warning-engine.mjs';
+const stock=[{SKU:'GN-1',Lokasi:'A',PENGELUARAN:10,PEMASUKAN:20,'STOK AKHIR':3}];
+assert.equal(detectMissingOutbound({stock,outbound:[{SKU:'GN-1',Lokasi:'A',QTY:15,Status:'Final'}]})[0].impact,-5);
+assert.equal(detectMissingInbound({stock,inbound:[{SKU:'GN-1',Lokasi:'A',QTY:12,Status:'Final'}]})[0].impact,8);
+assert.equal(detectPossibleMinus({stock,inbound:[],outbound:[{SKU:'GN-1',Lokasi:'A',QTY:5,Status:'Pending'}],sourcesLoaded:{inbound:true,outbound:true}})[0].impact,-2);
+const dup={Tanggal:'2026-07-18',SKU:'GN-1',Lokasi:'A',QTY:2,'No iSeller':'IS-1'};
+assert.equal(detectDuplicateTransactions({Keluar:[dup,{...dup} ]})[0].title,'Duplikat pasti');
+assert.equal(detectSkuInconsistency({a:[{SKU:'GN-210047'},{SKU:'GN 210047'}]})[0].type,'sku_inconsistency');
+assert.equal(normalizeLocation('RUANG%20TR%202'),'ruang tr 2');
+assert.equal(detectStatusMismatch({Balikan:[{SKU:'A',Status:'Sesuai','Qty Kirim':5,'Qty Diterima':4}]})[0].type,'status_mismatch');
+assert.equal(detectMovement({movement:[{SKU:'A',From:'X',To:'Y',QTY:2,Status:'Selesai'}],stock:[]})[0].type,'movement_not_reflected');
+assert.equal(detectCycleCount({cycleCount:[{SKU:'A',Lokasi:'X',STOK:5,Aktual:3}],stock:[]})[0].impact,-2);
+assert.match(detectSyncDelay({KartuStok:'2026-07-20T10:00:00Z',BarangKeluar:'2026-07-20T10:18:00Z'})[0].description,/Analisis|lebih baru/);
+assert.equal(detectInvalidQuantity({Masuk:[{SKU:'A',QTY:''},{SKU:'B',QTY:'teks'}]}).length,2);
+const a={id:'old',type:'x',sku:'A',location:'X',period:'',source:'S',riskScore:10,evidence:['a'],relatedRows:[],detectedAt:'x'};
+assert.equal(mergeWarnings([a],[{...a,id:'new',riskScore:20,evidence:['b']}]).length,1);
+console.log('12 warning engine test cases passed');
