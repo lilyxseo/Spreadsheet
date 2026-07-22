@@ -1409,8 +1409,14 @@ body.dark #page-balikan-store .balikan-row-highlight-fading .col-check{
   align-items:center;
 }
 #page-balikan-store .balikan-controls select{min-width:170px}
-#page-balikan-store .balikan-search-row{display:flex;gap:8px;align-items:center;width:100%}
-#page-balikan-store .balikan-search-row input{flex:1 1 auto;min-width:220px}
+#page-balikan-store .balikan-search-row{display:flex;gap:8px;align-items:center;width:100%;flex-wrap:wrap}
+#page-balikan-store .balikan-search-row input{flex:1 1 280px;min-width:220px}
+#page-balikan-store .balikan-sku-stepper{display:flex;gap:4px;align-items:center;flex:0 0 auto}
+#page-balikan-store .balikan-sku-stepper button{height:42px;min-width:42px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--panel) 92%,var(--muted) 8%);color:var(--text);font-size:12px;font-weight:700;line-height:1;cursor:pointer}
+#page-balikan-store .balikan-sku-stepper button:hover:not(:disabled),#page-balikan-store .balikan-sku-stepper button:focus-visible{border-color:color-mix(in srgb,var(--muted) 60%,var(--line));background:color-mix(in srgb,var(--panel) 82%,var(--muted) 18%);outline:none}
+#page-balikan-store .balikan-sku-stepper button:disabled{opacity:.38;cursor:not-allowed}
+body.dark #page-balikan-store .balikan-sku-stepper button{background:color-mix(in srgb,var(--panel) 88%,#64748b 12%);color:#cbd5e1}
+@media (max-width:640px){#page-balikan-store .balikan-sku-stepper{order:2;flex-wrap:wrap}#page-balikan-store #btnScanBalikan{order:3}}
 #page-balikan-store .balikan-filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
 
 #page-balikan-store .balikan-search-history{width:100%;display:block;margin-top:-2px}
