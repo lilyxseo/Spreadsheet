@@ -1278,8 +1278,9 @@ body.dark #page-balikan-store .balikan-progress-percent{
   border-radius:16px;
 }
 #page-balikan-store .balikan-table{
-  width:100%;
-  min-width:1100px;
+  table-layout:fixed;
+  width:max-content;
+  min-width:100%;
   border-collapse:separate;
   border-spacing:0;
   background:var(--card-bg);
@@ -1499,9 +1500,31 @@ body.dark #page-balikan-store .balikan-row-selected-sku td{
 body.dark #page-balikan-store .balikan-row-selected-sku .col-check{
   background:color-mix(in srgb, #38bdf8 18%, var(--card-bg)) !important;
 }
-#page-balikan-store .editable-cell{cursor:pointer}
+#page-balikan-store .editable-cell{
+  position:relative;
+  min-width:var(--column-width, 120px);
+  width:var(--column-width, 120px);
+  cursor:pointer;
+}
 #page-balikan-store .editable-cell:hover{background:var(--hover-bg)}
-#page-balikan-store .inline-edit-input{width:100%;min-width:90px;padding:6px 8px;border:1px solid var(--accent-color);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font-size:13px}
+#page-balikan-store .editable-cell input,
+#page-balikan-store .editable-cell textarea,
+#page-balikan-store .inline-editor{
+  display:block;
+  width:100%;
+  min-width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+}
+#page-balikan-store .inline-edit-input{padding:6px 8px;border:1px solid var(--accent-color);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font:inherit}
+#page-balikan-store .column-keterangan{--column-width:220px;min-width:180px;width:220px;white-space:normal;overflow-wrap:anywhere}
+#page-balikan-store .column-keterangan .inline-editor{min-height:42px;resize:vertical;white-space:normal;overflow-wrap:anywhere}
+#page-balikan-store .column-lokasi,
+#page-balikan-store .column-rak-tujuan,
+#page-balikan-store .column-invent{--column-width:180px;min-width:180px;width:180px;white-space:normal;overflow-wrap:anywhere}
+#page-balikan-store .column-lokasi .inline-editor,
+#page-balikan-store .column-rak-tujuan .inline-editor,
+#page-balikan-store .column-invent .inline-editor{min-height:42px;resize:vertical;white-space:normal;overflow-wrap:anywhere}
 #page-balikan-store .editable-cell[data-save-state="queued"],#page-balikan-store .editable-cell[data-save-state="saving"]{background:color-mix(in srgb, #f59e0b 14%, transparent)}
 #page-balikan-store .editable-cell[data-save-state="error"]{background:color-mix(in srgb, var(--danger-color,#ef4444) 16%, transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--danger-color,#ef4444) 36%, transparent)}
 #page-balikan-store .balikan-save-badge{display:inline-flex;margin-left:6px;padding:2px 6px;border-radius:999px;background:color-mix(in srgb, #f59e0b 18%, transparent);color:#b45309;font-size:10px;font-weight:700;vertical-align:middle}
@@ -1537,9 +1560,14 @@ body.dark #page-balikan-store .balikan-row-highlight-fading{
     max-height:calc(100vh - 340px);
   }
   #page-balikan-store .balikan-table{
-    min-width:1000px;
+    width:max-content;
+    min-width:100%;
     font-size:12px;
   }
+  #page-balikan-store .column-keterangan{--column-width:200px;min-width:180px;width:200px}
+  #page-balikan-store .column-lokasi,
+  #page-balikan-store .column-rak-tujuan,
+  #page-balikan-store .column-invent{--column-width:180px;min-width:160px;width:180px}
   #page-balikan-store .balikan-table td{height:40px}
   #page-balikan-store .balikan-check{
     width:18px !important;
