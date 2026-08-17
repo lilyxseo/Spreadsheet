@@ -1,7 +1,7 @@
-import { json, token, SHEET_BARANG_KELUAR, BARANG_COLUMNS, mapBarangSheetValues } from '../_barang-ops.js';
+import { json, token, SHEET_BARANG_KELUAR } from '../_barang-ops.js';
 
 const START_ROW = 2;
-const RANGE = `${SHEET_BARANG_KELUAR}!A${START_ROW}:I20000`;
+const RANGE = `${SHEET_BARANG_KELUAR}!A1:ZZ20000`;
 
 function limitRows(rows, request) {
   const url = new URL(request.url);
@@ -22,8 +22,19 @@ export async function onRequestGet({ request, env }) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return json({ success: false, message: data?.error?.message || 'Gagal membaca sheet Barang KeIuar', detail: data }, res.status);
     const values = Array.isArray(data?.values) ? data.values : [];
-    const rows = limitRows(mapBarangSheetValues(values, START_ROW), request);
-    return json({ success: true, spreadsheetId, sheetName: SHEET_BARANG_KELUAR, columns: BARANG_COLUMNS, startRow: START_ROW, data: rows, rows, values: rows.map(row => BARANG_COLUMNS.map(key => row[key] ?? '')) });
+    const header = Array.isArray(values[0]) ? values[0] : [];
+    const columns = header.map((h, i) => String(h ?? '').trim() || `Column ${i + 1}`);
+    const rowsRaw = values.slice(1);
+    const mapped = rowsRaw
+      .map((row, index) => ({ row: Array.isArray(row) ? row : [], rowNumber: START_ROW + index }))
+      .filter(({ row }) => row.some(cell => String(cell ?? '').trim()))
+      .map(({ row, rowNumber }) => {
+        const item = { rowNumber };
+        columns.forEach((col, colIndex) => { item[col] = row[colIndex] ?? ''; });
+        return item;
+      });
+    const rows = limitRows(mapped, request);
+    return json({ success: true, spreadsheetId, sheetName: SHEET_BARANG_KELUAR, columns, startRow: START_ROW, data: rows, rows, values: rows.map(row => columns.map(key => row[key] ?? '')) });
   } catch (err) {
     return json({ success: false, message: err?.message || 'Internal server error' }, 500);
   }
