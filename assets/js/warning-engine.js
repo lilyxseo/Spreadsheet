@@ -1,0 +1,39 @@
+const CANCELLED = new Set(["cancel", "cancelled", "batal", "ditolak", "draft", "pending", "open"]);
+const INVISIBLE = /[\u00a0\u200b-\u200d\ufeff]/;
+
+export const normalizeText = value => String(value ?? "").replace(/%20/gi, " ").replace(/[–—−]/g, "-").replace(/\s+/g, " ").trim().toUpperCase();
+export const field = (row, names) => {
+  const wanted = new Set(names.map(normalizeText));
+  const key = Object.keys(row || {}).find(k => wanted.has(normalizeText(k)));
+  return key === undefined ? "" : row[key];
+};
+export function strictNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const raw = String(value ?? "").trim();
+  if (!/^-?\d+(?:[.,]\d+)?$/.test(raw) || /#(?:VALUE|REF|N\/A|DIV\/0)!/i.test(raw)) return null;
+  if (/^-?\d{1,3},\d{3}$/.test(raw)) return Number(raw.replace(",", ""));
+  return Number(raw.replace(",", "."));
+}
+const keyOf = (sku, location) => `${normalizeText(sku)}|${normalizeText(location)}`;
+const pause = () => new Promise(resolve => setTimeout(resolve, 0));
+const distance = (a, b) => { const x=normalizeText(a),y=normalizeText(b); let prev=[...Array(y.length+1).keys()]; for(let i=1;i<=x.length;i++){const cur=[i];for(let j=1;j<=y.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(x[i-1]===y[j-1]?0:1));prev=cur;}return prev[y.length]; };
+const warning = (type, severity, row, extra={}) => ({type,severity,sku:String(field(row,["sku"])||"-"),nama:String(field(row,["nama barang","nama","item","description"])||"-"),location:String(field(row,["lokasi","from"])||"-"),source:extra.source||"-",count:1,qty:extra.qty||0,...extra});
+function merge(rows){const map=new Map();for(const row of rows){const fp=`${row.type}|${normalizeText(row.sku)}|${normalizeText(row.location)}|${row.source}`;const old=map.get(fp);if(old){old.count+=row.count;old.qty+=(row.qty||0);old.rowNumbers.push(...(row.rowNumbers||[]));}else map.set(fp,{...row,rowNumbers:[...(row.rowNumbers||[])]});}return [...map.values()];}
+
+export async function analyzeWarnings({kartu=[],keluar=[],masuk=[],fresh=true,batchSize=750,onProgress=()=>{}}={}) {
+  const indexes={skuMasterMap:new Map(),skuNameMap:new Map(),validLocationSet:new Set(),stockBySkuLocation:new Map(),outboundBySkuLocation:new Map(),transactionReferenceMap:new Map()};
+  const found=[]; const nameCounts=new Map();
+  for(let i=0;i<kartu.length;i+=batchSize){for(const row of kartu.slice(i,i+batchSize)){const sku=normalizeText(field(row,["sku"])),name=normalizeText(field(row,["nama barang","nama"])),loc=normalizeText(field(row,["lokasi","location"]));if(loc)indexes.validLocationSet.add(loc);if(sku&&name){const names=nameCounts.get(sku)||new Map();names.set(name,(names.get(name)||0)+1);nameCounts.set(sku,names);}const key=keyOf(sku,loc);indexes.stockBySkuLocation.set(key,(indexes.stockBySkuLocation.get(key)||0)+(strictNumber(field(row,["stok akhir","saldo akhir","stock"]))||0));}onProgress({phase:"index",done:Math.min(i+batchSize,kartu.length),total:kartu.length});await pause();}
+  for(const [sku,names] of nameCounts){const master=[...names].sort((a,b)=>b[1]-a[1])[0]?.[0];indexes.skuMasterMap.set(sku,master);for(const name of names.keys()){const skus=indexes.skuNameMap.get(name)||new Set();skus.add(sku);indexes.skuNameMap.set(name,skus);}}
+  const sources=["Barang Masuk",masuk,"Barang Keluar",keluar];
+  for(let s=0;s<sources.length;s+=2){const source=sources[s],list=sources[s+1];for(let i=0;i<list.length;i+=batchSize){for(const row of list.slice(i,i+batchSize)){const sku=normalizeText(field(row,["sku"])),name=normalizeText(field(row,["nama barang","nama"])),rawLoc=String(field(row,[source==="Barang Keluar"?"from":"to","lokasi"])||""),loc=normalizeText(rawLoc),qtyRaw=field(row,["qty","jumlah"]),qty=strictNumber(qtyRaw),status=normalizeText(field(row,["status"])).toLowerCase();
+      if(!sku||!loc||qty===null||INVISIBLE.test(String(field(row,["sku"])||""))||INVISIBLE.test(rawLoc))found.push(warning("input","Critical",row,{source,issue:qty===null?"Input terdeteksi tersimpan, tetapi tidak terbaca sebagai angka.":"Input wajib kosong atau mengandung karakter tidak terlihat.",impact:"Stok mungkin tidak berubah",suggestion:"Periksa SKU, lokasi, dan format QTY.",rowNumbers:[field(row,["rownumber","row number"])]}));
+      const master=indexes.skuMasterMap.get(sku);if(master&&name&&master!==name)found.push(warning("name","Warning",row,{source,issue:"Nama barang tidak sesuai dengan SKU yang biasa digunakan.",impact:distance(master,name)>4?"Confidence tinggi":"Confidence sedang",suggestion:`Nama referensi: ${master}`,expected:master}));
+      if(rawLoc&&((/%20/i.test(rawLoc))||/\s{2,}/.test(rawLoc)||!indexes.validLocationSet.has(loc))){const nearest=[...indexes.validLocationSet].map(x=>[x,distance(loc,x)]).filter(x=>x[1]<=2).sort((a,b)=>a[1]-b[1]).slice(0,3).map(x=>x[0]);found.push(warning("location","Warning",row,{source,location:rawLoc,issue:"Kemungkinan salah lokasi.",impact:"Lokasi transaksi tidak cocok",suggestion:nearest.length?`Apakah yang dimaksud ${nearest.join(", ")}?`:"Periksa daftar lokasi resmi.",expected:nearest}));}
+      if(source==="Barang Keluar"&&!CANCELLED.has(status)&&qty!==null){const key=keyOf(sku,loc);indexes.outboundBySkuLocation.set(key,(indexes.outboundBySkuLocation.get(key)||0)+qty);const ref=normalizeText(field(row,["no iseller","iseller","netsuite","no netsuite","reference","referensi"]));if(ref){const signature=`${ref}|${key}|${qty}|${normalizeText(field(row,["to"]))}|${normalizeText(field(row,["tanggal","date"]))}`;if(indexes.transactionReferenceMap.has(signature))found.push(warning("duplicate","Critical",row,{source,issue:"Duplikat transaksi pasti dengan ID referensi sama.",impact:`QTY ${qty} berpotensi dihitung ganda`,suggestion:"Periksa transaksi sumber sebelum menghapus."}));else indexes.transactionReferenceMap.set(signature,row);}}
+    }onProgress({phase:"basic",done:Math.min(i+batchSize,list.length),total:list.length});await pause();}}
+  if(!fresh){found.push({type:"sync",severity:"Info",sku:"-",nama:"-",location:"-",source:"Global",count:1,qty:0,issue:"Analisis sementara karena data Kartu Stok dan Barang Keluar belum sinkron.",impact:"Pemeriksaan operasional ditunda",suggestion:"Tunggu sinkronisasi selesai lalu refresh.",rowNumbers:[]});return {rows:merge(found.filter(x=>["input","name","location","sync"].includes(x.type))),indexes};}
+  for(const [key,outQty] of indexes.outboundBySkuLocation){const [sku,location]=key.split("|");const stock=indexes.stockBySkuLocation.get(key)||0;if(outQty>stock)found.push({type:"stock-minus",severity:"Critical",sku,nama:indexes.skuMasterMap.get(sku)||"-",location,source:"Barang Keluar",count:1,qty:outQty,issue:`Barang keluar ${outQty} pcs, tetapi stok tersedia hanya ${stock} pcs.`,impact:`Kekurangan ${outQty-stock} pcs`,suggestion:"Periksa stok dan transaksi masuk tertunda.",rowNumbers:[]});}
+  const issued=new Map();for(const row of kartu){const key=keyOf(field(row,["sku"]),field(row,["lokasi"]));issued.set(key,(issued.get(key)||0)+(strictNumber(field(row,["pengeluaran","qty keluar"]))||0));}for(const key of new Set([...issued.keys(),...indexes.outboundBySkuLocation.keys()])){const a=issued.get(key)||0,b=indexes.outboundBySkuLocation.get(key)||0,diff=a-b;if(diff){const [sku,location]=key.split("|");found.push({type:"balance",severity:"Warning",sku,nama:indexes.skuMasterMap.get(sku)||"-",location,source:"Kartu Stock/Barang Keluar",count:1,qty:Math.abs(diff),difference:diff,issue:diff>0?`Pengeluaran Kartu Stok lebih besar ${diff} pcs.`:`Barang Keluar lebih besar ${Math.abs(diff)} pcs dibanding Pengeluaran Kartu Stok.`,impact:`Selisih ${diff} pcs · Perbandingan kumulatif`,suggestion:"Audit transaksi final untuk SKU dan lokasi ini.",rowNumbers:[]});}}
+  onProgress({phase:"done",done:1,total:1});return {rows:merge(found),indexes};
+}
