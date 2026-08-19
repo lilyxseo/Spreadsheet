@@ -175,6 +175,34 @@
     </div>
   </section>
 </main>
+<div id="signupAccessModal" class="signup-access-modal" hidden>
+  <div class="signup-access-backdrop" data-signup-access-close></div>
+  <section class="signup-access-card" role="dialog" aria-modal="true" aria-labelledby="signupAccessTitle" aria-describedby="signupAccessDescription">
+    <button class="signup-access-close" type="button" data-signup-access-close aria-label="Tutup modal">
+      <i data-lucide="x" aria-hidden="true"></i>
+    </button>
+    <div class="signup-access-icon" aria-hidden="true"><i data-lucide="shield-check"></i></div>
+    <h2 id="signupAccessTitle">Akses Pendaftaran</h2>
+    <p id="signupAccessDescription">Masukkan password akses untuk membuka halaman daftar.</p>
+    <form id="signupAccessForm" novalidate>
+      <p id="signupAccessError" class="form-error" role="alert" aria-live="polite" hidden>
+        <i data-lucide="alert-circle" aria-hidden="true"></i>
+        <span></span>
+      </p>
+      <div class="form-field">
+        <label for="signupAccessPassword">Password akses</label>
+        <div class="input-wrap">
+          <i data-lucide="key-round" class="input-icon" aria-hidden="true"></i>
+          <input id="signupAccessPassword" class="form-input" type="password" autocomplete="off" required placeholder="Masukkan password akses" />
+        </div>
+      </div>
+      <div class="signup-access-actions">
+        <button class="btn-ghost" type="button" data-signup-access-close>Batal</button>
+        <button class="btn-primary" type="submit">Lanjutkan</button>
+      </div>
+    </form>
+  </section>
+</div>
 <div class="app" id="appRoot" hidden>
   <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Toggle sidebar" title="Toggle sidebar">☰</button>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
