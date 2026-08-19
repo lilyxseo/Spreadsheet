@@ -418,6 +418,8 @@ textarea{resize:vertical;min-height:96px}
   position:relative;
   transition: background-color .2s ease,border-color .2s ease,color .2s ease;
 }
+.side-link.nav-item.apk-download-link{text-decoration:none}
+.side-link.nav-item .android-icon{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
 .side-link.nav-item i{width:18px;height:18px;flex-shrink:0;opacity:.9}
 .side-link.nav-item span{font-size:14px;font-weight:500;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .side-link.nav-item:hover{color:#991b1b;background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.12);box-shadow:none;transform:none !important}
