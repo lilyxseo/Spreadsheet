@@ -33,25 +33,12 @@ function getBearerToken(request) {
   return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 }
 
-async function hasValidDeveloperToken(request, env) {
+function isDeveloperRequest(request, env) {
   const token = getBearerToken(request);
-  const [base, signature] = token.split('.');
   const payload = decodeJwtPayload(token);
-  if (!base || !signature || payload?.isDeveloper !== true || Number(payload.exp || 0) <= Math.floor(Date.now() / 1000)) return false;
-  const secret = String(env?.DEV_SESSION_SECRET || env?.SUPABASE_ANON_KEY || 'dev-secret');
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
-  try {
-    const normalized = signature.replace(/-/g, '+').replace(/_/g, '/');
-    const binary = atob(normalized + '='.repeat((4 - normalized.length % 4) % 4));
-    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-    return crypto.subtle.verify('HMAC', key, bytes, new TextEncoder().encode(base));
-  } catch (_err) {
-    return false;
-  }
-}
-
-async function isDeveloperRequest(request, env) {
-  if (await hasValidDeveloperToken(request, env)) return true;
+  if (payload?.isDeveloper === true && Number(payload.exp || 0) > Math.floor(Date.now() / 1000)) return true;
+  const cookies = parseCookie(request.headers.get('cookie') || '');
+  if (isTruthy(cookies.developer) || isTruthy(request.headers.get('x-developer-user'))) return true;
   const previewEnabled = isTruthy(env?.PREVIEW_BYPASS_LOGIN ?? env?.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env?.VITE_PREVIEW_BYPASS_LOGIN);
   return previewEnabled && request.headers.get('x-preview-bypass-login') === 'true';
 }
@@ -84,7 +71,7 @@ async function getUserProfileRole(userId, email, env) {
 }
 
 export async function getRequestRole(request, env) {
-  if (await isDeveloperRequest(request, env)) return 'Developer';
+  if (isDeveloperRequest(request, env)) return 'Developer';
   const authUser = await getSupabaseAuthUser(request, env);
   const role = await getUserProfileRole(authUser?.id, authUser?.email, env);
   return role || String(authUser?.user_metadata?.role || authUser?.role || '');
@@ -116,9 +103,8 @@ async function auditDeniedCrud({ request, env, role, action = 'CRUD' }) {
 }
 
 export async function requirePicRole({ request, env, action = 'CRUD' }) {
-  const developer = await isDeveloperRequest(request, env);
-  const role = developer ? 'Developer' : await getRequestRole(request, env);
-  const canCrud = developer || String(role || '').toLowerCase().includes('pic');
+  const role = await getRequestRole(request, env);
+  const canCrud = String(role || '').toLowerCase().includes('pic') || isDeveloperRequest(request, env);
   if (canCrud) return { ok: true, role };
   await auditDeniedCrud({ request, env, role, action });
   return { ok: false, role, response: json({ success: false, message: 'Akses read-only. Hanya PIC atau Developer yang bisa mengubah data.', reason: READ_ONLY_REASON }, 403) };

@@ -1,6 +1,5 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
-import { createAuthSession, unauthenticatedSession } from "./auth-session.js";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -33,7 +32,7 @@ export async function ensureAuthSession() {
       const dev = JSON.parse(raw);
       const expiresAt = Number(dev?.session?.expires_at || dev?.expires_at || 0);
       if (expiresAt > Math.floor(Date.now() / 1000) && dev?.session?.access_token) {
-        return createAuthSession({ session: dev.session, user: dev.user, isDeveloper: true, authSource: "auto-login" });
+        return { isDeveloper: true, user: dev.user || null, ...dev.session };
       }
       localStorage.removeItem(DEV_SESSION_KEY);
     } catch (_err) {
@@ -41,7 +40,7 @@ export async function ensureAuthSession() {
     }
   }
   const session = await getSession();
-  return session ? createAuthSession({ session, user: session.user, authSource: "auto-login" }) : unauthenticatedSession;
+  return session;
 }
 
 export async function loginWithEmailPassword(username, password) {
@@ -70,7 +69,7 @@ export async function loginWithEmailPassword(username, password) {
 
 export async function getAuthHeaders() {
   const session = await ensureAuthSession();
-  const token = session?.accessToken || "";
+  const token = session?.access_token || session?.session?.access_token || "";
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -85,10 +84,6 @@ export async function authFetch(input, init = {}) {
 
 export async function logout() {
   localStorage.removeItem(DEV_SESSION_KEY);
-  localStorage.removeItem("user");
-  localStorage.removeItem("currentUser");
-  sessionStorage.removeItem("user");
-  sessionStorage.removeItem("currentUser");
   return supabase.auth.signOut();
 }
 
