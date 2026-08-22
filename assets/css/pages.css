@@ -1455,6 +1455,30 @@ body.dark #page-balikan-store .balikan-row-highlight-fading .col-check{
   align-items:center;
 }
 #page-balikan-store .balikan-controls select{min-width:170px}
+#page-balikan-store .balikan-sheet-select{position:relative;width:min(100%,360px);min-width:0;flex:0 1 360px}
+#page-balikan-store .balikan-sheet-native{position:absolute!important;width:1px!important;height:1px!important;min-width:0!important;opacity:0;pointer-events:none}
+#page-balikan-store .balikan-sheet-trigger{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-width:0;height:46px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:inherit;font-weight:650;cursor:pointer;text-align:left}
+#page-balikan-store .balikan-sheet-trigger:hover:not(:disabled),#page-balikan-store .balikan-sheet-trigger[aria-expanded="true"]{border-color:color-mix(in srgb,var(--primary) 55%,var(--line));background:color-mix(in srgb,var(--panel) 94%,var(--primary) 6%)}
+#page-balikan-store .balikan-sheet-trigger:focus-visible{outline:2px solid color-mix(in srgb,var(--primary) 45%,transparent);outline-offset:2px}
+#page-balikan-store .balikan-sheet-trigger:disabled{opacity:.65;cursor:wait}
+#page-balikan-store .balikan-sheet-trigger-label{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-balikan-store .balikan-sheet-chevron{flex:0 0 auto;color:var(--muted);font-size:18px;transition:transform .18s ease}
+#page-balikan-store .balikan-sheet-trigger[aria-expanded="true"] .balikan-sheet-chevron{transform:rotate(180deg)}
+#page-balikan-store .balikan-sheet-menu{position:fixed;z-index:9999;max-height:min(320px,calc(100vh - 24px));overflow:hidden;border:1px solid var(--line);border-radius:11px;background:var(--panel);color:var(--text);box-shadow:0 16px 38px rgba(15,23,42,.22)}
+#page-balikan-store .balikan-sheet-search-wrap{padding:8px;border-bottom:1px solid var(--line);background:var(--panel)}
+#page-balikan-store .balikan-sheet-search{box-sizing:border-box;width:100%;min-width:0;height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--panel) 92%,var(--muted) 8%);color:var(--text);font:inherit;outline:none}
+#page-balikan-store .balikan-sheet-search:focus{border-color:var(--primary)}
+#page-balikan-store .balikan-sheet-options{max-height:260px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--muted) 45%,transparent) transparent}
+#page-balikan-store .balikan-sheet-option{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;min-height:46px;padding:7px 11px;border:0;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+#page-balikan-store .balikan-sheet-option:hover,#page-balikan-store .balikan-sheet-option:focus-visible{outline:none;background:color-mix(in srgb,var(--panel) 82%,var(--primary) 18%)}
+#page-balikan-store .balikan-sheet-option.is-selected{background:color-mix(in srgb,var(--panel) 80%,#ef4444 20%);color:var(--text)}
+#page-balikan-store .balikan-sheet-option-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}
+#page-balikan-store .balikan-sheet-option small{flex:0 0 auto;color:var(--muted);font-size:11px}
+#page-balikan-store .balikan-sheet-empty{padding:18px 12px;color:var(--muted);font-size:12px;font-weight:700;text-align:center}
+#page-balikan-store .balikan-sheet-status{min-height:16px;margin:3px 2px 0;color:var(--muted);font-size:11px}
+#page-balikan-store .balikan-sheet-status button{padding:0;border:0;background:none;color:var(--primary);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
+body.dark #page-balikan-store .balikan-sheet-menu{box-shadow:0 18px 42px rgba(0,0,0,.48)}
+@media (max-width:640px){#page-balikan-store .balikan-sheet-select{width:100%;max-width:none;flex-basis:100%}#page-balikan-store .balikan-sheet-menu{max-width:calc(100vw - 16px)}#page-balikan-store .balikan-sheet-options{max-height:240px}}
 #page-balikan-store .balikan-search-row{display:flex;gap:8px;align-items:center;width:100%;flex-wrap:wrap}
 #page-balikan-store .balikan-search-row input{flex:1 1 280px;min-width:220px}
 #page-balikan-store .balikan-sku-stepper{display:flex;gap:4px;align-items:center;flex:0 0 auto}
