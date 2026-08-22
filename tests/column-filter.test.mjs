@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
+
+const source = fs.readFileSync(new URL('../assets/js/main.js', import.meta.url), 'utf8');
+const helperNames = ['isEmptyFilterValue', 'sanitizeFilterValue', 'getFilterOptionLabel'];
+const helperSource = helperNames.map(name => {
+  const match = source.match(new RegExp(`function ${name}\\([^\\n]+`));
+  assert.ok(match, `${name} must exist`);
+  return match[0];
+}).join('\n');
+const context = { EMPTY_FILTER_VALUE: '__WMS_EMPTY_VALUE__' };
+vm.runInNewContext(`${helperSource}; result={isEmptyFilterValue,sanitizeFilterValue,getFilterOptionLabel}`, context);
+const { isEmptyFilterValue, sanitizeFilterValue, getFilterOptionLabel } = context.result;
+
+test('(Kosong) only represents nullish or whitespace values', () => {
+  for (const value of [null, undefined, '', '   ']) assert.equal(isEmptyFilterValue(value), true);
+  for (const value of [0, '0', false, '-', 'null']) assert.equal(isEmptyFilterValue(value), false);
+  assert.equal(getFilterOptionLabel(sanitizeFilterValue('   ')), '(Kosong)');
+  assert.equal(sanitizeFilterValue(0), '0');
+  assert.equal(sanitizeFilterValue(false), 'false');
+  assert.equal(sanitizeFilterValue('-'), '-');
+});
+
+test('Balikan table derives filters from the complete table schema', () => {
+  const baseMatch = source.match(/const BALIKAN_BASE_COLUMNS=([^;]+);/);
+  assert.ok(baseMatch);
+  const columns = vm.runInNewContext(baseMatch[1]);
+  const keys = columns.map(([key]) => key);
+  for (const key of ['checked','sheetName','no','sku','namaBarang','qty','rakTujuan','lokasi','stokBulky','stokRetail','status','keterangan']) assert.ok(keys.includes(key), `${key} is filterable`);
+  assert.match(source, /getBalikanTableColumns\(\)\.map\(\(\[key,label\]\)=>headerWithFilter/);
+  assert.match(source, /dynamic\.filter/);
+});
+
+test('column filters combine with AND and reset leaves global search untouched', () => {
+  assert.match(source, /getBalikanTableColumns\(\)\.some/);
+  const reset = source.match(/function resetBalikanFilter\(\)[^\n]+/)[0];
+  assert.match(reset, /columnFilters=\{\}/);
+  assert.doesNotMatch(reset, /balikanSearchKeyword|sortBy/);
+});
