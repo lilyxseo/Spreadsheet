@@ -19,7 +19,11 @@ function safeEquals(a, b) {
   return out === 0;
 }
 
-function createDevToken(secret, username) {
+function toBase64Url(value) {
+  return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function createDevToken(secret, username) {
   const payload = {
     sub: "developer",
     username,
@@ -28,8 +32,10 @@ function createDevToken(secret, username) {
     exp: Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS,
   };
 
-  const base = btoa(JSON.stringify(payload));
-  const sig = btoa(`${base}.${secret}`).replace(/=+$/g, "");
+  const base = toBase64Url(JSON.stringify(payload));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(base));
+  const sig = toBase64Url(String.fromCharCode(...new Uint8Array(signed)));
 
   return `${base}.${sig}`;
 }
@@ -68,7 +74,7 @@ export async function onRequestPost({ request, env }) {
             "dev-secret"
         );
 
-        const accessToken = createDevToken(secret, normalizedUsername);
+        const accessToken = await createDevToken(secret, normalizedUsername);
         const expiresAt =
           Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
 

@@ -2,6 +2,7 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase,
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG, SIGNUP_ACCESS_PASSWORD } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity, logActivityResult } from "./activity-log.js";
+import { createAuthSession, resolvePermissions, unauthenticatedSession } from "./auth-session.js";
 const ids=["searchInput","quickResultCard","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locTypeFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","balikanSearchHistory","abcAnalisisApp","importPdfTransferApp","barangRejectApp","rejectPermissionBadge"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
@@ -81,6 +82,7 @@ window.BALIKAN_ROWS=[];
 window.currentTripSheet="";
 window.balikanSearchKeyword="";
 let authChecking=true;
+let authSession=unauthenticatedSession;
 let user=null;
 let devProfile=null;
 let runtimeConfig={previewBypassLogin:false};
@@ -115,21 +117,7 @@ window.currentUser=null;
 syncDeveloperMenuVisibility();
 }
 function isDeveloperUser(){
-  const readJson = (storage, key) => {
-    try { return JSON.parse(storage.getItem(key) || "null"); } catch (_err) { return null; }
-  };
-  const sources = [
-    window.currentUser,
-    window.APP_STATE?.currentUser,
-    getCurrentUser(),
-    readJson(localStorage, "currentUser"),
-    readJson(localStorage, "user"),
-    readJson(sessionStorage, "currentUser"),
-    readJson(sessionStorage, "user"),
-    readJson(localStorage, "dev_auth_session")?.user,
-    readJson(localStorage, "dev_auth_session")?.session
-  ];
-  return sources.some(src => src?.isDeveloper === true) || document.cookie.split(';').some(part => part.trim().toLowerCase() === 'developer=true');
+  return authSession.authenticated===true&&authSession.isDeveloper===true;
 }
 function isDeveloperRoleLike(){
 const current=getCurrentUser()||{};
@@ -185,9 +173,7 @@ function isPicRole(){
   return String(getCurrentUserRole()||"").toLowerCase().includes("pic");
 }
 function canCrud(){
-  const isDeveloper=isDeveloperUser();
-  const isPic=String(getCurrentUserRole()||"").toLowerCase().includes("pic");
-  return isDeveloper||isPic;
+  return resolvePermissions(authSession,{role:getCurrentUserRole()})?.crud===true;
 }
 function canRead(){return true;}
 function canCreate(){return canCrud();}
@@ -553,11 +539,13 @@ queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload aw
 try{
 if(isPreviewBypassLoginEnabled()){
 user={id:'preview-bypass',email:'preview@local'};
+authSession={...unauthenticatedSession,userId:'preview-bypass',username:'developer',displayName:'Developer',role:'Mode Development',isDeveloper:true,authSource:'preview-bypass',authenticated:true,user};
 devProfile={full_name:'Developer',role:'Mode Development',username:'developer',email:'preview@local'};
 }else{
 const session=await ensureAuthSession();
-if(session){
-if(session?.isDeveloper){
+authSession=session;
+if(session?.authenticated){
+if(session.isDeveloper){
 user={id:"developer"};
 devProfile=session.user||null;
 }else{
@@ -585,7 +573,9 @@ console.warn("Profile tidak ditemukan / tidak bisa diakses. Pastikan RLS public.
 }
 renderSidebarProfile(profile,user);
 const loginUserSnapshot=toUserSnapshot(profile,user);
-setCurrentUser({...getCurrentUser(),...loginUserSnapshot});
+authSession={...authSession,role:loginUserSnapshot.role,displayName:loginUserSnapshot.name};
+setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:authSession.isDeveloper});
+if(authSession.isDeveloper)console.info("[AUTH]",{source:authSession.authSource,authenticated:true,developer:true,databaseRole:loginUserSnapshot.role||null,effectivePermission:"CRUD"});
 if(!appInitialized){
 bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;
 }else{
@@ -595,7 +585,7 @@ await initAppData();
 await loadBalikanSheets();
 if(window.lucide)lucide.createIcons();
 });
-window.addEventListener("auth:logout",()=>{stopDevAutoRefresh({log:false});showLoginView();});
+window.addEventListener("auth:logout",()=>{authSession=unauthenticatedSession;stopDevAutoRefresh({log:false});showLoginView();});
 
 function bindLoginView(){
 const form=document.getElementById("loginForm"),emailEl=document.getElementById("email"),passwordEl=document.getElementById("password"),loginBtn=document.getElementById("loginBtn"),errorMsg=document.getElementById("formError"),errorText=errorMsg?.querySelector("span"),togglePasswordBtn=document.getElementById("togglePassword"),signupForm=document.getElementById("signupForm"),signupError=document.getElementById("signupError"),signupErrorText=signupError?.querySelector("span"),signupLink=document.getElementById("signupLink"),loginLink=document.getElementById("loginLink"),googleLoginBtn=document.getElementById("googleLoginBtn"),divider=document.querySelector(".divider"),rememberRow=document.querySelector(".remember-row"),loginLine=document.getElementById("loginLine"),signupBtn=document.getElementById("signupBtn"),signupAccessModal=document.getElementById("signupAccessModal"),signupAccessForm=document.getElementById("signupAccessForm"),signupAccessPassword=document.getElementById("signupAccessPassword"),signupAccessError=document.getElementById("signupAccessError"),signupAccessErrorText=signupAccessError?.querySelector("span");
@@ -618,7 +608,7 @@ signupAccessForm?.addEventListener("submit",(e)=>{e.preventDefault();if(signupAc
 signupAccessModal?.querySelectorAll("[data-signup-access-close]").forEach(el=>el.addEventListener("click",closeSignupAccessModal));
 document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&!signupAccessModal?.hidden)closeSignupAccessModal();});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();signupAccessGranted=false;showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:data?.mode==="dev"||profile?.isDeveloper===true});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let emailOrUsername=loginInput;if(!loginInput.includes("@")){try{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}catch(_err){emailOrUsername=loginInput;}}else{emailOrUsername=await resolveEmailFromLoginInput(loginInput);}const {data,error}=await loginWithEmailPassword(emailOrUsername,passwordEl.value);if(error)throw error;authSession=createAuthSession({session:data.session,user:data.user,isDeveloper:data.mode==="dev",authSource:"manual-login"});if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logActivitySafe({action:"LOGIN_DEVELOPER",module:"Auth",detail:"Login developer berhasil",status:"SUCCESS"});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logActivitySafe({action:"LOGIN_SUCCESS",module:"Auth",detail:"Login user berhasil",status:"SUCCESS"});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);authSession={...authSession,role:loginUserSnapshot.role,displayName:loginUserSnapshot.name};setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:authSession.isDeveloper});if(authSession.isDeveloper)console.info("[AUTH]",{source:authSession.authSource,authenticated:true,developer:true,databaseRole:loginUserSnapshot.role||null,effectivePermission:"CRUD"});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
 await loadBalikanSheets();}}catch(err){showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");if(!signupAccessGranted){showAuthMode("login");openSignupAccessModal();return;}const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim().toLowerCase()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{await ensureSignupIdentityAvailable(email,username);const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);if(signupErr)throw signupErr;const authUserId=authData?.user?.id;if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"Warga KST"};console.log("payload public.users",profilePayload);const {error:profileErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(profileErr){console.log("error save profile",profileErr);const profileMsg=String(profileErr?.message||"").toLowerCase();if(profileErr?.code==="42501"||profileMsg.includes("row-level security")||profileMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw profileErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"Warga KST",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();signupAccessGranted=false;showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
