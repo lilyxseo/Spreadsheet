@@ -291,6 +291,11 @@
 .settings-source-meta em.empty{background:#f1f5f9;color:#334155}
 .settings-source-meta em.error{background:#fee2e2;color:#991b1b}
 .settings-actions{margin-top:12px;gap:8px}
+.settings-download-link{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border:1px solid transparent;border-radius:12px;font-size:13px;font-weight:700;line-height:1;text-decoration:none;transition:background-color .18s ease,box-shadow .18s ease,transform .16s ease}
+.settings-download-link:hover{color:#fff}
+.settings-download-link:active{transform:scale(.985)}
+.settings-download-link:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary-2) 20%,transparent),0 8px 16px rgba(225,29,72,.18)}
+.settings-download-link i{width:16px;height:16px}
 .settings-feature-list{list-style:none;margin:10px 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .settings-feature-list li{display:flex;align-items:center;gap:7px;font-size:13px}
 .settings-feature-list i{width:16px;height:16px;color:#475569}
