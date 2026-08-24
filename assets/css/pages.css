@@ -2124,3 +2124,12 @@ body.dark .loc-status-dense{background:rgba(239,68,68,.16);color:#fca5a5;border-
 .reject-dashboard-lower{display:grid;grid-template-columns:minmax(320px,.95fr) minmax(420px,1.35fr);gap:16px;align-items:stretch}.reject-dashboard-lower .reject-insight-grid--compact{display:block}.reject-dashboard-lower .reject-auto-insight,.reject-dashboard-lower .reject-chart--combined{height:100%;max-width:none}.reject-dashboard-lower .reject-chart-grid--inner{grid-template-columns:repeat(2,minmax(0,1fr))}.reject-card .reject-table-wrap thead th,.reject-table-wrap thead th{background:linear-gradient(180deg,rgba(17,31,52,.98),rgba(13,25,43,.98))!important;color:#9fb3d1!important;border-bottom:1px solid rgba(96,165,250,.18)!important;box-shadow:0 1px 0 rgba(96,165,250,.08)!important}.reject-table-wrap th,.reject-table-wrap td{border-color:rgba(96,165,250,.08)}
 @media (max-width:1180px){.reject-dashboard-lower{grid-template-columns:1fr}.reject-dashboard-lower .reject-chart-grid--inner{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:699px){.reject-dashboard-lower .reject-chart-grid--inner{grid-template-columns:1fr}}
+
+/* Compact, schema-driven column filters for Balikan Store. */
+#page-balikan-store .th-filter-wrap{justify-content:space-between;min-width:0;white-space:nowrap}
+#page-balikan-store .th-filter-btn{min-width:28px;min-height:28px;position:relative;touch-action:manipulation}
+#page-balikan-store .th-filter-btn.active{background:color-mix(in srgb,var(--primary) 16%,var(--panel-soft));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 28%,transparent)}
+.th-filter-active-dot{width:5px;height:5px;border-radius:50%;background:currentColor;position:absolute;right:3px;top:3px}
+.th-filter-contains{width:100%;margin-bottom:7px;font-size:12px;padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+#page-balikan-store .th-filter-options label{min-height:30px;padding:3px 2px;overflow-wrap:anywhere}
+@media (max-width:640px){#page-balikan-store .th-filter-dropdown{width:min(260px,calc(100vw - 16px));max-height:min(70vh,360px)}#page-balikan-store .th-filter-btn{min-width:32px;min-height:32px}}
