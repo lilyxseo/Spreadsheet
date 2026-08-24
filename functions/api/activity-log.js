@@ -6,8 +6,10 @@ function json(data, status = 200) {
 }
 
 const ALLOWED_ACTIONS = new Set([
-  "LOGIN_SUCCESS",
-  "LOGIN_DEVELOPER",
+  "LOGIN", "AUTO_LOGIN", "LOGIN_FAILED", "PAGE_VIEW", "CREATE", "UPDATE", "DELETE",
+  "CHECKLIST", "UNCHECK", "IMPORT", "EXPORT", "MOVEMENT", "BATCH_UPDATE", "UNDO", "REDO",
+  "REFRESH", "LOGOUT", "SESSION_EXPIRED", "SEARCH",
+  "LOGIN_SUCCESS", "LOGIN_DEVELOPER",
   "SUBMIT_CYCLE_COUNT",
   "EDIT_CYCLE_COUNT",
   "DELETE_CYCLE_COUNT",
@@ -26,8 +28,7 @@ const ALLOWED_ACTIONS = new Set([
   "SCAN_BARCODE_REJECT",
 ]);
 
-const ALLOWED_MODULES = new Set(["Auth", "Cycle Count", "Movement", "Search", "Barang Reject", "Barang Masuk Reject", "Barang Keluar Reject"]);
-const ALLOWED_STATUS = new Set(["SUCCESS", "FAILED"]);
+const ALLOWED_STATUS = new Set(["SUCCESS", "FAILED", "DENIED"]);
 
 function sanitizeText(value, max = 500) {
   return String(value ?? "").trim().slice(0, max);
@@ -101,6 +102,15 @@ async function supabaseInsertLog(env, payload) {
   return body;
 }
 
+async function activityExists(env, activityId) {
+  if (!activityId) return false;
+  const { url, key } = getSupabaseConfig(env);
+  const params = new URLSearchParams({ select: "id", reference: `eq.${sanitizeText(activityId, 150)}`, limit: "1" });
+  const res = await fetch(`${url}/rest/v1/activity_logs?${params}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+  const rows = await res.json().catch(() => []);
+  return res.ok && Array.isArray(rows) && rows.length > 0;
+}
+
 
 async function getUserProfile(env, userId) {
   const id = sanitizeText(userId, 100);
@@ -129,10 +139,16 @@ async function supabaseGetLogs(env, query) {
   params.set("limit", String(limit));
   params.set("offset", String(offset));
 
-  if (query.module && ALLOWED_MODULES.has(query.module)) params.set("module", `eq.${query.module}`);
-  if (query.action && ALLOWED_ACTIONS.has(query.action)) params.set("action", `eq.${query.action}`);
+  if (query.module) params.set("module", `eq.${sanitizeText(query.module, 100)}`);
+  if (query.action && /^[A-Z][A-Z0-9_]{1,99}$/.test(query.action)) params.set("action", `eq.${query.action}`);
   if (query.user_name) params.set("user_name", `ilike.*${sanitizeText(query.user_name, 100)}*`);
   if (query.status && ALLOWED_STATUS.has(query.status)) params.set("status", `eq.${query.status}`);
+  if (query.from) params.set("created_at", `gte.${sanitizeText(query.from, 40)}`);
+  if (query.to) params.append("created_at", `lte.${sanitizeText(query.to, 40)}`);
+  if (query.search) {
+    const term = sanitizeText(query.search, 100).replace(/[(),]/g, "");
+    params.set("or", `(detail.ilike.*${term}*,reference.ilike.*${term}*,user_name.ilike.*${term}*,module.ilike.*${term}*)`);
+  }
 
   const res = await fetch(`${url}/rest/v1/activity_logs?${params.toString()}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -145,31 +161,44 @@ async function supabaseGetLogs(env, query) {
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
-    const action = sanitizeText(body?.action, 100);
-    const module = sanitizeText(body?.module, 100);
-    const status = sanitizeText(body?.status || "SUCCESS", 20).toUpperCase();
+    const entries = Array.isArray(body?.activities) ? body.activities.slice(0, 20) : [body];
+    const inserted = [];
+    for (const entry of entries) {
+    const action = sanitizeText(entry?.action, 100).toUpperCase();
+    const module = sanitizeText(entry?.module, 100);
+    const status = sanitizeText(entry?.result || entry?.status || "SUCCESS", 20).toUpperCase();
 
-    if (!ALLOWED_ACTIONS.has(action)) return json({ success: false, message: "action tidak valid" }, 400);
-    if (!ALLOWED_MODULES.has(module)) return json({ success: false, message: "module tidak valid" }, 400);
+    if (!/^[A-Z][A-Z0-9_]{1,99}$/.test(action)) return json({ success: false, message: "action tidak valid" }, 400);
+    if (!module) return json({ success: false, message: "module wajib diisi" }, 400);
     if (!ALLOWED_STATUS.has(status)) return json({ success: false, message: "status tidak valid" }, 400);
 
-    const userId = sanitizeText(body?.user_id, 100) || null;
-    const sessionRole = sanitizeText(body?.role, 120) || null;
+    const activityId = sanitizeText(entry?.id || entry?.activityId, 150);
+    if (await activityExists(env, activityId)) continue;
+    const userId = sanitizeText(entry?.user_id, 100) || null;
+    const sessionRole = sanitizeText(entry?.role, 120) || null;
     const profile = userId === "developer" ? null : await getUserProfile(env, userId);
+    const structured = sanitizeMetadata({
+      category: entry.category, page: entry.page, entityType: entry.entityType,
+      entityId: entry.entityId, details: entry.details, source: entry.source,
+      timestamp: entry.timestamp, sessionId: entry.sessionId ? `${String(entry.sessionId).slice(0, 6)}…` : null,
+      isDeveloper: entry.isDeveloper,
+    });
     const payload = {
       user_id: userId,
-      user_name: sanitizeText(body?.user_name, 120) || null,
+      user_name: sanitizeText(entry?.user || entry?.user_name, 120) || null,
       role: userId === "developer" ? "Mode Development" : sanitizeText(profile?.role, 120) || sessionRole || "User",
       action,
       module,
-      detail: sanitizeText(body?.detail, 1000) || null,
-      reference: sanitizeText(body?.reference, 150) || null,
+      detail: sanitizeText(entry?.description || entry?.detail, 1000) || null,
+      reference: activityId || sanitizeText(entry?.reference, 150) || null,
       status,
-      metadata: sanitizeMetadata(body?.metadata),
+      metadata: { ...sanitizeMetadata(entry?.metadata), ...structured },
     };
 
     const data = await supabaseInsertLog(env, payload);
-    return json({ success: true, data }, 201);
+    inserted.push(...(Array.isArray(data) ? data : [data]));
+    }
+    return json({ success: true, data: inserted, deduplicated: entries.length - inserted.length }, 201);
   } catch (err) {
     return json({ success: false, message: err?.message || "Internal server error" }, 500);
   }
