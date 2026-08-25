@@ -39,3 +39,14 @@ test('column filters combine with AND and reset leaves global search untouched',
   assert.match(reset, /columnFilters=\{\}/);
   assert.doesNotMatch(reset, /balikanSearchKeyword|sortBy/);
 });
+
+test('inline edits invalidate filter options and re-evaluate active filters', () => {
+  const update = source.match(/function updateBalikanLocalRow\([^\n]+/)[0];
+  assert.match(update, /lastDataChecksum=checksumBalikanRows/);
+  assert.match(update, /filterOptionsVersion=''/);
+
+  const queue = source.match(/function queueBalikanEdit\([^\n]+/)[0];
+  assert.match(queue, /setTimeout\(renderBalikanTableWhenIdle,0\)/);
+  const idleRender = source.match(/function renderBalikanTableWhenIdle\([^\n]+/)[0];
+  assert.match(idleRender, /renderBalikanTable\(true\)/);
+});
