@@ -123,6 +123,7 @@
   margin-bottom:14px;
   gap:10px;
 }
+.warning-detail{margin-top:14px;padding:18px}.warning-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.warning-detail-grid>div{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--border);border-radius:10px}.warning-detail-grid small{color:var(--muted)}
 #page-anomaly,
 #page-anomaly .card,
 #page-anomaly #anomalyTable{
