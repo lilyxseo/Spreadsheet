@@ -338,7 +338,23 @@
       <div id="abcAnalisisApp"></div>
     </section>
     
-    <section id="page-locations" class="panel page hidden"><h3 class="page-title">Lokasi Analysis</h3><div id="locationsSummary" class="grid dashboard"></div><div class="mv-toolbar"><div class="mv-filters open" id="locationsFilters"><input id="locSearchInput" class="search-lg" placeholder="Cari lokasi rak"/><input id="locSkuSearchInput" class="search-lg" placeholder="Cari SKU atau nama barang"/><select id="locStatusFilter"><option value="all">Semua</option><option value="Kosong">Kosong</option><option value="Sedikit">Sedikit</option><option value="Normal">Normal</option><option value="Padat">Padat</option></select><select id="locTypeFilter"><option value="all">Semua Tipe Lokasi</option><option value="bulky">Bulky (digit 5)</option><option value="retail">Retail (digit 8)</option></select><select id="locSort"><option value="skuDesc">SKU terbanyak</option><option value="skuAsc">SKU paling sedikit</option><option value="qtyDesc">Qty terbesar</option><option value="qtyAsc">Qty paling sedikit</option><option value="az">Lokasi A-Z</option></select><select id="locPageSize"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select><button class="btn-ghost" onclick="exportLocationCsv()">Export CSV</button></div></div><div id="locationsTable" style="margin-top:10px"></div><div id="locationsEmpty" style="margin-top:10px"></div><div id="locationDetail" style="margin-top:10px"></div></section>
+    <section id="page-locations" class="panel page hidden">
+      <header class="locations-page-header">
+        <div><h3 class="page-title">Lokasi Analysis</h3><p>Pantau kapasitas, isi rak, dan lokasi kosong gudang.</p></div>
+        <div class="locations-sync" aria-label="Status sinkronisasi"><span class="locations-sync-dot"></span><span>Data terbaru</span></div>
+      </header>
+      <div id="locationsSummary" class="grid dashboard"></div>
+      <div class="mv-toolbar locations-toolbar"><div class="mv-filters open" id="locationsFilters">
+        <label class="loc-control loc-search-primary"><span>Cari lokasi</span><span class="loc-input-wrap"><i data-lucide="search"></i><input id="locSearchInput" class="search-lg" type="search" placeholder="Cari lokasi rak..." aria-label="Cari lokasi rak"/></span></label>
+        <label class="loc-control loc-search-secondary"><span>Cari barang</span><span class="loc-input-wrap"><i data-lucide="package-search"></i><input id="locSkuSearchInput" class="search-lg" type="search" placeholder="Cari SKU atau nama barang..." aria-label="Cari SKU atau nama barang"/></span></label>
+        <label class="loc-control"><span>Status</span><select id="locStatusFilter" aria-label="Filter status lokasi"><option value="all">Semua status</option><option value="Kosong">Kosong</option><option value="Sedikit">Sedikit</option><option value="Normal">Normal</option><option value="Padat">Padat</option></select></label>
+        <label class="loc-control"><span>Tipe lokasi</span><select id="locTypeFilter" aria-label="Filter tipe lokasi"><option value="all">Semua tipe</option><option value="bulky">Bulky (digit 5)</option><option value="retail">Retail (digit 8)</option></select></label>
+        <label class="loc-control"><span>Urutkan</span><select id="locSort" aria-label="Urutkan lokasi"><option value="skuDesc">SKU terbanyak</option><option value="skuAsc">SKU paling sedikit</option><option value="qtyDesc">Qty terbesar</option><option value="qtyAsc">Qty paling sedikit</option><option value="az">Lokasi A-Z</option></select></label>
+        <label class="loc-control loc-page-size"><span>Baris</span><select id="locPageSize" aria-label="Jumlah baris per halaman"><option value="25">25 / halaman</option><option value="50">50 / halaman</option><option value="100">100 / halaman</option></select></label>
+        <button class="btn-ghost loc-export-btn" type="button" onclick="exportLocationCsv()"><i data-lucide="download"></i><span>Export CSV</span></button>
+      </div></div>
+      <div id="locationsTable"></div><div id="locationsEmpty"></div><div id="locationDetail"></div>
+    </section>
     <section id="page-arsip" class="panel page hidden"><div id="archiveApp"></div></section>
     <section id="page-asset-store" class="panel page hidden"><div id="assetStoreApp"></div></section>
     <section id="page-anomaly" class="panel page hidden"><h3 class="page-title">Warning</h3><div id="anomalySummary" class="grid dashboard"></div><div class="mv-filters" style="margin-top:10px"><select id="anomalySeverity"><option value="all">Semua Severity</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select><select id="anomalyType"><option value="all">Semua Jenis Masalah</option></select><input id="anomalySearch" class="search-lg" placeholder="Cari SKU atau nama barang" /></div><div id="anomalyTable" style="margin-top:10px"></div></section>
