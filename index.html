@@ -390,55 +390,76 @@
     <section id="page-sheet-input" class="panel page hidden"><h3 class="page-title">Input Google Sheet</h3><div class="card sheet-input-card"><form id="sheetInputForm" class="sheet-input-form" novalidate><div class="sheet-grid"><label>Tanggal<input type="date" id="sheetTanggal" /></label><label>SKU *<input type="text" id="sheetSku" required /></label><label>Nama Barang *<input type="text" id="sheetNamaBarang" required /></label><label>Qty *<input type="number" id="sheetQty" min="0" step="1" required /></label><label>Lokasi *<input type="text" id="sheetLokasi" required /></label><label>Keterangan<textarea id="sheetKeterangan" rows="3" placeholder="Opsional"></textarea></label></div><button id="sheetSubmitBtn" type="submit" class="btn-primary sheet-submit-btn"><span class="sheet-submit-label">Simpan</span><span class="btn-spinner" aria-hidden="true" hidden></span></button></form></div></section>
 
     <section id="page-settings" class="panel page hidden">
-      <h3 class="page-title">Pengaturan & Informasi Sistem</h3>
+      <div class="settings-titlebar">
+        <div><h3 class="page-title">Pengaturan</h3><p id="settingsHeadline">Memeriksa konfigurasi dari data yang tersedia…</p></div>
+        <div class="settings-save-state"><small>Terakhir disimpan</small><strong id="settingsLastSaved">-</strong><span id="settingsSavedBadge" class="settings-badge ok">Semua tersimpan</span></div>
+      </div>
+      <div class="settings-search-wrap">
+        <i data-lucide="search"></i><input id="settingsSearch" type="search" placeholder="Cari pengaturan, mis. cache atau refresh" autocomplete="off" aria-label="Cari pengaturan">
+        <div id="settingsSearchResults" class="settings-search-results hidden"></div>
+      </div>
+      <nav class="settings-nav" aria-label="Kategori pengaturan">
+        <button data-settings-target="settings-overview" class="active">Umum <span class="health-indicator" data-health="overview"></span></button>
+        <button data-settings-target="settings-sources">Sumber Data <span class="health-indicator" data-health="sources"></span></button>
+        <button data-settings-target="settings-mapping">Mapping Sheet <span class="health-indicator" data-health="mapping"></span></button>
+        <button data-settings-target="settings-sync">Sinkronisasi <span class="health-indicator" data-health="sync"></span></button>
+        <button data-settings-target="settings-cache">Cache <span class="health-indicator" data-health="cache"></span></button>
+        <button data-settings-target="settings-access">Hak Akses <span class="health-indicator" data-health="access"></span></button>
+        <button data-settings-target="settings-developer">Developer <span class="health-indicator neutral" data-health="developer"></span></button>
+        <button data-settings-target="settings-backup">Backup <span class="health-indicator neutral" data-health="backup"></span></button>
+      </nav>
       <div class="settings-layout">
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="monitor-cog"></i><h4>Informasi Sistem</h4></div>
-          <div class="settings-grid">
-            <div class="settings-item"><small>Nama aplikasi</small><strong>Mini WMS - Goto Living</strong></div>
-            <div class="settings-item"><small>Versi aplikasi</small><strong>v1.0.0</strong></div>
-            <div class="settings-item"><small>Terakhir refresh data</small><strong id="settingsLastRefresh">-</strong></div>
+        <article id="settings-overview" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>System Status</h4><p id="settingsOverviewSummary">Ringkasan konfigurasi aktif</p></div></div>
+          <div id="settingsWarnings" class="settings-warnings hidden"></div>
+          <div id="settingsOverviewList" class="settings-status-list"></div>
+          <div class="settings-grid settings-info-grid">
             <div class="settings-item"><small>Total data terbaca</small><strong id="settingsTotalRows">0 row</strong></div>
+            <div class="settings-item"><small>Terakhir sinkron</small><strong id="settingsLastRefresh">-</strong></div>
           </div>
-          <div class="settings-status"><span id="settingsSystemDot" class="status-dot loading"></span><i data-lucide="activity"></i><span>Status sistem:</span><strong id="settingsSystemStatus">Loading</strong></div>
+          <span id="settingsSystemDot" class="status-dot loading hidden"></span><span id="settingsSystemStatus" class="hidden">Loading</span>
         </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="database"></i><h4>Sumber Data</h4></div>
+        <article id="settings-sources" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Sumber Data</h4><p id="settingsSourcesSummary">Status koneksi tanpa menjalankan request baru</p></div></div>
           <div id="settingsDataSources" class="settings-list"></div>
         </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="hard-drive"></i><h4>Cache & Data</h4></div>
-          <div class="settings-grid settings-grid--cache">
-            <div class="settings-item"><small>Status cache</small><strong id="settingsCacheStatus">-</strong></div>
-            <div class="settings-item"><small>Waktu terakhir cache</small><strong id="settingsCacheTime">-</strong></div>
-          </div>
+        <article id="settings-mapping" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Mapping Sheet</h4><p id="settingsMappingSummary">Validasi berdasarkan sheet yang telah dimuat</p></div></div>
+          <div id="settingsMappingList" class="settings-mapping-list"></div>
+        </article>
+        <article id="settings-sync" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Sinkronisasi</h4><p id="settingsSyncSummary">Auto refresh aktif setiap 5 menit</p></div></div>
+          <div class="settings-control-row" data-search-setting="Auto Refresh Sinkronisasi Aktif 5 menit"><div><strong>Auto Refresh</strong><small>Menentukan interval aplikasi mengambil data terbaru di background.</small></div><div class="settings-control-value"><span id="settingsAutoRefreshValue">Aktif • 5 menit</span><select data-setting-key="refreshMinutes" aria-label="Interval auto refresh"><option value="5">5 menit</option><option value="10">10 menit</option><option value="15">15 menit</option></select><em data-recommend-for="refreshMinutes">Recommended</em></div></div>
+          <div class="settings-module-list"><small>Modul aktif</small><span>✓ Kartu Stock</span><span>✓ Barang Masuk</span><span>✓ Barang Keluar</span><span>✓ RPL &amp; BULKY</span></div>
+          <div class="row settings-actions"><button class="btn-primary" data-refresh-btn onclick="loadAllData(true)">Refresh sekarang</button></div>
+        </article>
+        <article id="settings-cache" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Cache &amp; Performa</h4><p id="settingsCacheSummary">Metadata cache lokal yang sudah tersedia</p></div></div>
+          <div id="settingsPerformance" class="settings-status-list"></div>
+          <div class="settings-control-row" data-search-setting="Cache TTL Cache Performa Aktif 5 menit"><div><strong>Cache TTL</strong><small>Berapa lama data cache dianggap masih fresh sebelum diambil ulang.</small></div><div class="settings-control-value"><span>5 menit</span><em>Recommended</em></div></div>
+          <div class="settings-control-row" data-search-setting="Virtual Table Cache Performa Aktif"><div><strong>Virtual Table</strong><small>Hanya merender row yang terlihat agar tabel besar tetap lancar.</small></div><div class="settings-control-value"><span>Aktif</span><em>Recommended</em></div></div>
+          <span id="settingsCacheStatus" class="hidden">-</span><span id="settingsCacheTime" class="hidden">-</span>
           <div class="row settings-actions">
-            <button class="btn-primary" data-refresh-btn onclick="loadAllData(true)">Refresh Data</button>
             <button class="btn-ghost" onclick="clearSystemCache()">Clear Cache</button>
           </div>
         </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="file-output"></i><h4>Export & Laporan</h4></div>
-          <div class="settings-grid">
-            <div class="settings-item"><small>Format default</small><strong>CSV</strong></div>
-            <div class="settings-item"><small>Struktur export</small><strong>Mengikuti tabel aktif</strong></div>
-            <div class="settings-item"><small>Include header</small><strong>Aktif</strong></div>
-            <div class="settings-item"><small>Separator</small><strong>Koma (,)</strong></div>
-          </div>
+        <article id="settings-access" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Hak Akses</h4><p id="settingsAccessSummary">Izin efektif untuk sesi saat ini</p></div></div>
+          <div id="settingsPermission" class="settings-permission"></div>
+          <small class="settings-note">Hanya Developer dan role yang mengandung PIC memiliki akses CRUD.</small>
         </article>
-        <article class="card settings-card">
-          <div class="settings-head"><i data-lucide="info"></i><h4>Tentang Aplikasi</h4></div>
-          <p class="settings-desc">Sistem monitoring dan analisis stok gudang berbasis data sheet.</p>
-          <ul class="settings-feature-list">
-            <li><i data-lucide="layout-dashboard"></i><span>Dashboard</span></li>
-            <li><i data-lucide="alert-triangle"></i><span>Warning</span></li>
-            <li><i data-lucide="trending-down"></i><span>Stok minus</span></li>
-            <li><i data-lucide="map-pin"></i><span>Lokasi</span></li>
-            <li><i data-lucide="clipboard-check"></i><span>Cycle count</span></li>
-          </ul>
-          <small class="settings-note">Data berasal dari Google Sheet, gunakan dengan hati-hati.</small>
+        <article id="settings-developer" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Developer</h4><p>Informasi runtime aman tanpa credential atau token.</p></div></div>
+          <div id="settingsDeveloperStatus" class="settings-status-list"></div>
+          <div class="row settings-actions"><button class="btn-ghost" id="settingsHealthCheck" type="button">Run Health Check</button><button class="btn-ghost" id="settingsExportDiagnostics" type="button">Export Diagnostics</button><button class="btn-ghost" onclick="loadAllData(true)">Force Refresh</button></div>
+        </article>
+        <article id="settings-backup" class="card settings-card settings-section">
+          <div class="settings-head"><div><h4>Backup Konfigurasi</h4><p>Ekspor hanya preferensi aplikasi, tanpa credential.</p></div></div>
+          <div id="settingsBackupInfo" class="settings-status-list"></div>
+          <div class="row settings-actions"><button class="btn-ghost" id="settingsExportConfig" type="button">Export Config</button><label class="btn-ghost settings-import">Import Config<input id="settingsImportConfig" type="file" accept="application/json"></label></div>
         </article>
       </div>
+      <div id="settingsUnsavedBar" class="settings-unsaved-bar hidden"><div><strong><span id="settingsUnsavedCount">0</span> perubahan belum disimpan</strong><small id="settingsUnsavedDetails"></small></div><div class="row"><button id="settingsDiscard" class="btn-ghost" type="button">Buang</button><button id="settingsSave" class="btn-primary" type="button">Simpan</button></div></div>
       <div class="settings-legacy hidden">
         <p><strong>Status API:</strong> <span id="settingsApiState">-</span></p><p><strong>Data loaded:</strong> <span id="loadedState">-</span></p><p><strong>Jumlah data per sheet:</strong> <span id="countPerSheet">-</span></p><p><strong>Spreadsheet ID:</strong> <code id="spreadsheetInfo"></code></p><p><strong>Sheet digunakan:</strong> <span id="sheetInfo"></span></p>
       </div>
