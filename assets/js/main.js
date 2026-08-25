@@ -1660,8 +1660,9 @@ const distribution={"Kartu Stock":0,RPL:0,BULKY:0};
 const lokasiSet=new Set();
 (item.rows||[]).forEach(({sheet,row})=>{
 const loc=getVal(row,["lokasi","location","rak","bin","area","from","to"]);
-if(loc)lokasiSet.add(String(loc));
-if(Object.prototype.hasOwnProperty.call(distribution,sheet))distribution[sheet]+=sumRowQty(row,sheet);
+const rowQty=sumRowQty(row,sheet);
+if(loc&&rowQty>0)lokasiSet.add(String(loc));
+if(Object.prototype.hasOwnProperty.call(distribution,sheet))distribution[sheet]+=rowQty;
 });
 const locations=[...lokasiSet].filter(Boolean).sort((a,b)=>a.localeCompare(b));
 const totalQty=Object.values(distribution).reduce((n,v)=>n+(Number(v)||0),0);
