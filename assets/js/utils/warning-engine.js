@@ -26,7 +26,16 @@ function location(row,source=""){
 }
 function qty(value){if(value===0||value==="0")return {valid:true,value:0};if(value===null||value===undefined||String(value).trim()==="")return {valid:false,value:0};const text=String(value).trim();if(!/^-?\d+(?:[.,]\d+)?$/.test(text))return {valid:false,value:0};const number=Number(text.replace(",","."));return {valid:Number.isFinite(number),value:number};}
 function make(type,severity,row,source,issue,recommendation,detail={}){return {type,severity,sku:sku(row)||"-",nama:name(row)||"-",issue,source,recommendation,detail};}
-export function deduplicateWarnings(rows){const seen=new Map();for(const row of rows){const key=row.fingerprint||[row.type||row.issue,row.sku,row.source,row.detail?.rowId||row.detail?.location||""].join("::");if(!seen.has(key))seen.set(key,row);}return [...seen.values()].sort((a,b)=>(ORDER[a.severity]??9)-(ORDER[b.severity]??9));}
+export function deduplicateWarnings(rows){const seen=new Map();for(const row of rows){const key=row.fingerprint||[row.type||"",row.sku,row.source,row.detail?.rowId||"",row.detail?.location||"",row.issue,row.recommendation].join("::");if(!seen.has(key))seen.set(key,row);}return [...seen.values()].sort((a,b)=>(ORDER[a.severity]??9)-(ORDER[b.severity]??9));}
+export function groupWarningsBySku(rows=[]){
+ const grouped=new Map();
+ for(const warning of deduplicateWarnings(rows)){
+  const key=String(warning.sku||"-").normalize("NFKC").replace(ZERO_WIDTH,"").trim().toUpperCase();
+  if(!grouped.has(key))grouped.set(key,{sku:warning.sku||"-",namaBarang:warning.nama||warning.namaBarang||"-",warnings:[]});
+  const item=grouped.get(key);item.warnings.push(warning);if(item.namaBarang==="-"&&(warning.nama||warning.namaBarang))item.namaBarang=warning.nama||warning.namaBarang;
+ }
+ return [...grouped.values()].map(item=>{const warnings=[...item.warnings].sort((a,b)=>(ORDER[a.severity]??9)-(ORDER[b.severity]??9));return {...item,warnings,warningCount:warnings.length,highestSeverity:warnings[0]?.severity||"Low",sources:[...new Set(warnings.flatMap(w=>String(w.source||"").split(/\s*\/\s*/)).filter(Boolean))],types:[...new Set(warnings.map(w=>w.type||w.issue))]};}).sort((a,b)=>(ORDER[a.highestSeverity]??9)-(ORDER[b.highestSeverity]??9)||b.warningCount-a.warningCount||String(a.sku).localeCompare(String(b.sku)));
+}
 export function buildAdditionalWarnings({stock=[],outbound=[],inbound=[],rpl=[],bulky=[],specialLocations=[],sourcesSynchronized=false}={}){
  const warnings=[],all=[[stock,"Kartu Stock"],[inbound,"Barang Masuk"],[outbound,"Barang Keluar"],[rpl,"RPL"],[bulky,"BULKY"]],stockLocations=new Set();
  for(const row of stock){const loc=validateWarehouseLocation(location(row,"Kartu Stock"),specialLocations);if(loc.valid&&sku(row))stockLocations.add(`${sku(row).toUpperCase()}::${loc.location}`);}
