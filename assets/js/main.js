@@ -2,6 +2,7 @@ import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase,
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG, SIGNUP_ACCESS_PASSWORD } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { logActivity, logActivityResult, logLogin, logLogout, logPageView } from "./activity-log.js";
+import { fetchOnce, setRequestConcurrency, getRequestManagerStats } from "./performance/request-manager.js";
 const ids=["searchInput","quickResultCard","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locTypeFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","balikanSearchHistory","abcAnalisisApp","importPdfTransferApp","barangRejectApp","rejectPermissionBadge"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
@@ -14,6 +15,8 @@ const ABC_ANALYSIS_CACHE_KEY="ABC_ANALYSIS_CACHE";
 const CACHE_VERSION="2";
 const AUTO_SYNC_INTERVAL_MS=5*60*1000;
 const AUTO_SYNC_CHECK_INTERVAL_MS=30*1000;
+setRequestConcurrency(window.matchMedia?.('(max-width: 700px)')?.matches?2:3);
+window.__requestManagerStats=getRequestManagerStats;
 const IDB_NAME="inventory_cache_db";
 const IDB_VERSION=1;
 const IDB_STORE="sheets";
@@ -323,6 +326,21 @@ function removeDeletedRows(oldRows=[],deletedRowNumbers=[]){
 const deletedSet=new Set((deletedRowNumbers||[]).map(Number));
 return (oldRows||[]).filter(row=>!deletedSet.has(Number(row?.rowNumber)));
 }
+function stableRowId(row,index){
+return String(row?.id??row?.rowNumber??`${row?.sku??""}|${row?.lokasi??row?.from??""}|${index}`);
+}
+async function reconcileRows(previousRows=[],incomingRows=[]){
+const previous=Array.isArray(previousRows)?previousRows:[];
+const incoming=Array.isArray(incomingRows)?incomingRows:[];
+const byId=new Map(previous.map((row,index)=>[stableRowId(row,index),row]));
+const next=new Array(incoming.length);let changed=previous.length!==incoming.length;
+await runChunked(incoming,(row,index)=>{
+const old=byId.get(stableRowId(row,index));
+if(old&&JSON.stringify(old)===JSON.stringify(row))next[index]=old;
+else{next[index]=row;changed=true;}
+},{chunkSize:250,timeout:80});
+return {rows:changed?next:previous,changed};
+}
 function setModuleCache(key,rows){
 const normalized=Array.isArray(rows)?rows:[];
 MODULE_CACHE_MEMORY[key]=normalized;
@@ -358,7 +376,11 @@ if(raw!=null)localStorage.removeItem(key);
 return [];
 }
 async function fetchJsonSafe(url,options={}){
-const res=await fetch(url,options);
+const method=String(options?.method||"GET").toUpperCase();
+const requestKey=options?.requestKey||`${method}:${url}`;
+const res=method==="GET"
+?await fetchOnce(requestKey,signal=>fetch(url,{...options,signal:options.signal||signal}),{signal:options.signal})
+:await fetch(url,options);
 const text=await res.text();
 const shouldLogInvalidJson=options?.silentInvalidJson!==true;
 const data=safeJsonParse(text,null,shouldLogInvalidJson);
@@ -961,7 +983,8 @@ return rows;
 async function refreshBarangMasukFull(){
 const {res,data:json}=await fetchJsonSafe('/api/barang-masuk?mode=full');
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Masuk');
-const data=normalizeBackendRows(json);
+const incoming=normalizeBackendRows(json);
+const {rows:data}=await reconcileRows(window.APP_STATE?.barangMasuk,incoming);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=data;
 setCacheSafe("barangMasukCache",data);
@@ -970,17 +993,17 @@ return data;
 async function refreshBarangKeluarFull(){
 const {res,data:json}=await fetchJsonSafe('/api/barang-keluar?mode=full');
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Keluar');
-const data=normalizeBackendRows(json);
+const incoming=normalizeBackendRows(json);
+const {rows:data}=await reconcileRows(window.APP_STATE?.barangKeluar,incoming);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangKeluar=data;
 setCacheSafe("barangKeluarCache",data);
 return data;
 }
 async function refreshTransaksiFull({render=true}={}){
-const [barangMasukRes,barangKeluarRes]=await Promise.allSettled([
-refreshBarangMasukFull(),
-refreshBarangKeluarFull()
-]);
+const barangMasukRes=await Promise.resolve().then(refreshBarangMasukFull).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+const barangKeluarRes=await Promise.resolve().then(refreshBarangKeluarFull).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
 if(barangMasukRes.status==='fulfilled'){
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasukRes.value;
@@ -1001,11 +1024,12 @@ scheduleRenderDashboard();
 return {barangMasukRes,barangKeluarRes};
 }
 async function refreshInventoryGroupFull(){
-const [inventoryRes,rplRes,bulkyRes]=await Promise.allSettled([
-refreshInventoryFull(),
-refreshRplFull(),
-refreshBulkyFull()
-]);
+const settle=fn=>Promise.resolve().then(fn).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
+const inventoryRes=await settle(refreshInventoryFull);
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+const rplRes=await settle(refreshRplFull);
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+const bulkyRes=await settle(refreshBulkyFull);
 const parsedKartuStock=inventoryRes.status==='fulfilled'&&Array.isArray(inventoryRes.value?.["Kartu Stock"])?inventoryRes.value["Kartu Stock"]:[];
 const parsedRpl=rplRes.status==='fulfilled'&&Array.isArray(rplRes.value)?rplRes.value:[];
 const parsedBulky=bulkyRes.status==='fulfilled'&&Array.isArray(bulkyRes.value)?bulkyRes.value:[];
@@ -1032,11 +1056,21 @@ const prevKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
 const prevKartu=Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:[];
 const prevRpl=Array.isArray(DATA["RPL"])?DATA["RPL"]:[];
 const prevBulky=Array.isArray(DATA["BULKY"])?DATA["BULKY"]:[];
-const [inventorySyncRes,transaksiSyncRes]=await Promise.allSettled([
-refreshInventoryGroupFull(),
-refreshTransaksiFull({render:false}),
-refreshBalikanStoreFull({background:true,force:true})
-]);
+// Refresh only the active module first. Other dependencies are staggered so a
+// five-minute tick never launches every Google Sheets read at once.
+const activePage=getActivePage();
+let inventorySyncRes={status:'fulfilled',value:null};
+let transaksiSyncRes={status:'fulfilled',value:null};
+if(activePage==="barang-masuk"||activePage==="barang-keluar"){
+transaksiSyncRes=await Promise.resolve(refreshTransaksiFull({render:false})).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+inventorySyncRes=await Promise.resolve(refreshInventoryGroupFull()).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
+}else{
+inventorySyncRes=await Promise.resolve(refreshInventoryGroupFull()).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+transaksiSyncRes=await Promise.resolve(refreshTransaksiFull({render:false})).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
+}
+if(activePage==="balikan-store")await refreshBalikanStoreFull({background:true,force:true}).catch(err=>console.warn('Balikan refresh gagal',err));
 const nextMasuk=Array.isArray(window.APP_STATE?.barangMasuk)?window.APP_STATE.barangMasuk:prevMasuk;
 const nextKeluar=Array.isArray(window.APP_STATE?.barangKeluar)?window.APP_STATE.barangKeluar:prevKeluar;
 if(transaksiSyncRes?.status==='rejected')console.error('REFRESH ERROR TRANSAKSI',transaksiSyncRes.reason);
@@ -1284,11 +1318,15 @@ if(isCacheFresh())return;
 console.log("BACKGROUND REFRESH START");
 setRefreshIndicator(true,"Refreshing...");
 try{
-const [barangMasuk,barangKeluar]=await Promise.allSettled([
-loadBarangMasuk({mode:"full"}),
-loadBarangKeluar({mode:"full"})
-]);
-const inventoryRes=await Promise.allSettled(INVENTORY_PRELOAD_SHEETS.map(sheet=>fetchSheet(sheet).then(raw=>parseSheetChunked(raw))));
+const settle=promise=>Promise.resolve(promise).then(value=>({status:"fulfilled",value}),reason=>({status:"rejected",reason}));
+const barangMasuk=await settle(loadBarangMasuk({mode:"full"}));
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+const barangKeluar=await settle(loadBarangKeluar({mode:"full"}));
+const inventoryRes=[];
+for(const sheet of INVENTORY_PRELOAD_SHEETS){
+await new Promise(resolve=>scheduleUIWork(resolve,{delay:0}));
+inventoryRes.push(await settle(fetchSheet(sheet).then(raw=>parseSheetChunked(raw))));
+}
 if(barangMasuk.status==="fulfilled"&&Array.isArray(barangMasuk.value)&&barangMasuk.value.length){
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasuk.value;
@@ -1342,7 +1380,8 @@ const {mode="full",limit=1000}=_opts||{};
 const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
 const {res,data:json}=await fetchJsonSafe(`/api/barang-masuk${qs}`);
 if(!res.ok||!json?.success){console.error("INIT ERROR barangMasuk",(json&&json.message)||res.statusText);return [];}
-const barangMasukRows=normalizeBackendRows(json);
+const incomingRows=normalizeBackendRows(json);
+const {rows:barangMasukRows}=await reconcileRows(window.APP_STATE?.barangMasuk,incomingRows);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasukRows;
 setModuleCache(MODULE_CACHE_KEYS.barangMasuk,window.APP_STATE.barangMasuk);
@@ -1355,7 +1394,8 @@ const {mode="full",limit=1000}=_opts||{};
 const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
 const {res,data:json}=await fetchJsonSafe(`/api/barang-keluar${qs}`);
 if(!res.ok||!json?.success){console.error("INIT ERROR barangKeluar",(json&&json.message)||res.statusText);return [];}
-const barangKeluarRows=normalizeBackendRows(json);
+const incomingRows=normalizeBackendRows(json);
+const {rows:barangKeluarRows}=await reconcileRows(window.APP_STATE?.barangKeluar,incomingRows);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangKeluar=barangKeluarRows;
 setModuleCache(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
@@ -1368,7 +1408,7 @@ if(sheetName==='Barang Masuk')return loadBarangMasuk();
 if(sheetName==='Barang Keluar')return loadBarangKeluar();
 const range=`${sheetName}!A1:ZZ`;
 const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
-const res=await fetch(url);
+const res=await fetchOnce(`sheet:${sheetName}`,signal=>fetch(url,{signal}));
 const json=await res.json();
 if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error.message)||res.statusText}`);
 return json.values||[];
