@@ -1,7 +1,8 @@
-import { json, token, SHEET_BARANG_MASUK, BARANG_COLUMNS, mapBarangSheetValues } from '../_barang-ops.js';
+import { json, token, SHEET_BARANG_MASUK, BARANG_COLUMNS, barangDataRange, mapBarangSheetValues } from '../_barang-ops.js';
 
 const START_ROW = 2;
-const RANGE = `${SHEET_BARANG_MASUK}!A${START_ROW}:I20000`;
+// Keep the end row open so new transactions beyond row 20,000 are included.
+const RANGE = barangDataRange(SHEET_BARANG_MASUK, START_ROW);
 
 function limitRows(rows, request) {
   const url = new URL(request.url);
