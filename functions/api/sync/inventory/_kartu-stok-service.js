@@ -150,9 +150,9 @@ function createSupabaseGateway(env, fetchFn = fetch) {
   }
   const rpc = (name, args) => request(`/rest/v1/rpc/${name}`, { method: 'POST', body: JSON.stringify(args) });
   return {
-    async acquireLock(source, lockId) { const result = await rpc('acquire_inventory_sync_lock', { source, lock_id: lockId }); return result === true || result?.acquire_inventory_sync_lock === true; },
-    finishSuccess(args) { return rpc('finish_inventory_sync_success', args); },
-    finishError(source, lockId, message) { return rpc('finish_inventory_sync_error', { source, lock_id: lockId, error_message: message }); },
+    async acquireLock(source, lockId) { const result = await rpc('acquire_inventory_sync_lock', { p_source: source, p_lock_id: lockId, p_stale_after_seconds: 120 }); return result === true || result?.acquire_inventory_sync_lock === true; },
+    finishSuccess(args) { return rpc('finish_inventory_sync_success', { p_source: args.source, p_lock_id: args.lock_id, p_row_count: args.row_count, p_inserted_count: args.inserted_count, p_updated_count: args.updated_count, p_deleted_count: args.deleted_count, p_duration_ms: args.duration_ms, p_source_version: args.source_version }); },
+    finishError(source, lockId, message, durationMs) { return rpc('finish_inventory_sync_error', { p_source: source, p_lock_id: lockId, p_error: message, p_duration_ms: durationMs }); },
     async insertHistory(row) { const result = await request('/rest/v1/inventory_sync_history?select=id', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row) }); return result?.[0]?.id; },
     updateHistory(id, row) { return request(`/rest/v1/inventory_sync_history?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) }); },
     async existingMetadata() {
@@ -211,7 +211,7 @@ export async function syncKartuStok(env, dependencies = {}) {
   } catch (error) {
     const durationMs = Date.now() - started;
     if (lockAcquired) {
-      try { await gateway.finishError(SYNC_SOURCE, lockId, errorText(error)); lockAcquired = false; } catch (releaseError) { logger.error?.(`[InventorySync:${SYNC_SOURCE}] lock release failed: ${releaseError.message}`); }
+      try { await gateway.finishError(SYNC_SOURCE, lockId, errorText(error), durationMs); lockAcquired = false; } catch (releaseError) { logger.error?.(`[InventorySync:${SYNC_SOURCE}] lock release failed: ${releaseError.message}`); }
     }
     if (historyId) {
       try { await gateway.updateHistory(historyId, { status: 'error', finished_at: new Date().toISOString(), source_row_count: metrics.sourceRows, inserted_count: metrics.inserted, updated_count: metrics.updated, deleted_count: metrics.deleted, duration_ms: durationMs, error_message: errorText(error), source_version: null }); } catch (historyError) { logger.error?.(`[InventorySync:${SYNC_SOURCE}] history update failed: ${historyError.message}`); }
