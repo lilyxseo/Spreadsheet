@@ -33,6 +33,25 @@ function getBearerToken(request) {
   return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 }
 
+function safeEquals(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let difference = 0;
+  for (let index = 0; index < a.length; index += 1) difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  return difference === 0;
+}
+
+function verifiedDeveloperSession(request, env) {
+  const token = getBearerToken(request);
+  const [base, signature, extra] = token.split('.');
+  if (!base || !signature || extra !== undefined) return null;
+  const secret = String(env?.DEV_SESSION_SECRET || env?.SUPABASE_ANON_KEY || 'dev-secret');
+  const expected = btoa(`${base}.${secret}`).replace(/=+$/g, '');
+  if (!safeEquals(signature, expected)) return null;
+  const payload = decodeJwtPayload(token);
+  if (payload?.isDeveloper !== true || payload?.sub !== 'developer' || Number(payload.exp || 0) <= Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}
+
 function isDeveloperRequest(request, env) {
   const token = getBearerToken(request);
   const payload = decodeJwtPayload(token);
@@ -75,6 +94,33 @@ export async function getRequestRole(request, env) {
   const authUser = await getSupabaseAuthUser(request, env);
   const role = await getUserProfileRole(authUser?.id, authUser?.email, env);
   return role || String(authUser?.user_metadata?.role || authUser?.role || '');
+}
+
+/**
+ * Resolve a request from the same bearer sessions used by login/authFetch.
+ * Unlike the legacy CRUD compatibility checks, this deliberately does not trust
+ * client-controlled role cookies or x-developer-user headers.
+ */
+export async function resolveRequestIdentity(request, env, dependencies = {}) {
+  const devSession = verifiedDeveloperSession(request, env);
+  if (devSession) return { authenticated: true, isDeveloper: true, role: 'Developer', authSource: 'developer_session' };
+
+  const previewEnabled = isTruthy(env?.PREVIEW_BYPASS_LOGIN ?? env?.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env?.VITE_PREVIEW_BYPASS_LOGIN);
+  if (previewEnabled && request.headers.get('x-preview-bypass-login') === 'true') {
+    return { authenticated: true, isDeveloper: true, role: 'Developer', authSource: 'preview_bypass' };
+  }
+
+  const authUser = await (dependencies.getSupabaseAuthUser || getSupabaseAuthUser)(request, env);
+  if (!authUser) return { authenticated: false, isDeveloper: false, role: '', authSource: 'none' };
+  const role = await (dependencies.getUserProfileRole || getUserProfileRole)(authUser.id, authUser.email, env);
+  const effectiveRole = String(role || authUser?.user_metadata?.role || authUser?.role || '').trim();
+  const normalizedRole = effectiveRole.toLowerCase();
+  return {
+    authenticated: true,
+    isDeveloper: normalizedRole === 'developer' || normalizedRole === 'mode development',
+    role: effectiveRole,
+    authSource: role ? 'supabase_profile' : 'supabase_session',
+  };
 }
 
 async function auditDeniedCrud({ request, env, role, action = 'CRUD' }) {
