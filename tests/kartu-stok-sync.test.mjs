@@ -77,6 +77,49 @@ test('successful worker batches calculated mutations and finishes status/history
   assert.equal(db.calls.histories.at(-1).status, 'success');
 });
 
+test('Supabase lock and success RPCs use exact PostgreSQL parameter names', async () => {
+  const rpcCalls = [];
+  const fetch = async (url, options = {}) => {
+    const path = new URL(url).pathname;
+    if (path.includes('/rpc/')) rpcCalls.push({ path, body: JSON.parse(options.body) });
+    if (path.endsWith('/rpc/acquire_inventory_sync_lock')) return { ok: true, status: 200, json: async () => true };
+    if (path.endsWith('/inventory_sync_history') && options.method === 'POST') return { ok: true, status: 201, json: async () => [{ id: 'history-1' }] };
+    if (path.endsWith('/inventory_kartu_stok') && !options.method) return { ok: true, status: 200, json: async () => [] };
+    return { ok: true, status: 204, json: async () => null };
+  };
+
+  await syncKartuStok({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'secret' }, {
+    fetch, fetchValues: async () => [HEADER, sheetRow('A')], logger: silentLogger,
+  });
+
+  assert.deepEqual(rpcCalls[0].body, {
+    p_source: 'kartu_stok', p_lock_id: rpcCalls[0].body.p_lock_id, p_stale_after_seconds: 120,
+  });
+  assert.deepEqual(Object.keys(rpcCalls[1].body), [
+    'p_source', 'p_lock_id', 'p_row_count', 'p_inserted_count', 'p_updated_count',
+    'p_deleted_count', 'p_duration_ms', 'p_source_version',
+  ]);
+});
+
+test('Supabase error RPC uses exact PostgreSQL parameter names', async () => {
+  const rpcCalls = [];
+  const fetch = async (url, options = {}) => {
+    const path = new URL(url).pathname;
+    if (path.includes('/rpc/')) rpcCalls.push({ path, body: JSON.parse(options.body) });
+    if (path.endsWith('/rpc/acquire_inventory_sync_lock')) return { ok: true, status: 200, json: async () => true };
+    if (path.endsWith('/inventory_sync_history') && options.method === 'POST') return { ok: true, status: 201, json: async () => [{ id: 'history-1' }] };
+    return { ok: true, status: 204, json: async () => null };
+  };
+
+  await assert.rejects(() => syncKartuStok({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'secret' }, {
+    fetch, fetchValues: async () => { throw new Error('Google down'); }, logger: silentLogger,
+  }));
+
+  assert.deepEqual(Object.keys(rpcCalls[1].body), ['p_source', 'p_lock_id', 'p_error', 'p_duration_ms']);
+  assert.equal(rpcCalls[1].body.p_source, 'kartu_stok');
+  assert.match(rpcCalls[1].body.p_error, /Google down/);
+});
+
 test('concurrent lock loser is skipped before Google fetch', async () => {
   const db = gateway(); db.acquireLock = async () => false;
   let fetched = false;
