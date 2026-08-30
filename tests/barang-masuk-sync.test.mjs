@@ -53,3 +53,58 @@ test('Barang Masuk sync covers empty DB, idempotency, one update, one insert, an
   result = await run([HEADER, row('A', '11'), row('C')]);
   assert.deepEqual([result.inserted, result.updated, result.deleted], [0, 1, 1]);
 });
+
+test('7000-row sync uses paged metadata and 1000-row mutation batches', async () => {
+  const records = new Map();
+  const calls = { google: 0, reads: 0, upserts: 0, history: 0, rpc: 0 };
+  const values = [HEADER, ...Array.from({ length: 7000 }, (_, index) => row(`SKU-${index + 1}`))];
+  const fetch = async (url, options = {}) => {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname === 'oauth2.googleapis.com') {
+      calls.google += 1;
+      return { ok: true, status: 200, json: async () => ({ access_token: 'token' }) };
+    }
+    if (parsedUrl.hostname === 'sheets.googleapis.com') {
+      calls.google += 1;
+      return { ok: true, status: 200, json: async () => ({ values }) };
+    }
+    const path = parsedUrl.pathname;
+    if (path.includes('/rpc/')) {
+      calls.rpc += 1;
+      return { ok: true, status: 200, json: async () => path.endsWith('/acquire_inventory_sync_lock') ? true : null };
+    }
+    if (path.endsWith('/inventory_sync_history')) {
+      calls.history += 1;
+      return options.method === 'POST'
+        ? { ok: true, status: 201, json: async () => [{ id: 'history-1' }] }
+        : { ok: true, status: 204, json: async () => null };
+    }
+    if (path.endsWith('/inventory_barang_masuk') && !options.method) {
+      calls.reads += 1;
+      const offset = Number(parsedUrl.searchParams.get('offset'));
+      const page = [...records.values()].slice(offset, offset + 1000).map(({ source_row_key, source_hash }) => ({ source_row_key, source_hash }));
+      return { ok: true, status: 200, json: async () => page };
+    }
+    if (path.endsWith('/inventory_barang_masuk') && options.method === 'POST') {
+      calls.upserts += 1;
+      JSON.parse(options.body).forEach(item => records.set(item.source_row_key, item));
+      return { ok: true, status: 201, json: async () => null };
+    }
+    return { ok: true, status: 204, json: async () => null };
+  };
+  const env = { SHEET_ID_2026: 'sheet', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'secret' };
+  const dependencies = { fetch, getGoogleAccessToken: async () => { calls.google += 1; return 'token'; }, logger };
+
+  const first = await syncBarangMasuk(env, dependencies);
+  assert.deepEqual([first.inserted, first.updated, first.deleted, first.unchanged], [7000, 0, 0, 0]);
+  assert.deepEqual(first.requests, { googleRequests: 2, supabaseReads: 1, supabaseWrites: 9, rpcRequests: 2, estimatedRequests: 14 });
+  assert.equal(calls.upserts, 7);
+  assert.ok(first.requests.estimatedRequests < 50);
+
+  calls.google = calls.reads = calls.upserts = calls.history = calls.rpc = 0;
+  const second = await syncBarangMasuk(env, dependencies);
+  assert.deepEqual([second.inserted, second.updated, second.deleted, second.unchanged], [0, 0, 0, 7000]);
+  assert.deepEqual(second.requests, { googleRequests: 2, supabaseReads: 8, supabaseWrites: 2, rpcRequests: 2, estimatedRequests: 14 });
+  assert.equal(calls.upserts, 0);
+  assert.ok(second.requests.estimatedRequests < 15);
+});
