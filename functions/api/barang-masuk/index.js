@@ -1,7 +1,9 @@
 import { getSecretSupabaseConfig } from '../_supabase-config.js';
 
 const TABLE = 'inventory_barang_masuk';
-const COLUMNS = 'tanggal,from_location,to_location,sku,nama_barang,qty,status,pic,keterangan,source_row_number,synced_at';
+// Keep reads compatible with the deployed table schema. In particular, synced_at is
+// optional metadata and must not make the whole endpoint fail when it is not present.
+const COLUMNS = '*';
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const FULL_BATCH_SIZE = 1000;
@@ -53,6 +55,8 @@ async function supabaseGet(config, path, { count = false } = {}) {
     const error = new Error(payload?.message || `Supabase HTTP ${response.status}`);
     error.name = 'SupabaseError';
     error.code = payload?.code;
+    error.details = payload?.details;
+    error.hint = payload?.hint;
     throw error;
   }
   if (!Array.isArray(payload)) {
@@ -67,7 +71,9 @@ function exactTotal(response, fallback) {
 }
 
 async function fetchSyncStatus(config) {
-  const path = 'inventory_sync_status?select=source,status,last_success_at,last_attempt_at,source_row_count,error_message&source=eq.barang_masuk&limit=1';
+  // The status view has changed over time. Fetch its deployed shape rather than
+  // naming optional freshness fields in the select list.
+  const path = 'inventory_sync_status?select=*&source=eq.barang_masuk&limit=1';
   const { payload } = await supabaseGet(config, path);
   return payload[0] || null;
 }
@@ -147,10 +153,11 @@ export async function handleBarangMasukRequest({ request, env }) {
     console.info('[BarangMasukAPI] response-ready');
     return json(body);
   } catch (error) {
-    console.error('[BarangMasukAPI] error', {
-      name: error?.name || 'Error',
-      message: error?.message || 'Unknown error',
-      ...(error?.code ? { code: error.code } : {}),
+    console.error('[BarangMasukAPI] Supabase query failed', {
+      code: error?.code,
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
     });
     return json({ success: false, reason: ERROR_REASON, message: SAFE_ERROR_MESSAGE }, 500);
   }
