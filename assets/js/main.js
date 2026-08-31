@@ -83,7 +83,8 @@ window.balikanSearchKeyword="";
 let authChecking=true;
 let user=null;
 let devProfile=null;
-let runtimeConfig={previewBypassLogin:false};
+let runtimeConfig={previewBypassLogin:false,environment:"unknown"};
+let authRequestGeneration=0;
 window.mainDataCache=window.mainDataCache||null;
 window.mainDataPromise=window.mainDataPromise||null;
 let appInitialized=false;
@@ -111,7 +112,11 @@ syncDeveloperMenuVisibility();
 }
 function clearCurrentUser(){
 localStorage.removeItem(CURRENT_USER_KEY);
+localStorage.removeItem("currentUser");
+sessionStorage.removeItem(CURRENT_USER_KEY);
+sessionStorage.removeItem("currentUser");
 window.currentUser=null;
+if(window.APP_STATE){window.APP_STATE.currentUser=null;window.APP_STATE.user=null;window.APP_STATE.authUser=null;}
 syncDeveloperMenuVisibility();
 }
 function isDeveloperUser(){
@@ -243,7 +248,13 @@ return value===true||normalized==='true'||normalized==='1'||normalized==='yes';
 }
 
 function isPreviewBypassLoginEnabled(){
-return isTruthyFlag(runtimeConfig.previewBypassLogin);
+const environment=String(runtimeConfig.environment||"unknown").trim().toLowerCase();
+const trustedPreviewEnvironments=new Set(["preview","deploy-preview","branch-deploy","development","dev","local"]);
+return trustedPreviewEnvironments.has(environment)&&isTruthyFlag(runtimeConfig.previewBypassLogin);
+}
+function isTrustedDevelopmentEnvironment(){
+const environment=String(runtimeConfig.environment||"unknown").trim().toLowerCase();
+return new Set(["preview","deploy-preview","branch-deploy","development","dev","local"]).has(environment);
 }
 
 document.addEventListener('click',e=>{
@@ -271,11 +282,11 @@ break;
 }catch(_err){}
 }
 if(!loaded){
-runtimeConfig={previewBypassLogin:false};
+runtimeConfig={previewBypassLogin:false,environment:"unknown"};
 console.warn('Runtime config unavailable, fallback login normal');
 return;
 }
-runtimeConfig={previewBypassLogin:isTruthyFlag(loaded.previewBypassLogin)};
+runtimeConfig={previewBypassLogin:isTruthyFlag(loaded.previewBypassLogin),environment:String(loaded.environment||"unknown").toLowerCase()};
 }
 
 const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
@@ -537,6 +548,7 @@ return email;
 }
 
 async function bootApplication(){
+const requestGeneration=++authRequestGeneration;
 authChecking=true;
 applyTheme();
 renderAuthState();
@@ -548,13 +560,15 @@ if(isPreviewBypassLoginEnabled()){
 user={id:'preview-bypass',email:'preview@local'};
 devProfile={full_name:'Developer',role:'Mode Development',username:'developer',email:'preview@local'};
 }else{
-session=await restoreSession();
+session=await restoreSession({allowDeveloperSession:isTrustedDevelopmentEnvironment()});
+if(requestGeneration!==authRequestGeneration)return;
 if(session){
 if(session?.isDeveloper){
 user={id:"developer"};
 devProfile=session.user||null;
 }else{
 const {data:userData,error:userErr}=await getAuthenticatedUser();
+if(requestGeneration!==authRequestGeneration)return;
 if(userErr)throw userErr;
 user=userData?.user||null;
 }
@@ -566,6 +580,7 @@ user=null;
 console.error("Auth session check failed",err);
 user=null;
 }finally{
+if(requestGeneration!==authRequestGeneration)return;
 authChecking=false;
 renderAuthState();
 }
@@ -598,7 +613,18 @@ window.addEventListener("DOMContentLoaded",bootApplication,{once:true});
 }else{
 void bootApplication();
 }
-window.addEventListener("auth:logout",async()=>{await logLogout({...currentUserIdentity(),module:"Auth",page:location.pathname,details:{method:"MANUAL"}});stopDevAutoRefresh({log:false});showLoginView();});
+window.addEventListener("auth:logout",async()=>{
+const logoutIdentity=currentUserIdentity();
+++authRequestGeneration;
+user=null;
+devProfile=null;
+authChecking=false;
+isUserLoggedIn=false;
+clearCurrentUser();
+stopDevAutoRefresh({log:false});
+showLoginView();
+await logLogout({...logoutIdentity,module:"Auth",page:location.pathname,details:{method:"MANUAL"}});
+});
 
 function bindLoginView(){
 const form=document.getElementById("loginForm"),emailEl=document.getElementById("email"),passwordEl=document.getElementById("password"),loginBtn=document.getElementById("loginBtn"),errorMsg=document.getElementById("formError"),errorText=errorMsg?.querySelector("span"),togglePasswordBtn=document.getElementById("togglePassword"),signupForm=document.getElementById("signupForm"),signupError=document.getElementById("signupError"),signupErrorText=signupError?.querySelector("span"),signupLink=document.getElementById("signupLink"),loginLink=document.getElementById("loginLink"),googleLoginBtn=document.getElementById("googleLoginBtn"),divider=document.querySelector(".divider"),rememberRow=document.querySelector(".remember-row"),loginLine=document.getElementById("loginLine"),signupBtn=document.getElementById("signupBtn"),signupAccessModal=document.getElementById("signupAccessModal"),signupAccessForm=document.getElementById("signupAccessForm"),signupAccessPassword=document.getElementById("signupAccessPassword"),signupAccessError=document.getElementById("signupAccessError"),signupAccessErrorText=signupAccessError?.querySelector("span");
@@ -938,13 +964,12 @@ isRendering=false;
 async function refreshInventoryFull(){
 setStatus("loading","Inventory refreshing...");
 const freshData={};
-for(const sheet of INVENTORY_PRELOAD_SHEETS){
+const sheet="Kartu Stock";
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
 freshData[sheet]=await parseSheetChunked(raw);
 console.log("FETCH RESULT",sheet,Array.isArray(raw)?raw.length:0);
 console.log("PARSED DATA",sheet,freshData[sheet].length);
-}
 return freshData;
 }
 async function refreshRplFull(){
@@ -1363,25 +1388,34 @@ setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
 console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);
 return barangKeluarRows;
 }
+const FRONTEND_SOURCE_ROUTES=Object.freeze({
+'Kartu Stock':{kind:'supabase',endpoint:'/api/kartu-stok?mode=full'},
+'Kartu Stok':{kind:'supabase',endpoint:'/api/kartu-stok?mode=full'},
+'Barang Masuk':{kind:'supabase',endpoint:'/api/barang-masuk?mode=full'},
+'Barang Keluar':{kind:'supabase',endpoint:'/api/barang-keluar?mode=full'},
+'RPL':{kind:'supabase',endpoint:'/api/rpl?mode=full'},
+'BULKY':{kind:'supabase',endpoint:'/api/bulky?mode=full'},
+'BARCODE':{kind:'sheets'}
+});
+function getFrontendSourceRoute(sourceName){
+const route=FRONTEND_SOURCE_ROUTES[sourceName];
+if(route)return route;
+throw new Error(`${sourceName}: source frontend tidak didukung`);
+}
 async function fetchSheet(sheetName){
-if(sheetName==='Barang Masuk')return loadBarangMasuk();
-if(sheetName==='Barang Keluar')return loadBarangKeluar();
-const inventoryEndpoints={
-'Kartu Stock':'/api/kartu-stok?mode=full',
-'RPL':'/api/rpl?mode=full',
-'BULKY':'/api/bulky?mode=full'
-};
-if(inventoryEndpoints[sheetName]){
-const {res,data:json}=await fetchJsonSafe(inventoryEndpoints[sheetName]);
+const route=getFrontendSourceRoute(sheetName);
+if(sheetName==='Barang Masuk')return loadBarangMasuk({mode:'full'});
+if(sheetName==='Barang Keluar')return loadBarangKeluar({mode:'full'});
+if(route.kind==='supabase'){
+const {res,data:json}=await fetchJsonSafe(route.endpoint);
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||`Gagal membaca ${sheetName} dari Supabase`);
-if(sheetName==='Kartu Stock')window.__kartuStokSyncStatus=json.syncStatus||null;
+if(sheetName==='Kartu Stock'||sheetName==='Kartu Stok')window.__kartuStokSyncStatus=json.syncStatus||null;
 if(sheetName==='BULKY'){
 window.__bulkyLastSync=json.lastSync||null;
 window.__bulkySyncStatus=json.syncStatus||null;
 }
 return Array.isArray(json.data)?json.data:(Array.isArray(json.rows)?json.rows:[]);
 }
-if(sheetName!=='BARCODE')throw new Error(`${sheetName}: source frontend tidak didukung`);
 // BARCODE is a separate, non-inventory source that has not migrated to Supabase.
 const range=`${sheetName}!A1:ZZ`;
 const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
@@ -1955,7 +1989,14 @@ function applyTheme(){const saved=localStorage.getItem("theme");const theme=save
 function toggleDark(){const nextTheme=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",nextTheme);document.body.classList.toggle("dark",nextTheme==="dark");localStorage.setItem("theme",nextTheme);syncThemeButton();}
 function syncThemeButton(){if(!darkBtnHeader)return;const dark=document.documentElement.getAttribute("data-theme")==="dark";darkBtnHeader.innerHTML=`<i data-lucide="${dark?"sun":"moon-star"}"></i>`;if(window.lucide)lucide.createIcons();}
 
-async function triggerManualRefresh(){logActivitySafe({action:'MANUAL_REFRESH',module:'System',detail:'Manual refresh dimulai',status:'SUCCESS'});if(getActivePage?.()==='balikan-store'){loadBalikanRows({background:true,force:true});}if(isSyncing)return;await loadAllData(true);}
+async function triggerManualRefresh(){
+logActivitySafe({action:'MANUAL_REFRESH',module:'System',detail:'Manual refresh dimulai',status:'SUCCESS'});
+// Balikan Store is an explicitly non-migrated source and retains its existing
+// Sheets loader. It must not fall through to the inventory refresh pipeline.
+if(getActivePage?.()==='balikan-store')return loadBalikanRows({background:true,force:true});
+if(isSyncing)return;
+await loadAllData(true);
+}
 function syncRefreshButton(){if(!refreshToggleHeader)return;refreshToggleHeader.innerHTML=`<i data-lucide="refresh-cw"></i>`;refreshToggleHeader.title="Refresh data manual";refreshToggleHeader.setAttribute("aria-label","Refresh data manual");if(window.lucide)lucide.createIcons();}
 function getDevAutoRefreshEls(){
 return {
