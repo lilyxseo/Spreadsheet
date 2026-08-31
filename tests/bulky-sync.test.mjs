@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSourceRowKey, parseBulkyValues, syncBulky } from '../functions/api/sync/inventory/_bulky-service.js';
+import { BULKY_SHEET_NAME, buildSourceRowKey, parseBulkyValues, syncBulky } from '../functions/api/sync/inventory/_bulky-service.js';
 
 const HEADER = [
   'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AWAL', 'INTERNAL STOCK TRANSFER', 'REPLENISHMENT',
@@ -59,4 +59,19 @@ test('BULKY first and unchanged second sync preserve valid database count and re
   assert.deepEqual([second.inserted, second.updated, second.deleted, second.unchanged], [0, 0, 0, 2]);
   assert.equal(gateway.records.size, 2);
   assert.deepEqual(gateway.status, { status: 'success', locked_at: null, lock_id: null });
+});
+
+test('BULKY sync uses the existing lower-case tab and logs only safe sheet configuration', async () => {
+  const messages = [];
+  const gateway = statefulGateway();
+  const env = { SHEET_ID_2026: 'spreadsheet-id', GOOGLE_CLIENT_EMAIL: 'secret@example.test' };
+  await syncBulky(env, {
+    gateway,
+    fetchValues: async () => [HEADER, row('A')],
+    logger: { log(message) { messages.push(message); }, error() {} },
+  });
+
+  assert.equal(BULKY_SHEET_NAME, 'bulky');
+  assert.equal(messages[0], "[InventorySync:bulky]\nspreadsheetConfigured: true\nsheetName: bulky\nrange: 'bulky'!A:ZZ");
+  assert.doesNotMatch(messages.join('\n'), /spreadsheet-id|secret@example\.test/);
 });
