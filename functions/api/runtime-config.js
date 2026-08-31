@@ -43,6 +43,8 @@ export async function onRequestGet({ env }) {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "no-store",
+          "X-Runtime-Config-Version": "27c9f6c",
+          "X-Anon-Key-Prefix": anonKey.slice(0, 20),
         },
       }
     );
