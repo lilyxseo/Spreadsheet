@@ -38,6 +38,15 @@ test('Barang Masuk rejects missing headers and diagnoses invalid rows without de
   assert.equal(parsed.sourceKeys.has('barang_masuk:2'), true);
 });
 
+test('Barang Masuk uses the shared date normalization without rejecting empty dates', async () => {
+  const withDate = tanggal => { const values = row('SKU-DATE'); values[0] = tanggal; return values; };
+  assert.equal((await parseBarangMasukValues([HEADER, withDate('')])).rows[0].tanggal, null);
+  assert.equal((await parseBarangMasukValues([HEADER, withDate('   ')])).rows[0].tanggal, null);
+  assert.equal((await parseBarangMasukValues([HEADER, withDate('8/30/2026')])).rows[0].tanggal, '2026-08-30');
+  const invalid = await parseBarangMasukValues([HEADER, withDate('not-a-date')]);
+  assert.deepEqual(invalid.invalidRows[0].errors, ['INVALID_DATE:TANGGAL']);
+});
+
 test('Barang Masuk sync covers empty DB, idempotency, one update, one insert, and one delete', async () => {
   const gateway = statefulGateway();
   const run = values => syncBarangMasuk({}, { gateway, fetchValues: async () => values, logger });
