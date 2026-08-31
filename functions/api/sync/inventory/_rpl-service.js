@@ -1,0 +1,75 @@
+import { createInventorySyncService, normalizeLocation, normalizeNumber, normalizeSku, normalizeText, normalizedHeader, SyncError } from './_sync-engine.js';
+
+export const SYNC_SOURCE = 'rpl';
+// The source identifier is an internal lock/status key. The application config
+// names the actual Google Sheets tab "RPL", so keep the two values explicit.
+export const RPL_SHEET_NAME = 'RPL';
+export const REQUIRED_HEADERS = Object.freeze([
+  'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AKHIR', 'SAFE STOCK', 'MINIMUM STOCK',
+  'MAXIMUM STOCK', 'STATUS', 'ESTIMASI ORDER', 'ISELLER', 'NETSUITE', 'SELISIH', 'PENDINGAN IT',
+]);
+
+const NUMBER_FIELDS = Object.freeze([
+  ['STOK AKHIR', 'stok_akhir'],
+  ['SAFE STOCK', 'safe_stock'],
+  ['MINIMUM STOCK', 'minimum_stock'],
+  ['MAXIMUM STOCK', 'maximum_stock'],
+  ['ESTIMASI ORDER', 'estimasi_order'],
+  ['SELISIH', 'selisih'],
+  ['PENDINGAN IT', 'pendingan_it'],
+]);
+
+async function parseValues(values, helpers) {
+  if (!Array.isArray(values) || !Array.isArray(values[0])) throw new SyncError('INVALID_HEADER', 'Header RPL tidak ditemukan');
+  const indexes = new Map(values[0].map((header, index) => [normalizedHeader(header), index]));
+  const missing = REQUIRED_HEADERS.filter(header => !indexes.has(header));
+  if (missing.length) throw new SyncError('INVALID_HEADER', `Header wajib tidak ditemukan: ${missing.join(', ')}`);
+
+  const rows = [], invalidRows = [], sourceKeys = new Set(); let sourceRowCount = 0;
+  for (let index = 1; index < values.length; index += 1) {
+    const cells = Array.isArray(values[index]) ? values[index] : [], sourceRowNumber = index + 1, read = header => cells[indexes.get(header)];
+    if (REQUIRED_HEADERS.every(header => normalizeText(read(header)) === '')) continue;
+    sourceRowCount += 1;
+    const source_row_key = helpers.buildSourceRowKey(sourceRowNumber); sourceKeys.add(source_row_key);
+    const numbers = Object.fromEntries(NUMBER_FIELDS.map(([header, field]) => [field, normalizeNumber(read(header))]));
+    const row = {
+      lokasi_bulky: normalizeLocation(read('LOKASI BULKY')),
+      sku: normalizeSku(read('SKU')),
+      nama_barang: normalizeText(read('NAMA BARANG')),
+      ...Object.fromEntries(NUMBER_FIELDS.map(([, field]) => [field, numbers[field].value])),
+      status: normalizeText(read('STATUS')),
+      iseller: normalizeText(read('ISELLER')),
+      netsuite: normalizeText(read('NETSUITE')),
+      source_row_key,
+      source_row_number: sourceRowNumber,
+    };
+    const errors = [];
+    if (!row.sku) errors.push('SKU_REQUIRED');
+    for (const [header, field] of NUMBER_FIELDS) if (!numbers[field].valid) errors.push(`INVALID_NUMBER:${header}`);
+    if (errors.length) { invalidRows.push({ sourceRowNumber, sourceRowKey: source_row_key, errors }); continue; }
+    row.source_hash = await helpers.buildSourceHash(row); rows.push(row);
+  }
+  return { rows, invalidRows, sourceKeys, sourceRowCount };
+}
+
+const service = createInventorySyncService({
+  source: SYNC_SOURCE,
+  sheetName: RPL_SHEET_NAME,
+  tableName: 'inventory_rpl',
+  parseValues,
+  hashFields: [
+    'lokasi_bulky', 'sku', 'nama_barang', 'stok_akhir', 'safe_stock', 'minimum_stock',
+    'maximum_stock', 'status', 'estimasi_order', 'iseller', 'netsuite', 'selisih', 'pendingan_it',
+  ],
+});
+
+export const buildSourceRowKey = service.buildSourceRowKey;
+export const buildSourceHash = service.buildSourceHash;
+export const fetchRplValues = service.fetchValues;
+export function syncRpl(env, dependencies = {}) {
+  const logger = dependencies.logger || console;
+  const range = `'${RPL_SHEET_NAME}'!A:ZZ`;
+  (logger?.log || console.log)(`[InventorySync:${SYNC_SOURCE}]\nsheetName: ${RPL_SHEET_NAME}\nrange: ${range}`);
+  return service.sync(env, dependencies);
+}
+export function parseRplValues(values) { return parseValues(values, service); }
