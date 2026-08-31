@@ -14,6 +14,19 @@ async function loadPublicSupabaseConfig() {
 const publicSupabaseConfig = await loadPublicSupabaseConfig();
 export const supabase = createClient(publicSupabaseConfig.url, publicSupabaseConfig.key);
 
+const AUTH_STARTUP_TIMEOUT_MS = 8000;
+
+function withAuthTimeout(promise, operation) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`${operation} tidak merespons setelah ${AUTH_STARTUP_TIMEOUT_MS}ms`)),
+      AUTH_STARTUP_TIMEOUT_MS,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
 async function parseJsonResponse(resp, fallbackMessage) {
   const contentType = resp.headers.get("content-type") || "";
   if (contentType.toLowerCase().includes("application/json")) {
@@ -29,14 +42,23 @@ async function parseJsonResponse(resp, fallbackMessage) {
 }
 
 export async function getSession() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data.session;
+  try {
+    const { data, error } = await withAuthTimeout(supabase.auth.getSession(), "supabase.auth.getSession()");
+    if (error) throw error;
+    return data.session;
+  } catch (error) {
+    console.error("supabase.auth.getSession() failed", error);
+    throw error;
+  }
+}
+
+export async function getAuthenticatedUser() {
+  return withAuthTimeout(supabase.auth.getUser(), "supabase.auth.getUser()");
 }
 
 const DEV_SESSION_KEY = "dev_auth_session";
 
-export async function ensureAuthSession() {
+export async function restoreSession() {
   const raw = localStorage.getItem(DEV_SESSION_KEY);
   if (raw) {
     try {
@@ -53,6 +75,8 @@ export async function ensureAuthSession() {
   const session = await getSession();
   return session;
 }
+
+export const ensureAuthSession = restoreSession;
 
 export async function loginWithEmailPassword(username, password) {
   const resp = await fetch("/api/login", {
