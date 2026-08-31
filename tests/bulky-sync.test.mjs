@@ -61,7 +61,7 @@ test('BULKY first and unchanged second sync preserve valid database count and re
   assert.deepEqual(gateway.status, { status: 'success', locked_at: null, lock_id: null });
 });
 
-test('BULKY sync uses the existing lower-case tab and logs only safe sheet configuration', async () => {
+test('BULKY sync keeps its source identifier separate from the existing sheet tab and logs only safe range configuration', async () => {
   const messages = [];
   const gateway = statefulGateway();
   const env = { SHEET_ID_2026: 'spreadsheet-id', GOOGLE_CLIENT_EMAIL: 'secret@example.test' };
@@ -71,7 +71,7 @@ test('BULKY sync uses the existing lower-case tab and logs only safe sheet confi
     logger: { log(message) { messages.push(message); }, error() {} },
   });
 
-  assert.equal(BULKY_SHEET_NAME, 'bulky');
-  assert.equal(messages[0], "[InventorySync:bulky]\nspreadsheetConfigured: true\nsheetName: bulky\nrange: 'bulky'!A:ZZ");
+  assert.equal(BULKY_SHEET_NAME, 'BULKY');
+  assert.equal(messages[0], "[InventorySync:bulky]\nsheetName: BULKY\nrange: 'BULKY'!A:ZZ");
   assert.doesNotMatch(messages.join('\n'), /spreadsheet-id|secret@example\.test/);
 });
