@@ -4,18 +4,16 @@ export const SYNC_SOURCE = 'rpl';
 // Keep the internal source identifier separate from the Google Sheets tab name.
 export const RPL_SHEET_NAME = 'stok retail';
 export const REQUIRED_HEADERS = Object.freeze([
-  'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AKHIR', 'SAFE STOCK', 'MINIMUM STOCK',
-  'MAXIMUM STOCK', 'STATUS', 'ESTIMASI ORDER', 'ISELLER', 'NETSUITE', 'SELISIH', 'PENDINGAN IT',
+  'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AWAL', 'INTERNAL STOCK TRANSFER', 'REPLENISHMENT',
+  'PENGELUARAN', 'STOK AKHIR',
 ]);
 
 const NUMBER_FIELDS = Object.freeze([
+  ['STOK AWAL', 'stok_awal'],
+  ['INTERNAL STOCK TRANSFER', 'internal_stock_transfer'],
+  ['REPLENISHMENT', 'replenishment'],
+  ['PENGELUARAN', 'pengeluaran'],
   ['STOK AKHIR', 'stok_akhir'],
-  ['SAFE STOCK', 'safe_stock'],
-  ['MINIMUM STOCK', 'minimum_stock'],
-  ['MAXIMUM STOCK', 'maximum_stock'],
-  ['ESTIMASI ORDER', 'estimasi_order'],
-  ['SELISIH', 'selisih'],
-  ['PENDINGAN IT', 'pendingan_it'],
 ]);
 
 async function parseValues(values, helpers) {
@@ -36,9 +34,6 @@ async function parseValues(values, helpers) {
       sku: normalizeSku(read('SKU')),
       nama_barang: normalizeText(read('NAMA BARANG')),
       ...Object.fromEntries(NUMBER_FIELDS.map(([, field]) => [field, numbers[field].value])),
-      status: normalizeText(read('STATUS')),
-      iseller: normalizeText(read('ISELLER')),
-      netsuite: normalizeText(read('NETSUITE')),
       source_row_key,
       source_row_number: sourceRowNumber,
     };
@@ -57,8 +52,8 @@ const service = createInventorySyncService({
   tableName: 'inventory_rpl',
   parseValues,
   hashFields: [
-    'lokasi_bulky', 'sku', 'nama_barang', 'stok_akhir', 'safe_stock', 'minimum_stock',
-    'maximum_stock', 'status', 'estimasi_order', 'iseller', 'netsuite', 'selisih', 'pendingan_it',
+    'lokasi_bulky', 'sku', 'nama_barang', 'stok_awal', 'internal_stock_transfer', 'replenishment',
+    'pengeluaran', 'stok_akhir',
   ],
 });
 

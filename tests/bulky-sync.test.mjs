@@ -4,9 +4,9 @@ import { BULKY_SHEET_NAME, buildSourceRowKey, parseBulkyValues, syncBulky } from
 
 const HEADER = [
   'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AWAL', 'INTERNAL STOCK TRANSFER', 'REPLENISHMENT',
-  'PENGELUARAN', 'STOK AKHIR', 'Iseller', 'Netsuite', 'Selisih', 'Pendingan IT',
+  'PENGELUARAN', 'STOK AKHIR',
 ];
-const row = (sku, stokAkhir = '12') => [' bulky%20a ', sku, ` Produk ${sku} `, '10', '2', '3', '3', stokAkhir, 'Active', 'Posted', '-1', '1'];
+const row = (sku, stokAkhir = '12') => [' bulky%20a ', sku, ` Produk ${sku} `, '10', '2', '3', '3', stokAkhir];
 const logger = { log() {}, error() {} };
 
 function statefulGateway() {
@@ -30,7 +30,6 @@ test('BULKY maps and normalizes every business field in deterministic hash order
   assert.deepEqual(parsed.rows[0], {
     lokasi_bulky: 'BULKY A', sku: 'SKU-1', nama_barang: 'Produk SKU–1', stok_awal: 10,
     internal_stock_transfer: 2, replenishment: 3, pengeluaran: 3, stok_akhir: 12,
-    iseller: 'Active', netsuite: 'Posted', selisih: -1, pendingan_it: 1,
     source_row_key: 'bulky:2', source_row_number: 2, source_hash: parsed.rows[0].source_hash,
   });
   assert.match(parsed.rows[0].source_hash, /^[a-f0-9]{64}$/);
@@ -38,10 +37,10 @@ test('BULKY maps and normalizes every business field in deterministic hash order
 
 test('BULKY validates headers and reports invalid numeric cells without coercing them to zero', async () => {
   await assert.rejects(() => parseBulkyValues([HEADER.slice(1)]), error => error.code === 'INVALID_HEADER');
-  const invalid = row('SKU-1'); invalid[3] = '#VALUE!'; invalid[11] = 'not-a-number';
+  const invalid = row('SKU-1'); invalid[3] = '#VALUE!'; invalid[7] = 'not-a-number';
   const parsed = await parseBulkyValues([HEADER, invalid]);
   assert.equal(parsed.rows.length, 0);
-  assert.deepEqual(parsed.invalidRows, [{ sourceRowNumber: 2, sourceRowKey: 'bulky:2', errors: ['INVALID_NUMBER:STOK AWAL', 'INVALID_NUMBER:PENDINGAN IT'] }]);
+  assert.deepEqual(parsed.invalidRows, [{ sourceRowNumber: 2, sourceRowKey: 'bulky:2', errors: ['INVALID_NUMBER:STOK AWAL', 'INVALID_NUMBER:STOK AKHIR'] }]);
   assert.equal(parsed.sourceKeys.has('bulky:2'), true);
 });
 

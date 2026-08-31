@@ -5,7 +5,7 @@ export const SYNC_SOURCE = 'bulky';
 export const BULKY_SHEET_NAME = 'stok bulky';
 export const REQUIRED_HEADERS = Object.freeze([
   'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AWAL', 'INTERNAL STOCK TRANSFER', 'REPLENISHMENT',
-  'PENGELUARAN', 'STOK AKHIR', 'ISELLER', 'NETSUITE', 'SELISIH', 'PENDINGAN IT',
+  'PENGELUARAN', 'STOK AKHIR',
 ]);
 
 const NUMBER_FIELDS = Object.freeze([
@@ -14,8 +14,6 @@ const NUMBER_FIELDS = Object.freeze([
   ['REPLENISHMENT', 'replenishment'],
   ['PENGELUARAN', 'pengeluaran'],
   ['STOK AKHIR', 'stok_akhir'],
-  ['SELISIH', 'selisih'],
-  ['PENDINGAN IT', 'pendingan_it'],
 ]);
 
 async function parseValues(values, helpers) {
@@ -36,8 +34,6 @@ async function parseValues(values, helpers) {
       sku: normalizeSku(read('SKU')),
       nama_barang: normalizeText(read('NAMA BARANG')),
       ...Object.fromEntries(NUMBER_FIELDS.map(([, field]) => [field, numbers[field].value])),
-      iseller: normalizeText(read('ISELLER')),
-      netsuite: normalizeText(read('NETSUITE')),
       source_row_key,
       source_row_number: sourceRowNumber,
     };
@@ -57,7 +53,7 @@ const service = createInventorySyncService({
   parseValues,
   hashFields: [
     'lokasi_bulky', 'sku', 'nama_barang', 'stok_awal', 'internal_stock_transfer', 'replenishment',
-    'pengeluaran', 'stok_akhir', 'iseller', 'netsuite', 'selisih', 'pendingan_it',
+    'pengeluaran', 'stok_akhir',
   ],
 });
 
