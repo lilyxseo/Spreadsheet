@@ -48,9 +48,28 @@ test('full mode batches and explicit Supabase errors never fall back to Google S
   try {
     const response = await handleBarangMasukRequest({ request: request('?mode=full'), env });
     const body = await response.json();
-    assert.equal(response.status, 502);
-    assert.match(body.message, /Supabase.*database unavailable/);
+    assert.equal(response.status, 500);
+    assert.deepEqual(body, {
+      success: false,
+      reason: 'BARANG_MASUK_FETCH_FAILED',
+      message: 'Gagal membaca data Barang Masuk.',
+    });
     assert.equal(calls, 1);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('invalid Supabase success bodies return a controlled JSON error', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('<html>upstream failure</html>', { status: 200 });
+  try {
+    const response = await handleBarangMasukRequest({ request: request(''), env });
+    assert.equal(response.status, 500);
+    assert.match(response.headers.get('content-type'), /application\/json/);
+    assert.deepEqual(await response.json(), {
+      success: false,
+      reason: 'BARANG_MASUK_FETCH_FAILED',
+      message: 'Gagal membaca data Barang Masuk.',
+    });
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -73,5 +92,23 @@ test('full compatibility mode reads Supabase in 1000-row batches', async () => {
     assert.equal(urls.filter(url => url.includes('inventory_barang_masuk')).length, 2);
     assert.match(urls[0], /offset=0&limit=1000/);
     assert.match(urls[1], /offset=1000&limit=1000/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('full mode stops when the exact count is reached', async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(String(url));
+    if (String(url).includes('inventory_sync_status')) return new Response('[]', { status: 200 });
+    return new Response(JSON.stringify(Array.from({ length: 1000 }, (_, index) => ({ sku: `SKU-${index}` }))), {
+      status: 200,
+      headers: { 'content-range': '0-999/1000' },
+    });
+  };
+  try {
+    const response = await handleBarangMasukRequest({ request: request('?mode=full'), env });
+    assert.equal(response.status, 200);
+    assert.equal(urls.filter(url => url.includes('inventory_barang_masuk')).length, 1);
   } finally { globalThis.fetch = originalFetch; }
 });
