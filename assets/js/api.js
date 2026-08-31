@@ -2,6 +2,7 @@ import { API_KEY, SPREADSHEET_ID, SHEETS } from './config.js';
 import { parseSheet } from './parser.js';
 
 const BACKEND_SHEET_ENDPOINT = {
+  'Kartu Stock': '/api/kartu-stok?mode=full',
   'Barang Masuk': '/api/barang-masuk',
   'Barang Keluar': '/api/barang-keluar'
 };
@@ -13,6 +14,7 @@ async function fetchSheetViaBackend(sheetName){
   if(!res.ok || !json?.success){
     throw new Error(`${sheetName}: ${json?.message || res.statusText}`);
   }
+  if(sheetName === 'Kartu Stock') window.__kartuStokSyncStatus = json.syncStatus || null;
   if(Array.isArray(json.data)) return json.data;
   if(Array.isArray(json.rows)) return json.rows;
   return Array.isArray(json.values) ? json.values : [];

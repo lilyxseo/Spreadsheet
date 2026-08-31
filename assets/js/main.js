@@ -1367,6 +1367,12 @@ return barangKeluarRows;
 async function fetchSheet(sheetName){
 if(sheetName==='Barang Masuk')return loadBarangMasuk();
 if(sheetName==='Barang Keluar')return loadBarangKeluar();
+if(sheetName==='Kartu Stock'){
+const {res,data:json}=await fetchJsonSafe('/api/kartu-stok?mode=full');
+if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal membaca Kartu Stok dari Supabase');
+window.__kartuStokSyncStatus=json.syncStatus||null;
+return Array.isArray(json.data)?json.data:[];
+}
 const range=`${sheetName}!A1:ZZ`;
 const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
 const res=await fetch(url);
@@ -1376,7 +1382,9 @@ return json.values||[];
 }
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
 async function parseSheetChunked(values){
-if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];
+if(!Array.isArray(values)||!values.length)return[];
+if(values.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))return values;
+const h=detectHeaderIndex(values);if(h<0)return[];
 const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];const body=values.slice(h+1);
 await runChunked(body,(row)=>{if(!row?.length||row.every(c=>!String(c||"").trim()))return;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);},{chunkSize:600,timeout:120});
 return rows;
@@ -1925,7 +1933,7 @@ if(refreshBtn){refreshBtn.classList.toggle("is-syncing",isSyncing);refreshBtn.di
 if(refreshToggleHeader){refreshToggleHeader.classList.toggle("is-syncing",isSyncing);refreshToggleHeader.disabled=!!isSyncing;}
 }
 function renderState(id,text){document.getElementById(id).innerHTML=`<div class='state'>${esc(text)}</div>`;} function renderError(id,text){document.getElementById(id).innerHTML=`<div class='state error'>${esc(text)}</div>`;}
-function updateSyncTime(){const ts=Number(localStorage.getItem(CACHE_KEYS.lastSync)||Date.now());lastSync.textContent="Sync: "+new Date(ts).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});updateSettingsDashboard();}
+function updateSyncTime(){const dbSync=window.__kartuStokSyncStatus?.last_success_at;const ts=dbSync?new Date(dbSync).getTime():Number(localStorage.getItem(CACHE_KEYS.lastSync)||Date.now());lastSync.textContent=(dbSync?"Kartu Stok: ":"Sync: ")+new Date(ts).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});updateSettingsDashboard();}
 function updateApiState(){const t=apiConnected?"Terhubung":"Tidak terhubung";settingsApiState.textContent=t;sidebarApi.textContent="";updateSettingsDashboard();}
 async function clearSystemCache(){
   showConfirmModal({title:'Hapus Cache',message:'Hapus cache lokal sekarang?',confirmText:'Hapus',cancelText:'Batal',type:'danger',onConfirm:async()=>{await clearCache();updateSettingsDashboard();toast("Cache berhasil dibersihkan","success");}});

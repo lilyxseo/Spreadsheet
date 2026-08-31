@@ -7,6 +7,18 @@ function pickContext(env = {}) {
   return String(env.CONTEXT || env.NETLIFY_CONTEXT || env.NODE_ENV || "").toLowerCase() || "unknown";
 }
 
+function publicSupabaseKey(value) {
+  const key = String(value || "").trim();
+  if (key.startsWith("sb_publishable_")) return key;
+  try {
+    const encoded = key.split(".")[1] || "";
+    const payload = JSON.parse(atob(encoded.replace(/-/g, "+").replace(/_/g, "/")));
+    return payload?.role === "anon" ? key : "";
+  } catch (_error) {
+    return "";
+  }
+}
+
 export async function onRequestGet({ env }) {
   try {
     const previewBypassLogin = parseTrue(
@@ -16,6 +28,8 @@ export async function onRequestGet({ env }) {
       JSON.stringify({
         previewBypassLogin,
         environment: pickContext(env || {}),
+        supabaseUrl: String(env?.SUPABASE_URL || "").trim(),
+        supabaseAnonKey: publicSupabaseKey(env?.SUPABASE_ANON_KEY),
       }),
       {
         status: 200,
