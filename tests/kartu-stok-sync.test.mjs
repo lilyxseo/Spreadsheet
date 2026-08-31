@@ -88,7 +88,7 @@ test('Supabase lock and success RPCs use exact PostgreSQL parameter names', asyn
     return { ok: true, status: 204, json: async () => null };
   };
 
-  await syncKartuStok({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'secret' }, {
+  await syncKartuStok({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_test' }, {
     fetch, fetchValues: async () => [HEADER, sheetRow('A')], logger: silentLogger,
   });
 
@@ -111,7 +111,7 @@ test('Supabase error RPC uses exact PostgreSQL parameter names', async () => {
     return { ok: true, status: 204, json: async () => null };
   };
 
-  await assert.rejects(() => syncKartuStok({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'secret' }, {
+  await assert.rejects(() => syncKartuStok({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_test' }, {
     fetch, fetchValues: async () => { throw new Error('Google down'); }, logger: silentLogger,
   }));
 

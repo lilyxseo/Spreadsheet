@@ -1,3 +1,5 @@
+import { getPublishableSupabaseConfig } from './_supabase-config.js';
+
 const DEV_SESSION_TTL_SECONDS = 60 * 60 * 12;
 
 function json(data, status = 200) {
@@ -63,9 +65,7 @@ export async function onRequestPost({ request, env }) {
         safeEquals(normalizedPassword, devPassword)
       ) {
         const secret = String(
-          env.DEV_SESSION_SECRET ||
-            env.SUPABASE_ANON_KEY ||
-            "dev-secret"
+          env.DEV_SESSION_SECRET || "dev-secret"
         );
 
         const accessToken = createDevToken(secret, normalizedUsername);
@@ -95,26 +95,15 @@ export async function onRequestPost({ request, env }) {
     /**
      * NORMAL DATABASE LOGIN VIA SUPABASE
      */
-    const supabaseUrl = String(env.SUPABASE_URL || "").trim();
-    const supabaseAnonKey = String(env.SUPABASE_ANON_KEY || "").trim();
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return json(
-        {
-          error:
-            "SUPABASE_URL atau SUPABASE_ANON_KEY belum diatur di Cloudflare ENV.",
-        },
-        500
-      );
-    }
+    const { url: supabaseUrl, key: supabasePublishableKey } = getPublishableSupabaseConfig(env);
 
     const resp = await fetch(
       `${supabaseUrl}/auth/v1/token?grant_type=password`,
       {
         method: "POST",
         headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${supabaseAnonKey}`,
+          apikey: supabasePublishableKey,
+          Authorization: `Bearer ${supabasePublishableKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -148,6 +137,10 @@ export async function onRequestPost({ request, env }) {
       user: data.user || null,
     });
   } catch (err) {
+    if (String(err?.message || '').startsWith('SUPABASE_')) {
+      console.error('Invalid Supabase login configuration:', err.message);
+      return json({ error: err.message }, 500);
+    }
     return json({ error: "Payload login tidak valid." }, 400);
   }
 }

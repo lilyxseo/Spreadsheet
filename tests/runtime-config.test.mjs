@@ -1,19 +1,53 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { onRequestGet } from "../functions/api/runtime-config.js";
+import { getSecretSupabaseConfig } from "../functions/api/_supabase-config.js";
 
-test("runtime config exposes only safe deployment diagnostics in headers", async () => {
-  const anonKey = "sb_publishable_abcdefghijklmnopqrstuvwxyz";
+test("runtime config exposes the publishable key under the compatibility property", async () => {
+  const publishableKey = "sb_publishable_abcdefghijklmnopqrstuvwxyz";
   const response = await onRequestGet({
     env: {
-      SUPABASE_ANON_KEY: anonKey,
-      SUPABASE_SERVICE_ROLE_KEY: "sb_secret_must-never-be-exposed",
+      SUPABASE_URL: "https://example.supabase.co/",
+      SUPABASE_PUBLISHABLE_KEY: publishableKey,
+      SUPABASE_SECRET_KEY: "sb_secret_must-never-be-exposed",
     },
   });
 
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("X-Runtime-Config-Version"), "27c9f6c");
-  assert.equal(response.headers.get("X-Anon-Key-Prefix"), anonKey.slice(0, 20));
-  assert.equal(response.headers.get("X-Anon-Key-Prefix").length, 20);
-  assert.equal(response.headers.has("X-Service-Role-Key-Prefix"), false);
+  const text = await response.text();
+  assert.deepEqual(JSON.parse(text), {
+    previewBypassLogin: false,
+    environment: "unknown",
+    supabaseUrl: "https://example.supabase.co",
+    supabaseAnonKey: publishableKey,
+  });
+  assert.equal(text.includes("sb_secret_"), false);
+});
+
+test("runtime config rejects malformed publishable keys", async () => {
+  const response = await onRequestGet({
+    env: {
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "legacy-jwt",
+    },
+  });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), {
+    success: false,
+    message: "SUPABASE_PUBLISHABLE_KEY must start with sb_publishable_",
+  });
+});
+
+test("server config accepts only the new secret-key prefix", () => {
+  assert.deepEqual(
+    getSecretSupabaseConfig({
+      SUPABASE_URL: "https://example.supabase.co/",
+      SUPABASE_SECRET_KEY: "sb_secret_server",
+    }),
+    { url: "https://example.supabase.co", key: "sb_secret_server" }
+  );
+  assert.throws(
+    () => getSecretSupabaseConfig({ SUPABASE_URL: "https://example.supabase.co", SUPABASE_SECRET_KEY: "legacy-jwt" }),
+    /SUPABASE_SECRET_KEY must start with sb_secret_/
+  );
 });
