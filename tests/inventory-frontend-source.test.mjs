@@ -17,15 +17,14 @@ test('main dashboard routes every inventory source through a Supabase-backed API
   assert.match(source, /fetchJsonSafe\(`\/api\/barang-masuk/);
   assert.match(source, /fetchJsonSafe\(`\/api\/barang-keluar/);
 
-  const googleFallback = fetchSheetBody.indexOf('https://sheets.googleapis.com');
-  assert.ok(googleFallback > fetchSheetBody.indexOf("if(inventoryEndpoints[sheetName])"));
-  assert.match(fetchSheetBody, /Google Sheets remains available only for non-inventory sources/);
+  assert.match(fetchSheetBody, /if\(sheetName!=='BARCODE'\)throw new Error/);
 });
 
-test('module API maps all inventory names before its legacy non-inventory fallback', async () => {
+test('module API maps all inventory names and has no Google Sheets fallback', async () => {
   const source = await readFile(new URL('../assets/js/api.js', import.meta.url), 'utf8');
   const mapping = source.slice(source.indexOf('const BACKEND_SHEET_ENDPOINT'), source.indexOf('async function fetchSheetViaBackend'));
   for (const name of INVENTORY_SOURCES) assert.match(mapping, new RegExp(`['"]${name}['"]`));
   for (const endpoint of ['kartu-stok', 'barang-masuk', 'barang-keluar', 'rpl', 'bulky']) assert.match(mapping, new RegExp(`/api/${endpoint}`));
   assert.match(source, /if\(BACKEND_SHEET_ENDPOINT\[sheetName\]\) return fetchSheetViaBackend\(sheetName\)/);
+  assert.doesNotMatch(source, /sheets\.googleapis\.com|API_KEY|SPREADSHEET_ID/);
 });

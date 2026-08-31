@@ -6,11 +6,9 @@ New deployments must configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and
 `SUPABASE_SECRET_KEY`. The publishable key is used by browser/auth flows; the
 secret key is restricted to privileged server operations.
 
-For a staged deployment migration, the centralized server configuration helper
-temporarily accepts `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` only when
-their replacements are absent, and emits a server-side deprecation warning.
-When a new variable is present but malformed, configuration fails instead of
-falling back to its legacy counterpart.
+Legacy `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` environment names are
+no longer accepted. A missing or malformed current key fails configuration
+explicitly.
 
 The `/api/runtime-config` response retains the `supabaseAnonKey` JSON property
 for frontend compatibility. Its value comes from `SUPABASE_PUBLISHABLE_KEY` in

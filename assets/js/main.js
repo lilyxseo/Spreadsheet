@@ -6,7 +6,6 @@ import { logActivity, logActivityResult, logLogin, logLogout, logPageView } from
 const ids=["searchInput","quickResultCard","statsFilter","refreshToggleHeader","darkBtnHeader","openSidebar","closeSidebar","sidebarOverlay","sheetInfo","spreadsheetInfo","dashboardCards","recentMove","statsCards","statsChart","loadedState","countPerSheet","filterRow","lastSync","settingsApiState","sidebarApi","detail","locationsSummary","locSearchInput","locSkuSearchInput","locStatusFilter","locTypeFilter","locSort","locPageSize","locationsTable","locationsEmpty","locationDetail","inSearch","inSummary","inResults","outSearch","outSummary","outResults","inFiltersToggle","outFiltersToggle","anomalySummary","anomalySeverity","anomalyType","anomalySearch","anomalyTable","stokMinusSummary","stokMinusPanel","stokMinusTable","cycleCountApp","movementApp","settingsLastRefresh","settingsTotalRows","settingsSystemStatus","settingsSystemDot","settingsDataSources","settingsCacheStatus","settingsCacheTime","archiveApp","assetStoreApp","mainContentSkeleton","mainContentPages","sidebarToggle","balikanSheetSelect","balikanSearchInput","balikanSummary","balikanTable","btnScanBalikan","balikanSortSelect","btnResetBalikanFilter","btnExportBalikanCsv","balikanAutoCheckToggle","balikanSearchHistory","abcAnalisisApp","importPdfTransferApp","barangRejectApp","rejectPermissionBadge"];
 ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
-console.log("CONFIG", API_KEY, SPREADSHEET_ID, SHEETS);
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search",balikanSearchHistory:"inventory_balikan_store_search_history"};
 const SIDEBAR_MENU_STATE_KEY="inventory_sidebar_menu_state";
 const BARCODE_CACHE_KEY="inventory_barcode_master";
@@ -261,30 +260,22 @@ document.addEventListener('dblclick',e=>{
 
 async function loadRuntimeConfig(){
 const endpoints=['/api/runtime-config','/.netlify/functions/api/runtime-config','/functions/api/runtime-config'];
-const runtimeDebug=[];
 let loaded=null;
 for(const url of endpoints){
 try{
 const res=await fetch(url,{cache:'no-store'});
-const raw=await res.text();
-const data=safeJsonParse(raw,null,false);
-runtimeDebug.push({url,status:res.status,ok:res.ok,isJson:data!==null,previewBypassLogin:data?.previewBypassLogin??null});
+const data=await res.json().catch(()=>null);
 if(!res.ok||!data||typeof data!=='object')continue;
 loaded=data;
 break;
-}catch(err){
-runtimeDebug.push({url,error:String(err?.message||err)});
+}catch(_err){}
 }
-}
-window.__runtimeConfigDebug={checkedAt:new Date().toISOString(),runtimeDebug};
-console.info('[runtime-config] debug',window.__runtimeConfigDebug);
 if(!loaded){
 runtimeConfig={previewBypassLogin:false};
 console.warn('Runtime config unavailable, fallback login normal');
 return;
 }
 runtimeConfig={previewBypassLogin:isTruthyFlag(loaded.previewBypassLogin)};
-console.info('[runtime-config] active config',runtimeConfig);
 }
 
 const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
@@ -515,7 +506,6 @@ if(loginView){loginView.hidden=true;loginView.style.display="none";}
 return;
 }
 if(!user){
-console.info("[BOOT] render login");
 clearCurrentUser();
 setAppAuthState("is-logged-out");
 if(loadingScreen){loadingScreen.hidden=true;loadingScreen.style.display="none";loadingScreen.style.pointerEvents="none";}
@@ -523,7 +513,6 @@ if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
 if(loginView){loginView.hidden=false;loginView.style.display="grid";}
 return;
 }
-console.info("[BOOT] render app");
 if(loadingScreen){
 loadingScreen.hidden=true;
 loadingScreen.style.display="none";
@@ -548,13 +537,10 @@ return email;
 }
 
 async function bootApplication(){
-console.info("[BOOT] DOMContentLoaded");
 authChecking=true;
 applyTheme();
 renderAuthState();
 await loadRuntimeConfig();
-console.info("[BOOT] runtime config complete");
-console.info("[BOOT] preview bypass value",isPreviewBypassLoginEnabled());
 queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload awal gagal",err));});
 let session=null;
 try{
@@ -580,7 +566,6 @@ user=null;
 console.error("Auth session check failed",err);
 user=null;
 }finally{
-console.info("[BOOT] auth finally");
 authChecking=false;
 renderAuthState();
 }
@@ -1356,7 +1341,7 @@ async function loadBarangMasuk(_opts={}){
 const {mode="full",limit=1000}=_opts||{};
 const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
 const {res,data:json}=await fetchJsonSafe(`/api/barang-masuk${qs}`);
-if(!res.ok||!json?.success){console.error("INIT ERROR barangMasuk",(json&&json.message)||res.statusText);return [];}
+if(!res.ok||!json?.success)throw new Error((json&&json.message)||res.statusText||'Gagal membaca Barang Masuk dari Supabase');
 const barangMasukRows=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasukRows;
@@ -1369,7 +1354,7 @@ async function loadBarangKeluar(_opts={}){
 const {mode="full",limit=1000}=_opts||{};
 const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
 const {res,data:json}=await fetchJsonSafe(`/api/barang-keluar${qs}`);
-if(!res.ok||!json?.success){console.error("INIT ERROR barangKeluar",(json&&json.message)||res.statusText);return [];}
+if(!res.ok||!json?.success)throw new Error((json&&json.message)||res.statusText||'Gagal membaca Barang Keluar dari Supabase');
 const barangKeluarRows=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangKeluar=barangKeluarRows;
@@ -1396,7 +1381,8 @@ window.__bulkySyncStatus=json.syncStatus||null;
 }
 return Array.isArray(json.data)?json.data:(Array.isArray(json.rows)?json.rows:[]);
 }
-// Google Sheets remains available only for non-inventory sources such as BARCODE.
+if(sheetName!=='BARCODE')throw new Error(`${sheetName}: source frontend tidak didukung`);
+// BARCODE is a separate, non-inventory source that has not migrated to Supabase.
 const range=`${sheetName}!A1:ZZ`;
 const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
 const res=await fetch(url);
