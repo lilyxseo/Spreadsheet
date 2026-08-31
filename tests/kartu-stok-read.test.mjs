@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleKartuStokRequest, mapKartuStokRow } from '../functions/api/kartu-stok/index.js';
 
-const env = { SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'server-only', PREVIEW_BYPASS_LOGIN: 'true' };
+const env = { SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_server-only', PREVIEW_BYPASS_LOGIN: 'true' };
 const request = path => new Request(`https://app.example/api/kartu-stok${path}`, { headers: { 'x-preview-bypass-login': 'true' } });
 
 test('adapter preserves the Kartu Stock frontend keys and numeric details', () => {

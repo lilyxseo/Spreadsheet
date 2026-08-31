@@ -1,4 +1,5 @@
 import { getRequestRole } from '../_authz.js';
+import { getSecretSupabaseConfig } from '../_supabase-config.js';
 
 const TABLE = 'inventory_kartu_stok';
 const COLUMNS = 'lokasi_bulky,sku,nama_barang,stok_awal,internal_stock_transfer,replenishment,pengeluaran,stok_akhir,source_row_number,synced_at';
@@ -13,10 +14,7 @@ function json(body, status = 200, extraHeaders = {}) {
 }
 
 function serverCredentials(env) {
-  const url = String(env?.SUPABASE_URL || '').replace(/\/$/, '');
-  const key = String(env?.SUPABASE_SECRET_KEY || env?.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-  if (!url || !key) throw new Error('Konfigurasi Supabase server belum lengkap');
-  return { url, key };
+  return getSecretSupabaseConfig(env);
 }
 
 function escapeLike(value) {

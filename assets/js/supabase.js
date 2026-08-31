@@ -1,12 +1,12 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
 
 async function loadPublicSupabaseConfig() {
-  if (SUPABASE_ANON_KEY) return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
+  if (SUPABASE_PUBLISHABLE_KEY) return { url: SUPABASE_URL, key: SUPABASE_PUBLISHABLE_KEY };
   const response = await fetch("/api/runtime-config", { cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.supabaseUrl || !data.supabaseAnonKey) {
-    throw new Error("Supabase anon key belum dikonfigurasi dengan aman");
+    throw new Error("Supabase publishable key belum dikonfigurasi dengan aman");
   }
   return { url: data.supabaseUrl, key: data.supabaseAnonKey };
 }
