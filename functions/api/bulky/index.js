@@ -53,8 +53,7 @@ function exactTotal(response, fallback) {
 }
 
 async function fetchSyncStatus(config) {
-  const fields = 'source,status,last_success_at,last_attempt_at,source_row_count,error_message';
-  const { payload } = await supabaseGet(config, `inventory_sync_status?select=${fields}&source=eq.bulky&limit=1`);
+  const { payload } = await supabaseGet(config, 'inventory_sync_status?select=*&source=eq.bulky&limit=1');
   return payload[0] || null;
 }
 
