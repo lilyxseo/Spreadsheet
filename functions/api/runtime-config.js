@@ -21,6 +21,13 @@ function publicSupabaseKey(value) {
 
 export async function onRequestGet({ env }) {
   try {
+    const anonKey = String(env?.SUPABASE_ANON_KEY || "").trim();
+    const serviceRoleKey = String(env?.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+    console.log("runtime-config Supabase env", {
+      hasAnonKey: Boolean(anonKey),
+      anonKeyPrefix: anonKey.slice(0, 20),
+      hasServiceRoleKey: Boolean(serviceRoleKey),
+    });
     const previewBypassLogin = parseTrue(
       env?.PREVIEW_BYPASS_LOGIN ?? env?.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env?.VITE_PREVIEW_BYPASS_LOGIN
     );
@@ -29,7 +36,7 @@ export async function onRequestGet({ env }) {
         previewBypassLogin,
         environment: pickContext(env || {}),
         supabaseUrl: String(env?.SUPABASE_URL || "").trim(),
-        supabaseAnonKey: publicSupabaseKey(env?.SUPABASE_ANON_KEY),
+        supabaseAnonKey: publicSupabaseKey(anonKey),
       }),
       {
         status: 200,
