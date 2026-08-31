@@ -5,6 +5,8 @@ const COLUMNS = 'tanggal,from_location,to_location,sku,nama_barang,qty,status,pi
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const FULL_BATCH_SIZE = 1000;
+const ERROR_REASON = 'BARANG_MASUK_FETCH_FAILED';
+const SAFE_ERROR_MESSAGE = 'Gagal membaca data Barang Masuk.';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -37,8 +39,8 @@ export function mapBarangMasukRow(row = {}) {
   };
 }
 
-async function supabaseGet(env, path, { count = false } = {}) {
-  const { url, key } = getSecretSupabaseConfig(env);
+async function supabaseGet(config, path, { count = false } = {}) {
+  const { url, key } = config;
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
@@ -47,8 +49,16 @@ async function supabaseGet(env, path, { count = false } = {}) {
     },
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.message || `Supabase HTTP ${response.status}`);
-  return { payload: Array.isArray(payload) ? payload : [], response };
+  if (!response.ok) {
+    const error = new Error(payload?.message || `Supabase HTTP ${response.status}`);
+    error.name = 'SupabaseError';
+    error.code = payload?.code;
+    throw error;
+  }
+  if (!Array.isArray(payload)) {
+    throw new TypeError('Supabase returned an invalid response body');
+  }
+  return { payload, response };
 }
 
 function exactTotal(response, fallback) {
@@ -56,15 +66,21 @@ function exactTotal(response, fallback) {
   return total && total !== '*' ? Number(total) : fallback;
 }
 
-async function fetchSyncStatus(env) {
+async function fetchSyncStatus(config) {
   const path = 'inventory_sync_status?select=source,status,last_success_at,last_attempt_at,source_row_count,error_message&source=eq.barang_masuk&limit=1';
-  const { payload } = await supabaseGet(env, path);
+  const { payload } = await supabaseGet(config, path);
   return payload[0] || null;
 }
 
 export async function handleBarangMasukRequest({ request, env }) {
   const startedAt = Date.now();
+  console.info('[BarangMasukAPI] start');
   try {
+    // Validate the centralized server-only configuration before constructing a query.
+    // This endpoint has no additional route-level auth check; keep its existing auth behavior.
+    const supabaseConfig = getSecretSupabaseConfig(env);
+    console.info('[BarangMasukAPI] auth-ok');
+
     const url = new URL(request.url);
     const mode = url.searchParams.get('mode') === 'full' ? 'full' : 'page';
     const page = Math.max(1, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1);
@@ -92,23 +108,25 @@ export async function handleBarangMasukRequest({ request, env }) {
 
     let rawRows = [];
     let total = 0;
+    console.info('[BarangMasukAPI] query-start');
     if (mode === 'full') {
       for (let offset = 0; ; offset += FULL_BATCH_SIZE) {
-        const result = await supabaseGet(env, `${TABLE}?select=${COLUMNS}${filterQuery}&order=source_row_number.asc&offset=${offset}&limit=${FULL_BATCH_SIZE}`, { count: offset === 0 });
+        const result = await supabaseGet(supabaseConfig, `${TABLE}?select=${COLUMNS}${filterQuery}&order=source_row_number.asc&offset=${offset}&limit=${FULL_BATCH_SIZE}`, { count: offset === 0 });
         rawRows.push(...result.payload);
         if (offset === 0) total = exactTotal(result.response, result.payload.length);
-        if (result.payload.length < FULL_BATCH_SIZE) break;
+        if (result.payload.length < FULL_BATCH_SIZE || (total > 0 && rawRows.length >= total)) break;
       }
     } else {
       const offset = (page - 1) * limit;
-      const result = await supabaseGet(env, `${TABLE}?select=${COLUMNS}${filterQuery}&order=source_row_number.asc&offset=${offset}&limit=${limit}`, { count: true });
+      const result = await supabaseGet(supabaseConfig, `${TABLE}?select=${COLUMNS}${filterQuery}&order=source_row_number.asc&offset=${offset}&limit=${limit}`, { count: true });
       rawRows = result.payload;
       total = exactTotal(result.response, result.payload.length);
     }
+    console.info('[BarangMasukAPI] query-ok');
 
-    const syncStatus = await fetchSyncStatus(env);
+    const syncStatus = await fetchSyncStatus(supabaseConfig);
     const rows = rawRows.map(mapBarangMasukRow);
-    return json({
+    const body = {
       success: true,
       source: 'supabase',
       table: `public.${TABLE}`,
@@ -125,10 +143,16 @@ export async function handleBarangMasukRequest({ request, env }) {
       lastSync: syncStatus?.last_success_at ?? null,
       syncStatus,
       durationMs: Date.now() - startedAt,
-    });
+    };
+    console.info('[BarangMasukAPI] response-ready');
+    return json(body);
   } catch (error) {
-    console.error('[BarangMasukSupabase]', error?.message || error);
-    return json({ success: false, source: 'supabase', message: `Gagal membaca Barang Masuk dari Supabase: ${error?.message || 'Unknown error'}` }, 502);
+    console.error('[BarangMasukAPI] error', {
+      name: error?.name || 'Error',
+      message: error?.message || 'Unknown error',
+      ...(error?.code ? { code: error.code } : {}),
+    });
+    return json({ success: false, reason: ERROR_REASON, message: SAFE_ERROR_MESSAGE }, 500);
   }
 }
 
