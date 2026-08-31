@@ -71,7 +71,7 @@ test('BULKY sync keeps its source identifier separate from the existing sheet ta
     logger: { log(message) { messages.push(message); }, error() {} },
   });
 
-  assert.equal(BULKY_SHEET_NAME, 'BULKY');
-  assert.equal(messages[0], "[InventorySync:bulky]\nsheetName: BULKY\nrange: 'BULKY'!A:ZZ");
+  assert.equal(BULKY_SHEET_NAME, 'stok bulky');
+  assert.equal(messages[0], "[InventorySync:bulky]\nsheetName: stok bulky\nrange: 'stok bulky'!A:ZZ");
   assert.doesNotMatch(messages.join('\n'), /spreadsheet-id|secret@example\.test/);
 });

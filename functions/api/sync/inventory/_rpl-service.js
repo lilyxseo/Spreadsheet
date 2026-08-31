@@ -1,9 +1,8 @@
 import { createInventorySyncService, normalizeLocation, normalizeNumber, normalizeSku, normalizeText, normalizedHeader, SyncError } from './_sync-engine.js';
 
 export const SYNC_SOURCE = 'rpl';
-// The source identifier is an internal lock/status key. The application config
-// names the actual Google Sheets tab "RPL", so keep the two values explicit.
-export const RPL_SHEET_NAME = 'RPL';
+// Keep the internal source identifier separate from the Google Sheets tab name.
+export const RPL_SHEET_NAME = 'stok retail';
 export const REQUIRED_HEADERS = Object.freeze([
   'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AKHIR', 'SAFE STOCK', 'MINIMUM STOCK',
   'MAXIMUM STOCK', 'STATUS', 'ESTIMASI ORDER', 'ISELLER', 'NETSUITE', 'SELISIH', 'PENDINGAN IT',

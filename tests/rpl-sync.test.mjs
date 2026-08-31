@@ -69,7 +69,7 @@ test('RPL uses the actual configured tab name separately from its source identif
     gateway: statefulGateway(), fetchValues: async () => [HEADER, row('A')],
     logger: { log(message) { messages.push(message); }, error() {} },
   });
-  assert.equal(RPL_SHEET_NAME, 'RPL');
-  assert.equal(messages[0], "[InventorySync:rpl]\nsheetName: RPL\nrange: 'RPL'!A:ZZ");
+  assert.equal(RPL_SHEET_NAME, 'stok retail');
+  assert.equal(messages[0], "[InventorySync:rpl]\nsheetName: stok retail\nrange: 'stok retail'!A:ZZ");
   assert.doesNotMatch(messages.join('\n'), /spreadsheet-id/);
 });

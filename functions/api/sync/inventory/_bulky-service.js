@@ -1,9 +1,8 @@
 import { createInventorySyncService, normalizeLocation, normalizeNumber, normalizeSku, normalizeText, normalizedHeader, SyncError } from './_sync-engine.js';
 
 export const SYNC_SOURCE = 'bulky';
-// Keep the worker source identifier separate from the existing Google Sheets
-// tab title: Google Sheets range names are case-sensitive.
-export const BULKY_SHEET_NAME = 'BULKY';
+// Keep the internal source identifier separate from the Google Sheets tab name.
+export const BULKY_SHEET_NAME = 'stok bulky';
 export const REQUIRED_HEADERS = Object.freeze([
   'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AWAL', 'INTERNAL STOCK TRANSFER', 'REPLENISHMENT',
   'PENGELUARAN', 'STOK AKHIR', 'ISELLER', 'NETSUITE', 'SELISIH', 'PENDINGAN IT',
