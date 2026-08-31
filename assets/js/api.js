@@ -6,7 +6,9 @@ const BACKEND_SHEET_ENDPOINT = {
   // Legacy dashboards need the complete inbound history; ordinary endpoint calls
   // remain paginated by default.
   'Barang Masuk': '/api/barang-masuk?mode=full',
-  'Barang Keluar': '/api/barang-keluar'
+  // Preserve the legacy full-history frontend contract while the endpoint itself
+  // defaults to server-side pagination.
+  'Barang Keluar': '/api/barang-keluar?mode=full'
 };
 
 async function fetchSheetViaBackend(sheetName){
