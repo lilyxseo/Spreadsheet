@@ -1381,12 +1381,22 @@ return barangKeluarRows;
 async function fetchSheet(sheetName){
 if(sheetName==='Barang Masuk')return loadBarangMasuk();
 if(sheetName==='Barang Keluar')return loadBarangKeluar();
-if(sheetName==='Kartu Stock'){
-const {res,data:json}=await fetchJsonSafe('/api/kartu-stok?mode=full');
-if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal membaca Kartu Stok dari Supabase');
-window.__kartuStokSyncStatus=json.syncStatus||null;
-return Array.isArray(json.data)?json.data:[];
+const inventoryEndpoints={
+'Kartu Stock':'/api/kartu-stok?mode=full',
+'RPL':'/api/rpl?mode=full',
+'BULKY':'/api/bulky?mode=full'
+};
+if(inventoryEndpoints[sheetName]){
+const {res,data:json}=await fetchJsonSafe(inventoryEndpoints[sheetName]);
+if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||`Gagal membaca ${sheetName} dari Supabase`);
+if(sheetName==='Kartu Stock')window.__kartuStokSyncStatus=json.syncStatus||null;
+if(sheetName==='BULKY'){
+window.__bulkyLastSync=json.lastSync||null;
+window.__bulkySyncStatus=json.syncStatus||null;
 }
+return Array.isArray(json.data)?json.data:(Array.isArray(json.rows)?json.rows:[]);
+}
+// Google Sheets remains available only for non-inventory sources such as BARCODE.
 const range=`${sheetName}!A1:ZZ`;
 const url=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
 const res=await fetch(url);

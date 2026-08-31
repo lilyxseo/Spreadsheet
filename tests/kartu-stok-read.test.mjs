@@ -27,6 +27,9 @@ test('endpoint applies server-side SKU/name/location filters and returns sync fr
     assert.equal(body.total, 1);
     assert.equal(body.data[0]['stok akhir'], 8);
     assert.equal(body.syncStatus.source, 'kartu_stok');
+    const statusUrl = urls.find(url => url.includes('inventory_sync_status'));
+    assert.equal(new URL(statusUrl).searchParams.get('select'), '*');
+    assert.doesNotMatch(statusUrl, /last_attempt_at/);
     assert.match(urls[0], /sku=ilike/);
     assert.match(urls[0], /nama_barang\.ilike/);
     assert.match(urls[0], /lokasi_bulky=eq/);
