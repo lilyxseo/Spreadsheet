@@ -4,6 +4,7 @@ import { parseSheet } from './parser.js';
 const BACKEND_SHEET_ENDPOINT = {
   'Kartu Stock': '/api/kartu-stok?mode=full',
   'RPL': '/api/rpl?mode=full',
+  'BULKY': '/api/bulky?mode=full',
   // Legacy dashboards need the complete inbound history; ordinary endpoint calls
   // remain paginated by default.
   'Barang Masuk': '/api/barang-masuk?mode=full',
@@ -20,6 +21,10 @@ async function fetchSheetViaBackend(sheetName){
     throw new Error(`${sheetName}: ${json?.message || res.statusText}`);
   }
   if(sheetName === 'Kartu Stock') window.__kartuStokSyncStatus = json.syncStatus || null;
+  if(sheetName === 'BULKY'){
+    window.__bulkyLastSync = json.lastSync || null;
+    window.__bulkySyncStatus = json.syncStatus || null;
+  }
   if(Array.isArray(json.data)) return json.data;
   if(Array.isArray(json.rows)) return json.rows;
   return Array.isArray(json.values) ? json.values : [];

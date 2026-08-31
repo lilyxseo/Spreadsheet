@@ -1,0 +1,127 @@
+import { getSecretSupabaseConfig } from '../_supabase-config.js';
+
+const TABLE = 'inventory_bulky';
+const COLUMNS = 'lokasi_bulky,sku,nama_barang,stok_awal,internal_stock_transfer,replenishment,pengeluaran,stok_akhir,source_row_number,synced_at';
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+const FULL_BATCH_SIZE = 1000;
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
+function escapeLike(value) {
+  return String(value || '').replace(/[\\%_]/g, match => `\\${match}`);
+}
+
+export function mapBulkyRow(row = {}) {
+  return {
+    lokasi: row.lokasi_bulky ?? '',
+    'lokasi bulky': row.lokasi_bulky ?? '',
+    sku: row.sku ?? '',
+    'nama barang': row.nama_barang ?? '',
+    'stok awal': row.stok_awal ?? 0,
+    'internal stock transfer': row.internal_stock_transfer ?? 0,
+    replenishment: row.replenishment ?? 0,
+    pengeluaran: row.pengeluaran ?? 0,
+    'stok akhir': row.stok_akhir ?? 0,
+    source_row_number: row.source_row_number ?? null,
+    synced_at: row.synced_at ?? null,
+  };
+}
+
+async function supabaseGet(config, path, { count = false } = {}) {
+  const response = await fetch(`${config.url}/rest/v1/${path}`, {
+    headers: {
+      apikey: config.key,
+      Authorization: `Bearer ${config.key}`,
+      ...(count ? { Prefer: 'count=exact' } : {}),
+    },
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message || `Supabase HTTP ${response.status}`);
+  if (!Array.isArray(payload)) throw new TypeError('Supabase returned an invalid response body');
+  return { payload, response };
+}
+
+function exactTotal(response, fallback) {
+  const total = String(response.headers.get('content-range') || '').split('/')[1];
+  return total && total !== '*' ? Number(total) : fallback;
+}
+
+async function fetchSyncStatus(config) {
+  const fields = 'source,status,last_success_at,last_attempt_at,source_row_count,error_message';
+  const { payload } = await supabaseGet(config, `inventory_sync_status?select=${fields}&source=eq.bulky&limit=1`);
+  return payload[0] || null;
+}
+
+export async function handleBulkyRequest({ request, env }) {
+  const startedAt = Date.now();
+  try {
+    const config = getSecretSupabaseConfig(env);
+    const url = new URL(request.url);
+    const mode = url.searchParams.get('mode') === 'full' ? 'full' : 'page';
+    const page = Math.max(1, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(MAX_LIMIT, Math.max(1, Number.parseInt(url.searchParams.get('limit') || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT));
+    const sku = String(url.searchParams.get('sku') || '').trim();
+    const search = String(url.searchParams.get('q') || '').trim();
+    const lokasi = String(url.searchParams.get('lokasi') || '').trim();
+    const filters = [];
+    if (sku) filters.push(`sku=ilike.${encodeURIComponent(`%${escapeLike(sku)}%`)}`);
+    if (search) {
+      const term = encodeURIComponent(`*${escapeLike(search)}*`);
+      filters.push(`or=(sku.ilike.${term},nama_barang.ilike.${term})`);
+    }
+    if (lokasi) filters.push(`lokasi_bulky=eq.${encodeURIComponent(lokasi)}`);
+    const filterQuery = filters.length ? `&${filters.join('&')}` : '';
+
+    let rawRows = [];
+    let total = 0;
+    if (mode === 'full') {
+      for (let offset = 0; ; offset += FULL_BATCH_SIZE) {
+        const result = await supabaseGet(config, `${TABLE}?select=${COLUMNS}${filterQuery}&order=source_row_number.asc&offset=${offset}&limit=${FULL_BATCH_SIZE}`, { count: offset === 0 });
+        rawRows.push(...result.payload);
+        if (offset === 0) total = exactTotal(result.response, result.payload.length);
+        if (result.payload.length < FULL_BATCH_SIZE || (total > 0 && rawRows.length >= total)) break;
+      }
+    } else {
+      const offset = (page - 1) * limit;
+      const result = await supabaseGet(config, `${TABLE}?select=${COLUMNS}${filterQuery}&order=source_row_number.asc&offset=${offset}&limit=${limit}`, { count: true });
+      rawRows = result.payload;
+      total = exactTotal(result.response, result.payload.length);
+    }
+
+    const syncStatus = await fetchSyncStatus(config);
+    const rows = rawRows.map(mapBulkyRow);
+    return json({
+      success: true,
+      source: 'supabase',
+      table: `public.${TABLE}`,
+      sheetName: 'BULKY',
+      data: rows,
+      rows,
+      total,
+      page,
+      limit: mode === 'full' ? rows.length : limit,
+      pageSize: mode === 'full' ? rows.length : limit,
+      lastSync: syncStatus?.last_success_at ?? null,
+      syncStatus,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    console.error('[BulkyAPI] Supabase query failed', error?.message || error);
+    return json({
+      success: false,
+      source: 'supabase',
+      reason: 'BULKY_FETCH_FAILED',
+      message: `Gagal membaca data BULKY dari Supabase: ${error?.message || 'Unknown error'}`,
+    }, 500);
+  }
+}
+
+export function onRequestGet(context) {
+  return handleBulkyRequest(context);
+}
