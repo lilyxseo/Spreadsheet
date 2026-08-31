@@ -101,7 +101,7 @@ test('7000-row sync uses paged metadata and 1000-row mutation batches', async ()
     }
     return { ok: true, status: 204, json: async () => null };
   };
-  const env = { SHEET_ID_2026: 'sheet', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'secret' };
+  const env = { SHEET_ID_2026: 'sheet', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_test' };
   const dependencies = { fetch, getGoogleAccessToken: async () => { calls.google += 1; return 'token'; }, logger };
 
   const first = await syncBarangMasuk(env, dependencies);

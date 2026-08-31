@@ -1,3 +1,5 @@
+import { getSecretSupabaseConfig } from './_supabase-config.js';
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -79,10 +81,7 @@ function isDeveloperRequest(request, env) {
 }
 
 function getSupabaseConfig(env) {
-  const url = String(env.SUPABASE_URL || "").trim();
-  const key = String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-  if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY belum diset");
-  return { url, key };
+  return getSecretSupabaseConfig(env);
 }
 
 async function supabaseInsertLog(env, payload) {

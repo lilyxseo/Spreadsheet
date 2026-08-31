@@ -102,8 +102,9 @@ export function createInventorySyncService(config) {
 
   function createGateway(env, fetchFn = fetch, requestMetrics) {
     const url = normalizeText(env.SUPABASE_URL).replace(/\/$/, '');
-    const key = normalizeText(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY);
-    if (!url || !key) throw new SyncError('MISSING_SUPABASE_CONFIG', 'Supabase server credential belum diset');
+    const key = normalizeText(env.SUPABASE_SECRET_KEY);
+    if (!url || !key) throw new SyncError('MISSING_SUPABASE_CONFIG', 'SUPABASE_URL dan SUPABASE_SECRET_KEY wajib diset');
+    if (!key.startsWith('sb_secret_')) throw new SyncError('INVALID_SUPABASE_CONFIG', 'SUPABASE_SECRET_KEY must start with sb_secret_');
     const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
     async function request(path, options = {}, requestType = 'write') {
       if (requestType === 'rpc') requestMetrics.rpcRequests += 1;

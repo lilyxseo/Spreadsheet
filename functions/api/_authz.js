@@ -1,3 +1,5 @@
+import { getPublishableSupabaseConfig, getSecretSupabaseConfig } from './_supabase-config.js';
+
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
@@ -45,18 +47,16 @@ function isDeveloperRequest(request, env) {
 
 async function getSupabaseAuthUser(request, env) {
   const token = getBearerToken(request);
-  const supabaseUrl = String(env?.SUPABASE_URL || '').trim();
-  const anonKey = String(env?.SUPABASE_ANON_KEY || '').trim();
-  if (!token || !supabaseUrl || !anonKey) return null;
-  const res = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: { apikey: anonKey, Authorization: `Bearer ${token}` } });
+  if (!token) return null;
+  const { url: supabaseUrl, key: publishableKey } = getPublishableSupabaseConfig(env);
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: { apikey: publishableKey, Authorization: `Bearer ${token}` } });
   if (!res.ok) return null;
   return res.json().catch(() => null);
 }
 
 async function getUserProfileRole(userId, email, env) {
-  const supabaseUrl = String(env?.SUPABASE_URL || '').trim();
-  const key = String(env?.SUPABASE_SERVICE_ROLE_KEY || env?.SUPABASE_ANON_KEY || '').trim();
-  if (!supabaseUrl || !key || (!userId && !email)) return '';
+  if (!userId && !email) return '';
+  const { url: supabaseUrl, key } = getSecretSupabaseConfig(env);
   const filters = [];
   if (userId) filters.push(`id.eq.${encodeURIComponent(userId)}`);
   if (email) filters.push(`email.eq.${encodeURIComponent(email)}`);
@@ -90,15 +90,12 @@ async function auditDeniedCrud({ request, env, role, action = 'CRUD' }) {
   };
   console.warn('[AUTHZ_DENIED]', JSON.stringify(entry));
   try {
-    const supabaseUrl = String(env?.SUPABASE_URL || '').trim();
-    const key = String(env?.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-    if (supabaseUrl && key) {
-      await fetch(`${supabaseUrl}/rest/v1/activity_logs`, {
+    const { url: supabaseUrl, key } = getSecretSupabaseConfig(env);
+    await fetch(`${supabaseUrl}/rest/v1/activity_logs`, {
         method: 'POST',
         headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ user_name: entry.user, role: entry.role, action: `DENIED_${action}`, module: entry.page, detail: READ_ONLY_REASON, status: 'FAILED', metadata: entry }),
-      }).catch(() => null);
-    }
+    }).catch(() => null);
   } catch (_err) {}
 }
 
