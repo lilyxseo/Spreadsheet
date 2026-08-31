@@ -1,4 +1,4 @@
-import { ensureAuthSession, bindLogoutButtons, loginWithEmailPassword, supabase, getAuthHeaders } from "./supabase.js";
+import { restoreSession, getAuthenticatedUser, bindLogoutButtons, loginWithEmailPassword, supabase, getAuthHeaders } from "./supabase.js";
 import { API_KEY, SPREADSHEET_ID, SHEETS, FILTERS, APP_CONFIG, SIGNUP_ACCESS_PASSWORD } from "./config.js";
 import { buildAutoInsight } from "./utils/insight-helper.js";
 import { buildAdditionalWarnings, deduplicateWarnings, groupWarningsBySku, normalizeProductName } from "./utils/warning-engine.js";
@@ -557,13 +557,13 @@ if(isPreviewBypassLoginEnabled()){
 user={id:'preview-bypass',email:'preview@local'};
 devProfile={full_name:'Developer',role:'Mode Development',username:'developer',email:'preview@local'};
 }else{
-session=await ensureAuthSession();
+session=await restoreSession();
 if(session){
 if(session?.isDeveloper){
 user={id:"developer"};
 devProfile=session.user||null;
 }else{
-const {data:userData,error:userErr}=await supabase.auth.getUser();
+const {data:userData,error:userErr}=await getAuthenticatedUser();
 if(userErr)throw userErr;
 user=userData?.user||null;
 }
