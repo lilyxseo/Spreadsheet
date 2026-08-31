@@ -29,6 +29,7 @@ test('endpoint paginates, counts, filters dates/FROM/TO, and searches SKU or ite
     assert.equal(body.lastSync, '2026-08-31T01:00:00Z');
     assert.equal(body.data[0].namaBarang, 'Produk');
     const dataUrl = calls[0].url;
+    assert.equal(new URL(dataUrl).searchParams.get('select'), '*');
     assert.match(dataUrl, /offset=100&limit=100/);
     assert.match(dataUrl, /sku=ilike/);
     assert.match(dataUrl, /or=\(sku\.ilike.*nama_barang\.ilike/);
@@ -38,6 +39,8 @@ test('endpoint paginates, counts, filters dates/FROM/TO, and searches SKU or ite
     assert.match(dataUrl, /tanggal=lte\.2026-08-31/);
     assert.equal(calls.some(call => call.url.includes('googleapis.com')), false);
     assert.equal(calls[0].options.headers.apikey, env.SUPABASE_SECRET_KEY);
+    const statusUrl = calls.find(call => call.url.includes('inventory_sync_status')).url;
+    assert.equal(new URL(statusUrl).searchParams.get('select'), '*');
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -71,6 +74,43 @@ test('invalid Supabase success bodies return a controlled JSON error', async () 
       message: 'Gagal membaca data Barang Masuk.',
     });
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test('Supabase failures log diagnostic fields without credentials or request authorization', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  const logs = [];
+  console.error = (...args) => logs.push(args);
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    code: '42703',
+    message: 'column inventory_barang_masuk.synced_at does not exist',
+    details: 'Missing database column',
+    hint: 'Check the select list',
+  }), { status: 400 });
+  try {
+    const response = await handleBarangMasukRequest({
+      request: new Request('https://app.example/api/barang-masuk', {
+        headers: { Authorization: 'Bearer user-access-token' },
+      }),
+      env,
+    });
+    assert.equal(response.status, 500);
+    assert.deepEqual(logs, [[
+      '[BarangMasukAPI] Supabase query failed',
+      {
+        code: '42703',
+        message: 'column inventory_barang_masuk.synced_at does not exist',
+        details: 'Missing database column',
+        hint: 'Check the select list',
+      },
+    ]]);
+    const serializedLogs = JSON.stringify(logs);
+    assert.equal(serializedLogs.includes(env.SUPABASE_SECRET_KEY), false);
+    assert.equal(serializedLogs.includes('user-access-token'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalError;
+  }
 });
 
 test('full compatibility mode reads Supabase in 1000-row batches', async () => {
