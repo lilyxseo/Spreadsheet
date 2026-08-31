@@ -52,30 +52,12 @@ test("server config validates the new secret-key prefix", () => {
   );
 });
 
-test("legacy keys remain available only as deprecated compatibility fallbacks", async () => {
-  const originalWarn = console.warn;
-  const warnings = [];
-  console.warn = message => warnings.push(message);
-  try {
-    const response = await onRequestGet({
-      env: {
-        SUPABASE_URL: "https://example.supabase.co",
-        SUPABASE_ANON_KEY: "legacy-public-jwt",
-        SUPABASE_SERVICE_ROLE_KEY: "legacy-service-jwt",
-      },
-    });
-    assert.equal(response.status, 200);
-    assert.equal((await response.json()).supabaseAnonKey, "legacy-public-jwt");
-    assert.deepEqual(
-      getSecretSupabaseConfig({
-        SUPABASE_URL: "https://example.supabase.co",
-        SUPABASE_SERVICE_ROLE_KEY: "legacy-service-jwt",
-      }),
-      { url: "https://example.supabase.co", key: "legacy-service-jwt" }
-    );
-    assert.equal(warnings.length, 2);
-    assert.equal(warnings.every(message => message.includes("deprecated")), true);
-  } finally {
-    console.warn = originalWarn;
-  }
+test("legacy environment key names are rejected", async () => {
+  const response = await onRequestGet({ env: { SUPABASE_URL: "https://example.supabase.co", SUPABASE_ANON_KEY: "legacy-public-jwt" } });
+  assert.equal(response.status, 500);
+  assert.equal((await response.json()).message, "SUPABASE_PUBLISHABLE_KEY is required");
+  assert.throws(
+    () => getSecretSupabaseConfig({ SUPABASE_URL: "https://example.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "legacy-service-jwt" }),
+    /SUPABASE_SECRET_KEY is required/
+  );
 });

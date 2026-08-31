@@ -5,8 +5,6 @@ export const FILTERS = ["Semua", ...SHEETS];
 export const SUPABASE_URL = "https://udullprykzdskrxmbbkj.supabase.co";
 // Diisi dari /api/runtime-config saat aplikasi dimuat. Jangan simpan secret key di bundle.
 export const SUPABASE_PUBLISHABLE_KEY = "";
-// Compatibility alias for modules not yet migrated; do not configure this separately.
-export const SUPABASE_ANON_KEY = SUPABASE_PUBLISHABLE_KEY;
 export const SIGNUP_ACCESS_PASSWORD = "GOTO2026";
 
 export const APP_CONFIG = {
