@@ -1,0 +1,77 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { handleBarangMasukRequest, mapBarangMasukRow } from '../functions/api/barang-masuk/index.js';
+
+const env = { SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_server-only' };
+const request = query => new Request(`https://app.example/api/barang-masuk${query}`);
+
+test('Barang Masuk adapter preserves the existing frontend response shape', () => {
+  assert.deepEqual(mapBarangMasukRow({ tanggal: '2026-08-31', from_location: 'Receiving', to_location: 'A-1', sku: 'SKU-1', nama_barang: 'Produk', qty: 3, status: 'OK', pic: 'Ani', keterangan: 'Baik', source_row_number: 42, synced_at: '2026-08-31T01:00:00Z' }), {
+    tanggal: '2026-08-31', from: 'Receiving', from_location: 'Receiving', to: 'A-1', to_location: 'A-1', sku: 'SKU-1', namaBarang: 'Produk', nama_barang: 'Produk', qty: 3, status: 'OK', pic: 'Ani', keterangan: 'Baik', rowNumber: 42, source_row_number: 42, synced_at: '2026-08-31T01:00:00Z',
+  });
+});
+
+test('endpoint paginates, counts, filters dates/FROM/TO, and searches SKU or item name in Supabase', async () => {
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes('inventory_sync_status')) return new Response(JSON.stringify([{ source: 'barang_masuk', status: 'success', last_success_at: '2026-08-31T01:00:00Z' }]), { status: 200 });
+    return new Response(JSON.stringify([{ sku: 'SKU-1', nama_barang: 'Produk', from_location: 'Receiving', to_location: 'A-1', source_row_number: 42 }]), { status: 200, headers: { 'content-range': '50-50/21789' } });
+  };
+  try {
+    const response = await handleBarangMasukRequest({ request: request('?page=2&limit=500&sku=SKU-1&q=Produk&from=Receiving&to=A-1&status=OK&startDate=2026-08-01&endDate=2026-08-31'), env });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.source, 'supabase');
+    assert.equal(body.total, 21789);
+    assert.equal(body.limit, 100);
+    assert.equal(body.lastSync, '2026-08-31T01:00:00Z');
+    assert.equal(body.data[0].namaBarang, 'Produk');
+    const dataUrl = calls[0].url;
+    assert.match(dataUrl, /offset=100&limit=100/);
+    assert.match(dataUrl, /sku=ilike/);
+    assert.match(dataUrl, /or=\(sku\.ilike.*nama_barang\.ilike/);
+    assert.match(dataUrl, /from_location=eq\.Receiving/);
+    assert.match(dataUrl, /to_location=eq\.A-1/);
+    assert.match(dataUrl, /tanggal=gte\.2026-08-01/);
+    assert.match(dataUrl, /tanggal=lte\.2026-08-31/);
+    assert.equal(calls.some(call => call.url.includes('googleapis.com')), false);
+    assert.equal(calls[0].options.headers.apikey, env.SUPABASE_SECRET_KEY);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('full mode batches and explicit Supabase errors never fall back to Google Sheets', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return new Response(JSON.stringify({ message: 'database unavailable' }), { status: 503 }); };
+  try {
+    const response = await handleBarangMasukRequest({ request: request('?mode=full'), env });
+    const body = await response.json();
+    assert.equal(response.status, 502);
+    assert.match(body.message, /Supabase.*database unavailable/);
+    assert.equal(calls, 1);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('full compatibility mode reads Supabase in 1000-row batches', async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(String(url));
+    if (String(url).includes('inventory_sync_status')) return new Response('[]', { status: 200 });
+    const offset = Number(new URL(String(url)).searchParams.get('offset'));
+    const size = offset === 0 ? 1000 : 2;
+    return new Response(JSON.stringify(Array.from({ length: size }, (_, index) => ({ sku: `SKU-${offset + index}`, source_row_number: offset + index + 2 }))), { status: 200, headers: { 'content-range': `${offset}-${offset + size - 1}/1002` } });
+  };
+  try {
+    const response = await handleBarangMasukRequest({ request: request('?mode=full'), env });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.data.length, 1002);
+    assert.equal(body.total, 1002);
+    assert.equal(urls.filter(url => url.includes('inventory_barang_masuk')).length, 2);
+    assert.match(urls[0], /offset=0&limit=1000/);
+    assert.match(urls[1], /offset=1000&limit=1000/);
+  } finally { globalThis.fetch = originalFetch; }
+});
