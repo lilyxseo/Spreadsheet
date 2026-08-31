@@ -1,7 +1,9 @@
 import { createInventorySyncService, normalizeLocation, normalizeNumber, normalizeSku, normalizeText, normalizedHeader, SyncError } from './_sync-engine.js';
 
 export const SYNC_SOURCE = 'bulky';
-export const BULKY_SHEET_NAME = 'BULKY';
+// The existing inventory spreadsheet uses this lower-case tab title. Keep the
+// source label above separate because Google Sheets tab names are case-sensitive.
+export const BULKY_SHEET_NAME = 'bulky';
 export const REQUIRED_HEADERS = Object.freeze([
   'LOKASI BULKY', 'SKU', 'NAMA BARANG', 'STOK AWAL', 'INTERNAL STOCK TRANSFER', 'REPLENISHMENT',
   'PENGELUARAN', 'STOK AKHIR', 'ISELLER', 'NETSUITE', 'SELISIH', 'PENDINGAN IT',
@@ -63,5 +65,15 @@ const service = createInventorySyncService({
 export const buildSourceRowKey = service.buildSourceRowKey;
 export const buildSourceHash = service.buildSourceHash;
 export const fetchBulkyValues = service.fetchValues;
-export const syncBulky = service.sync;
+export function syncBulky(env, dependencies = {}) {
+  const logger = dependencies.logger || console;
+  const range = `'${BULKY_SHEET_NAME}'!A:ZZ`;
+  (logger?.log || console.log)(
+    `[InventorySync:${SYNC_SOURCE}]\n` +
+    `spreadsheetConfigured: ${Boolean(normalizeText(env.SHEET_ID_2026 || env.GOOGLE_SHEET_ID))}\n` +
+    `sheetName: ${BULKY_SHEET_NAME}\n` +
+    `range: ${range}`,
+  );
+  return service.sync(env, dependencies);
+}
 export function parseBulkyValues(values) { return parseValues(values, service); }
