@@ -3,6 +3,7 @@ import { parseSheet } from './parser.js';
 
 const BACKEND_SHEET_ENDPOINT = {
   'Kartu Stock': '/api/kartu-stok?mode=full',
+  'Kartu Stok': '/api/kartu-stok?mode=full',
   'RPL': '/api/rpl?mode=full',
   'BULKY': '/api/bulky?mode=full',
   // Legacy dashboards need the complete inbound history; ordinary endpoint calls

@@ -12,7 +12,7 @@ test("startup session restoration has a finite timeout and logs failures", () =>
 });
 
 test("startup always exits auth checking and renders login after a restore failure", () => {
-  assert.match(mainSource, /session=await restoreSession\(\)/);
+  assert.match(mainSource, /session=await restoreSession\(\{allowDeveloperSession:isTrustedDevelopmentEnvironment\(\)\}\)/);
   assert.match(mainSource, /catch\(err\)\{\s*console\.error\("Auth session check failed",err\);\s*user=null;\s*\}finally\{[\s\S]*?authChecking=false;\s*renderAuthState\(\);/s);
 });
 
@@ -30,5 +30,20 @@ test("startup still runs when module evaluation finishes after DOMContentLoaded"
 
 test("preview bypass is decided before session restoration", () => {
   const boot = mainSource.slice(mainSource.indexOf("async function bootApplication"), mainSource.indexOf('window.addEventListener("auth:logout"'));
-  assert.match(boot, /if\(isPreviewBypassLoginEnabled\(\)\)[\s\S]*?else\{\s*session=await restoreSession\(\)/);
+  assert.match(boot, /if\(isPreviewBypassLoginEnabled\(\)\)[\s\S]*?else\{\s*session=await restoreSession\(\{allowDeveloperSession:isTrustedDevelopmentEnvironment\(\)\}\)/);
+});
+
+test("preview bypass is fail-safe for production and unknown environments", () => {
+  assert.match(mainSource, /trustedPreviewEnvironments=new Set\(\[[^\]]*"preview"[^\]]*"development"[^\]]*\]\)/);
+  assert.match(mainSource, /trustedPreviewEnvironments\.has\(environment\)&&isTruthyFlag\(runtimeConfig\.previewBypassLogin\)/);
+  assert.match(mainSource, /environment:String\(loaded\.environment\|\|"unknown"\)\.toLowerCase\(\)/);
+  assert.doesNotMatch(mainSource, /trustedPreviewEnvironments=new Set\([^\n]*(?:"production"|"unknown")/);
+});
+
+test("logout invalidates stale startup work and clears cached identity state", () => {
+  assert.match(mainSource, /const requestGeneration=\+\+authRequestGeneration/);
+  assert.match(mainSource, /if\(requestGeneration!==authRequestGeneration\)return/);
+  assert.match(mainSource, /window\.addEventListener\("auth:logout"[\s\S]*?\+\+authRequestGeneration;[\s\S]*?user=null;[\s\S]*?devProfile=null;[\s\S]*?authChecking=false;[\s\S]*?clearCurrentUser\(\);/);
+  assert.match(supabaseSource, /export async function logout\(\)[\s\S]*?clearAppAuthState\(\);[\s\S]*?supabase\.auth\.signOut\(\)/);
+  assert.match(supabaseSource, /window\.dispatchEvent\(new CustomEvent\(['"]auth:logout['"]\)\)/);
 });

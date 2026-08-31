@@ -63,10 +63,23 @@ export async function getAuthenticatedUser() {
 }
 
 const DEV_SESSION_KEY = "dev_auth_session";
+const APP_AUTH_STORAGE_KEYS = ["user", "currentUser"];
 
-export async function restoreSession() {
+export function clearAppAuthState() {
+  localStorage.removeItem(DEV_SESSION_KEY);
+  for (const key of APP_AUTH_STORAGE_KEYS) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+  for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+    const key = sessionStorage.key(index);
+    if (key?.startsWith("activity-auto-login:")) sessionStorage.removeItem(key);
+  }
+}
+
+export async function restoreSession({ allowDeveloperSession = false } = {}) {
   const raw = localStorage.getItem(DEV_SESSION_KEY);
-  if (raw) {
+  if (raw && allowDeveloperSession) {
     try {
       const dev = JSON.parse(raw);
       const expiresAt = Number(dev?.session?.expires_at || dev?.expires_at || 0);
@@ -77,12 +90,17 @@ export async function restoreSession() {
     } catch (_err) {
       localStorage.removeItem(DEV_SESSION_KEY);
     }
+  } else if (raw) {
+    localStorage.removeItem(DEV_SESSION_KEY);
   }
   const session = await getSession();
   return session;
 }
 
-export const ensureAuthSession = restoreSession;
+export async function ensureAuthSession() {
+  // Developer login is already explicit; API calls may reuse its short-lived token.
+  return restoreSession({ allowDeveloperSession: true });
+}
 
 export async function loginWithEmailPassword(username, password) {
   const resp = await fetch("/api/login", {
@@ -124,7 +142,9 @@ export async function authFetch(input, init = {}) {
 }
 
 export async function logout() {
-  localStorage.removeItem(DEV_SESSION_KEY);
+  // Clear the app/developer identity even when the remote sign-out request fails.
+  // Supabase's own persisted session is still managed by signOut(), not globally disabled.
+  clearAppAuthState();
   return supabase.auth.signOut();
 }
 
@@ -134,8 +154,9 @@ export function bindLogoutButtons(selector = '[data-logout-btn]') {
       btn.disabled = true;
       try {
         await logout();
-        window.dispatchEvent(new CustomEvent('auth:logout'));
       } finally {
+        clearAppAuthState();
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         btn.disabled = false;
       }
     });
