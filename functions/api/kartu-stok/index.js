@@ -52,7 +52,9 @@ async function supabaseGet(env, path, { count = false } = {}) {
 }
 
 async function fetchSyncStatus(env) {
-  const query = 'inventory_sync_status?select=source,status,last_success_at,last_attempt_at,source_row_count,error_message&source=eq.kartu_stok&limit=1';
+  // Query the deployed view shape. Optional freshness columns have differed
+  // between schema revisions, so enumerating them can break the entire read.
+  const query = 'inventory_sync_status?select=*&source=eq.kartu_stok&limit=1';
   const { payload } = await supabaseGet(env, query);
   return payload[0] || null;
 }
