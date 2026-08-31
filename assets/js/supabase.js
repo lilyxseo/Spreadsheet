@@ -1,7 +1,18 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+async function loadPublicSupabaseConfig() {
+  if (SUPABASE_ANON_KEY) return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
+  const response = await fetch("/api/runtime-config", { cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.supabaseUrl || !data.supabaseAnonKey) {
+    throw new Error("Supabase anon key belum dikonfigurasi dengan aman");
+  }
+  return { url: data.supabaseUrl, key: data.supabaseAnonKey };
+}
+
+const publicSupabaseConfig = await loadPublicSupabaseConfig();
+export const supabase = createClient(publicSupabaseConfig.url, publicSupabaseConfig.key);
 
 async function parseJsonResponse(resp, fallbackMessage) {
   const contentType = resp.headers.get("content-type") || "";
