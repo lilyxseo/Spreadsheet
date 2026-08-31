@@ -28,6 +28,28 @@ export function normalizeNumber(value) {
   const parsed = Number(raw.replace(/,/g, ''));
   return Number.isFinite(parsed) ? { valid: true, value: parsed } : { valid: false };
 }
+export function normalizeDate(value) {
+  const raw = normalizeText(value);
+  if (!raw) return { valid: true, value: null };
+
+  let year, month, day;
+  let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (match) {
+    [, year, month, day] = match;
+  } else {
+    // Movement endpoints write dates to these sheets as M/D/YYYY.
+    match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
+    if (!match) return { valid: false };
+    [, month, day, year] = match;
+  }
+
+  const yearNumber = Number(year), monthNumber = Number(month), dayNumber = Number(day);
+  const parsed = new Date(Date.UTC(yearNumber, monthNumber - 1, dayNumber));
+  if (parsed.getUTCFullYear() !== yearNumber || parsed.getUTCMonth() !== monthNumber - 1 || parsed.getUTCDate() !== dayNumber) {
+    return { valid: false };
+  }
+  return { valid: true, value: `${String(yearNumber).padStart(4, '0')}-${String(monthNumber).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}` };
+}
 export function normalizedHeader(value) { return normalizeText(value).toUpperCase().replace(/\s+/g, ' '); }
 function bytesToHex(buffer) { return [...new Uint8Array(buffer)].map(byte => byte.toString(16).padStart(2, '0')).join(''); }
 export async function sha256(value) { return bytesToHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))); }

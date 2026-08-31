@@ -40,6 +40,20 @@ test('Barang Keluar validates headers and preserves invalid source identities', 
   assert.equal(parsed.sourceKeys.has('barang_keluar:2'), true);
 });
 
+test('Barang Keluar normalizes empty and supported dates and diagnoses invalid non-empty dates', async () => {
+  const withDate = tanggal => { const values = row('SKU-DATE'); values[0] = tanggal; return values; };
+  for (const empty of [null, undefined, '', '   ']) {
+    const parsed = await parseBarangKeluarValues([HEADER, withDate(empty)]);
+    assert.equal(parsed.rows[0].tanggal, null);
+    assert.deepEqual(parsed.invalidRows, []);
+  }
+  assert.equal((await parseBarangKeluarValues([HEADER, withDate('8/30/2026')])).rows[0].tanggal, '2026-08-30');
+  assert.equal((await parseBarangKeluarValues([HEADER, withDate('2026-08-30')])).rows[0].tanggal, '2026-08-30');
+  const invalid = await parseBarangKeluarValues([HEADER, withDate('2026-02-30')]);
+  assert.equal(invalid.rows.length, 0);
+  assert.deepEqual(invalid.invalidRows[0].errors, ['INVALID_DATE:TANGGAL']);
+});
+
 test('first sync, second sync, and status use the reusable engine semantics', async () => {
   const gateway = statefulGateway();
   const values = [HEADER, ...Array.from({ length: 2000 }, (_, index) => row(`SKU-${index + 1}`))];

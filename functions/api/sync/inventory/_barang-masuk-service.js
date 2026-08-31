@@ -1,4 +1,4 @@
-import { createInventorySyncService, normalizeLocation, normalizeNumber, normalizeSku, normalizeText, normalizedHeader, SyncError } from './_sync-engine.js';
+import { createInventorySyncService, normalizeDate, normalizeLocation, normalizeNumber, normalizeSku, normalizeText, normalizedHeader, SyncError } from './_sync-engine.js';
 
 export const SYNC_SOURCE = 'barang_masuk';
 export const BARANG_MASUK_SHEET_NAME = 'Barang Masuk';
@@ -15,14 +15,14 @@ async function parseValues(values, helpers) {
     if (REQUIRED_HEADERS.every(header => normalizeText(read(header)) === '')) continue;
     sourceRowCount += 1;
     const source_row_key = helpers.buildSourceRowKey(sourceRowNumber); sourceKeys.add(source_row_key);
-    const qty = normalizeNumber(read('QTY'));
+    const qty = normalizeNumber(read('QTY')), tanggal = normalizeDate(read('TANGGAL'));
     const row = {
-      tanggal: normalizeText(read('TANGGAL')), from_location: normalizeLocation(read('FROM')), to_location: normalizeLocation(read('TO')),
+      tanggal: tanggal.value, from_location: normalizeLocation(read('FROM')), to_location: normalizeLocation(read('TO')),
       sku: normalizeSku(read('SKU')), nama_barang: normalizeText(read('NAMA BARANG')), qty: qty.value,
       status: normalizeText(read('STATUS')), pic: normalizeText(read('PIC')), keterangan: normalizeText(read('KETERANGAN')),
       source_row_key, source_row_number: sourceRowNumber,
     };
-    const errors = []; if (!row.sku) errors.push('SKU_REQUIRED'); if (!qty.valid) errors.push('INVALID_NUMBER:QTY');
+    const errors = []; if (!row.sku) errors.push('SKU_REQUIRED'); if (!qty.valid) errors.push('INVALID_NUMBER:QTY'); if (!tanggal.valid) errors.push('INVALID_DATE:TANGGAL');
     if (errors.length) { invalidRows.push({ sourceRowNumber, sourceRowKey: source_row_key, errors }); continue; }
     row.source_hash = await helpers.buildSourceHash(row); rows.push(row);
   }
