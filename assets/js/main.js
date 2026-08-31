@@ -515,6 +515,7 @@ if(loginView){loginView.hidden=true;loginView.style.display="none";}
 return;
 }
 if(!user){
+console.info("[BOOT] render login");
 clearCurrentUser();
 setAppAuthState("is-logged-out");
 if(loadingScreen){loadingScreen.hidden=true;loadingScreen.style.display="none";loadingScreen.style.pointerEvents="none";}
@@ -522,6 +523,7 @@ if(appRoot){appRoot.hidden=true;appRoot.style.display="none";}
 if(loginView){loginView.hidden=false;loginView.style.display="grid";}
 return;
 }
+console.info("[BOOT] render app");
 if(loadingScreen){
 loadingScreen.hidden=true;
 loadingScreen.style.display="none";
@@ -545,11 +547,14 @@ if(!email)throw new Error("Email user tidak valid");
 return email;
 }
 
-window.addEventListener("DOMContentLoaded",async ()=>{
+async function bootApplication(){
+console.info("[BOOT] DOMContentLoaded");
 authChecking=true;
 applyTheme();
 renderAuthState();
 await loadRuntimeConfig();
+console.info("[BOOT] runtime config complete");
+console.info("[BOOT] preview bypass value",isPreviewBypassLoginEnabled());
 queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload awal gagal",err));});
 let session=null;
 try{
@@ -575,6 +580,7 @@ user=null;
 console.error("Auth session check failed",err);
 user=null;
 }finally{
+console.info("[BOOT] auth finally");
 authChecking=false;
 renderAuthState();
 }
@@ -598,7 +604,15 @@ syncDeveloperMenuVisibility();
 await initAppData();
 await loadBalikanSheets();
 if(window.lucide)lucide.createIcons();
-});
+}
+
+// Static module dependencies (notably runtime config) can finish after the DOM
+// event has already fired. In that case an event listener alone never runs.
+if(document.readyState==="loading"){
+window.addEventListener("DOMContentLoaded",bootApplication,{once:true});
+}else{
+void bootApplication();
+}
 window.addEventListener("auth:logout",async()=>{await logLogout({...currentUserIdentity(),module:"Auth",page:location.pathname,details:{method:"MANUAL"}});stopDevAutoRefresh({log:false});showLoginView();});
 
 function bindLoginView(){

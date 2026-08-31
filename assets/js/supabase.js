@@ -42,23 +42,35 @@ async function parseJsonResponse(resp, fallbackMessage) {
 }
 
 export async function getSession() {
+  console.info("[BOOT] getSession start");
   try {
     const { data, error } = await withAuthTimeout(supabase.auth.getSession(), "supabase.auth.getSession()");
     if (error) throw error;
+    console.info("[BOOT] getSession finish");
     return data.session;
   } catch (error) {
+    console.info("[BOOT] getSession error", error);
     console.error("supabase.auth.getSession() failed", error);
     throw error;
   }
 }
 
 export async function getAuthenticatedUser() {
-  return withAuthTimeout(supabase.auth.getUser(), "supabase.auth.getUser()");
+  console.info("[BOOT] getUser start");
+  try {
+    const result = await withAuthTimeout(supabase.auth.getUser(), "supabase.auth.getUser()");
+    console.info("[BOOT] getUser finish");
+    return result;
+  } catch (error) {
+    console.info("[BOOT] getUser error", error);
+    throw error;
+  }
 }
 
 const DEV_SESSION_KEY = "dev_auth_session";
 
 export async function restoreSession() {
+  console.info("[BOOT] restoreSession start");
   const raw = localStorage.getItem(DEV_SESSION_KEY);
   if (raw) {
     try {
