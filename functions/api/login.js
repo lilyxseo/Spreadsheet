@@ -40,11 +40,11 @@ export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
 
-    const normalizedUsername = String(body.username || "").trim();
+    const normalizedEmail = String(body.email || "").trim();
     const normalizedPassword = String(body.password || "");
 
-    if (!normalizedUsername || !normalizedPassword) {
-      return json({ error: "Username dan password wajib diisi." }, 400);
+    if (!normalizedEmail || !normalizedPassword) {
+      return json({ success: false, reason: "INVALID_LOGIN_PAYLOAD", message: "Email dan password wajib diisi." }, 400);
     }
 
     /**
@@ -61,14 +61,14 @@ export async function onRequestPost({ request, env }) {
       const devPassword = String(env.DEV_PASSWORD || "");
 
       if (
-        safeEquals(normalizedUsername, devUsername) &&
+        safeEquals(normalizedEmail, devUsername) &&
         safeEquals(normalizedPassword, devPassword)
       ) {
         const secret = String(
           env.DEV_SESSION_SECRET || "dev-secret"
         );
 
-        const accessToken = createDevToken(secret, normalizedUsername);
+        const accessToken = createDevToken(secret, normalizedEmail);
         const expiresAt =
           Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
 
@@ -83,7 +83,7 @@ export async function onRequestPost({ request, env }) {
           },
           user: {
             id: "developer",
-            email: normalizedUsername,
+            email: normalizedEmail,
             name: "Developer",
             role: "Mode Development",
             isDeveloper: true,
@@ -107,7 +107,7 @@ export async function onRequestPost({ request, env }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: normalizedUsername,
+          email: normalizedEmail,
           password: normalizedPassword,
         }),
       }
@@ -116,16 +116,35 @@ export async function onRequestPost({ request, env }) {
     const data = await resp.json().catch(() => ({}));
 
     if (!resp.ok) {
+      const upstreamErrorCode = String(data.error_code || data.code || data.error || "AUTH_LOGIN_FAILED");
+      const errorCode = upstreamErrorCode === "invalid_credentials" ? "INVALID_LOGIN_CREDENTIALS" : upstreamErrorCode.toUpperCase();
+      const message = String(data.error_description || data.msg || data.message || "Login gagal.");
+      console.warn("[SUPABASE_LOGIN_FAILED]", {
+        status: resp.status,
+        error_code: upstreamErrorCode,
+        message,
+      });
       return json(
         {
-          error: "Username atau password salah.",
-          detail: data.error_description || data.msg || data.error || null,
+          success: false,
+          reason: errorCode,
+          message,
         },
-        401
+        resp.status === 401 || resp.status === 400 ? 401 : resp.status
       );
     }
 
+    if (!data.access_token || !data.refresh_token) {
+      console.warn("[SUPABASE_LOGIN_FAILED]", {
+        status: 502,
+        error_code: "AUTH_SESSION_INCOMPLETE",
+        message: "Supabase Auth response did not include both session tokens.",
+      });
+      return json({ success: false, reason: "AUTH_SESSION_INCOMPLETE", message: "Sesi login tidak lengkap." }, 502);
+    }
+
     return json({
+      success: true,
       mode: "supabase",
       session: {
         access_token: data.access_token,
@@ -139,8 +158,8 @@ export async function onRequestPost({ request, env }) {
   } catch (err) {
     if (String(err?.message || '').startsWith('SUPABASE_')) {
       console.error('Invalid Supabase login configuration:', err.message);
-      return json({ error: err.message }, 500);
+      return json({ success: false, reason: "AUTH_CONFIGURATION_ERROR", message: err.message }, 500);
     }
-    return json({ error: "Payload login tidak valid." }, 400);
+    return json({ success: false, reason: "INVALID_LOGIN_PAYLOAD", message: "Payload login tidak valid." }, 400);
   }
 }

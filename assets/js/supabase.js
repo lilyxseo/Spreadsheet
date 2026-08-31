@@ -102,14 +102,14 @@ export async function ensureAuthSession() {
   return restoreSession({ allowDeveloperSession: true });
 }
 
-export async function loginWithEmailPassword(username, password) {
+export async function loginWithEmailPassword(email, password) {
   const resp = await fetch("/api/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   });
   const data = await parseJsonResponse(resp, "Endpoint login tidak ditemukan");
-  if (!resp.ok) throw new Error(data?.error || "Login gagal.");
+  if (!resp.ok) throw new Error(data?.message || "Login gagal.");
 
   if (data?.mode === "dev") {
     localStorage.setItem(DEV_SESSION_KEY, JSON.stringify({ session: data.session, user: data.user }));
@@ -122,6 +122,11 @@ export async function loginWithEmailPassword(username, password) {
     refresh_token: data.session.refresh_token,
   });
   if (error) throw error;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData?.session?.access_token || sessionData.session.access_token !== data.session.access_token) {
+    throw new Error("Sesi login gagal disimpan.");
+  }
   return { data, error: null };
 }
 

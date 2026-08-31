@@ -1,5 +1,6 @@
 import { SHEETS } from './config.js';
 import { parseSheet } from './parser.js';
+import { authFetch } from './supabase.js';
 
 const BACKEND_SHEET_ENDPOINT = {
   'Kartu Stock': '/api/kartu-stok?mode=full',
@@ -16,7 +17,7 @@ const BACKEND_SHEET_ENDPOINT = {
 
 async function fetchSheetViaBackend(sheetName){
   const endpoint = BACKEND_SHEET_ENDPOINT[sheetName];
-  const res = await fetch(endpoint);
+  const res = await authFetch(endpoint);
   const json = await res.json();
   if(!res.ok || !json?.success){
     throw new Error(`${sheetName}: ${json?.message || res.statusText}`);
