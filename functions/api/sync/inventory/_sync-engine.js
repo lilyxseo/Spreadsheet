@@ -1,4 +1,5 @@
 import { token as getGoogleAccessToken } from '../../_barang-ops.js';
+import { getSecretSupabaseConfig } from '../../_supabase-config.js';
 
 export const SYNC_BATCH_SIZE = 1000;
 export const SYNC_READ_PAGE_SIZE = 1000;
@@ -101,9 +102,14 @@ export function createInventorySyncService(config) {
   }
 
   function createGateway(env, fetchFn = fetch, requestMetrics) {
-    const url = normalizeText(env.SUPABASE_URL).replace(/\/$/, '');
-    const key = normalizeText(env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY);
-    if (!url || !key) throw new SyncError('MISSING_SUPABASE_CONFIG', 'Supabase server credential belum diset');
+    let url;
+    let key;
+    try {
+      ({ url, key } = getSecretSupabaseConfig(env));
+    } catch (error) {
+      const code = String(error.message).includes('must start with') ? 'INVALID_SUPABASE_CONFIG' : 'MISSING_SUPABASE_CONFIG';
+      throw new SyncError(code, error.message);
+    }
     const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
     async function request(path, options = {}, requestType = 'write') {
       if (requestType === 'rpc') requestMetrics.rpcRequests += 1;
