@@ -27,6 +27,9 @@ test('GET /api/bulky paginates and applies SKU, name/SKU search, and location fi
     assert.equal(body.limit, 100);
     assert.equal(body.lastSync, '2026-08-31T01:00:00Z');
     assert.equal(body.syncStatus.source, 'bulky');
+    const statusUrl = calls.find(call => call.url.includes('inventory_sync_status')).url;
+    assert.equal(new URL(statusUrl).searchParams.get('select'), '*');
+    assert.doesNotMatch(statusUrl, /last_attempt_at/);
     assert.equal(body.data[0]['nama barang'], 'Produk');
     assert.match(calls[0].url, /offset=100&limit=100/);
     assert.match(calls[0].url, /sku=ilike/);
