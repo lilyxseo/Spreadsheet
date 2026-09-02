@@ -8,7 +8,6 @@ ids.forEach(id=>window[id]=document.getElementById(id));
 const statusEl=document.getElementById("status");
 const CACHE_KEYS={lastSync:"inventory_last_sync",version:"inventory_cache_version",searchHistory:"inventory_recent_search",balikanSearchHistory:"inventory_balikan_store_search_history"};
 const SIDEBAR_MENU_STATE_KEY="inventory_sidebar_menu_state";
-const BARCODE_CACHE_KEY="inventory_barcode_master";
 const MODULE_CACHE_KEYS={inventory:"inventoryCache",movement:"movementCache",barangMasuk:"barangMasukCache",barangKeluar:"barangKeluarCache",kartuStock:"kartuStockCache",rpl:"rplCache",bulky:"bulkyCache",balikanStore:"balikanStoreCache",cycleCount:"cycleCountCache",activityLog:"activityLogCache"};
 const ABC_ANALYSIS_CACHE_KEY="ABC_ANALYSIS_CACHE";
 const CACHE_VERSION="2";
@@ -376,6 +375,8 @@ return {res,data:{success:false,data:[],message:"Response API bukan JSON"}};
 }
 return {res,data};
 }
+// Barcode master is session-only; remove the legacy oversized payload from prior releases.
+localStorage.removeItem("inventory_barcode_master");
 ["barangMasukCache","barangKeluarCache","inventoryCache","movementCache","appDataCache"].forEach(key=>{const raw=localStorage.getItem(key);if(raw==="API OK")localStorage.removeItem(key);});
 if(HAS_INDEXED_DB)["barangMasukCache","barangKeluarCache","inventoryCache","movementCache"].forEach(key=>{if(localStorage.getItem(key)!==null)localStorage.removeItem(key);});
 
@@ -391,6 +392,8 @@ let isRendering=false;
 let hasInitializedDataFlow=false;
 let isSummaryOnlyLoaded=false;
 let DASHBOARD_SUMMARY=null;
+let dashboardSummaryRequestId=0;
+const LOADED_DETAIL_PAGES=new Set();
 let hasRenderedInitial=false;
 let lastRenderedData="";
 const CACHE_FRESH_TTL_MS=3*60*1000;
@@ -441,10 +444,8 @@ if(!res.ok||json?.success===false){console.error("INIT ERROR movement",json?.mes
 const rows=Array.isArray(json?.data)?json.data:(Array.isArray(json?.rows)?json.rows:[]);
 setCacheSafe(MODULE_CACHE_KEYS.movement,rows);return rows;
 };
-const loadBarcodeData=async()=>loadBarcodeMaster({force});
-
 const results=await Promise.allSettled([
-loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData(),loadBarcodeData()
+loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData()
 ]);
 results.forEach((res,i)=>{if(res.status==="rejected")console.error("INIT ERROR INDEX",i,res.reason);});
 const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes]=results;
@@ -604,7 +605,6 @@ bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisib
 syncDeveloperMenuVisibility();
 }
 await initAppData();
-await loadBalikanSheets();
 if(window.lucide)lucide.createIcons();
 }
 
@@ -656,8 +656,7 @@ signupAccessForm?.addEventListener("submit",(e)=>{e.preventDefault();if(signupAc
 signupAccessModal?.querySelectorAll("[data-signup-access-close]").forEach(el=>el.addEventListener("click",closeSignupAccessModal));
 document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&!signupAccessModal?.hidden)closeSignupAccessModal();});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();signupAccessGranted=false;showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();const {data,error}=await loginWithEmailPassword(loginInput,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logLogin({user:data.user?.full_name||"Akun Developer",role:"Developer",isDeveloper:true,module:"Auth",page:"/login",details:{method:"DEVELOPER_LOGIN"}});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logLogin({user:userData?.user?.email||"User",module:"Auth",page:"/login",details:{method:"PASSWORD"}});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:data?.mode==="dev"||profile?.isDeveloper===true});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
-await loadBalikanSheets();}}catch(err){logLogin({module:"Auth",page:"/login",failed:true,username:emailEl.value.trim(),result:"FAILED",details:{username:emailEl.value.trim(),reason:"INVALID_CREDENTIALS"}});showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();const {data,error}=await loginWithEmailPassword(loginInput,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logLogin({user:data.user?.full_name||"Akun Developer",role:"Developer",isDeveloper:true,module:"Auth",page:"/login",details:{method:"DEVELOPER_LOGIN"}});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logLogin({user:userData?.user?.email||"User",module:"Auth",page:"/login",details:{method:"PASSWORD"}});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:data?.mode==="dev"||profile?.isDeveloper===true});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();}}catch(err){logLogin({module:"Auth",page:"/login",failed:true,username:emailEl.value.trim(),result:"FAILED",details:{username:emailEl.value.trim(),reason:"INVALID_CREDENTIALS"}});showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");if(!signupAccessGranted){showAuthMode("login");openSignupAccessModal();return;}const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim().toLowerCase()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{await ensureSignupIdentityAvailable(email,username);const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);if(signupErr)throw signupErr;const authUserId=authData?.user?.id;if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"Warga KST"};console.log("payload public.users",profilePayload);const {error:profileErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(profileErr){console.log("error save profile",profileErr);const profileMsg=String(profileErr?.message||"").toLowerCase();if(profileErr?.code==="42501"||profileMsg.includes("row-level security")||profileMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw profileErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"Warga KST",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();signupAccessGranted=false;showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");
 form.dataset.bound="1";
@@ -716,7 +715,7 @@ document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=tr
 document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
 function getBarangRejectNavPage(){return `barang-reject-${BARANG_REJECT_STATE.activeTab==='dashboard'?'dashboard':BARANG_REJECT_STATE.activeTab==='masuk'?'masuk':BARANG_REJECT_STATE.activeTab==='keluar'?'keluar':'input'}`;}
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`)?.classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page||(page==="barang-reject"&&b.dataset.page===getBarangRejectNavPage())));syncActiveSidebarParent(page);if(page==="barang-reject"){renderBarangRejectPage();return;}if(!["dashboard","search"].includes(page)&&isSummaryOnlyLoaded){hasInitializedDataFlow=false;isSummaryOnlyLoaded=false;setMainContentLoading(true);initAppData().then(()=>rerenderCurrentPage({fromCache:false})).catch(err=>console.error("Lazy module load failed",err));return;}if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`)?.classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page||(page==="barang-reject"&&b.dataset.page===getBarangRejectNavPage())));syncActiveSidebarParent(page);if(page==="barang-reject"){renderBarangRejectPage();return;}if(!["dashboard","search"].includes(page)&&!LOADED_DETAIL_PAGES.has(page)){setMainContentLoading(true);loadDetailPageData(page).then(()=>{LOADED_DETAIL_PAGES.add(page);window.__isDataReady=true;rerenderCurrentPage({fromCache:false});}).catch(err=>{console.error("Lazy module load failed",err);setStatus("error",err?.message||"Gagal memuat modul");}).finally(()=>setMainContentLoading(false));return;}if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
 function pageTitleFromPath(path){return String(path||"/").replace(/^\//,"").split("/").filter(Boolean).map(x=>x.replaceAll("-"," ").replace(/\b\w/g,c=>c.toUpperCase())).join(" / ")||"Dashboard";}
 let lastLoggedPath=null;
 function navigateTo(path){const from=location.pathname;if(path===from){routeFromPath(path);return;}history.pushState({},"",path);routeFromPath(path);if(user&&path!==lastLoggedPath){lastLoggedPath=path;logPageView({...currentUserIdentity(),module:pageTitleFromPath(path),page:path,from,to:path,details:{from,to:path}});}}
@@ -1162,6 +1161,35 @@ rerenderTableWithScrollRestore(mode,true);
 scheduleRenderDashboard();
 }).catch(err=>console.error("Background transaksi refresh error",err)).finally(()=>setRefreshIndicator(false));
 }
+async function loadDashboardSummary(){
+const requestId=++dashboardSummaryRequestId;
+const startedAt=performance.now();
+const headers=await getAuthHeaders();
+const {res,data}=await fetchJsonSafe('/api/dashboard-summary',{headers});
+const resolvedAt=performance.now();
+if(!res.ok||!data?.success)throw new Error(data?.message||'Gagal memuat ringkasan dashboard');
+if(requestId!==dashboardSummaryRequestId)return DASHBOARD_SUMMARY;
+DASHBOARD_SUMMARY=data.summary||{};
+isSummaryOnlyLoaded=true;
+isInitialDataLoaded=true;
+window.__isDataReady=true;
+apiConnected=true;
+updateDashboard();
+const renderedAt=performance.now();
+console.info(`[dashboard] summary ${Math.round(resolvedAt-startedAt)} ms; rendered ${Math.round(renderedAt-startedAt)} ms; blocking tasks: none`);
+hideInitialLoader();setMainContentLoading(false);updateApiState();
+return DASHBOARD_SUMMARY;
+}
+async function loadDetailPageData(page){
+if(page==='barang-masuk'){
+const rows=await loadBarangMasuk({mode:'full'});window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangMasuk=rows;DATA['Barang Masuk']=rows;return rows;
+}
+if(page==='barang-keluar'){
+const rows=await loadBarangKeluar({mode:'full'});window.APP_STATE=window.APP_STATE||{};window.APP_STATE.barangKeluar=rows;DATA['Barang Keluar']=rows;return rows;
+}
+if(page==='balikan-store'){await loadBalikanSheets();return window.BALIKAN_ROWS;}
+return hydrateAllDataOnInit({force:false});
+}
 async function initAppData(){
 if(hasInitializedDataFlow)return;
 hasInitializedDataFlow=true;
@@ -1173,16 +1201,7 @@ window.APP_STATE=window.APP_STATE||{};
 // after navigating to a table/detail module, so startup avoids full-mode requests.
 if(location.pathname==="/"||location.pathname==="/dashboard"){
 try{
-const headers=await getAuthHeaders();
-const {res,data}=await fetchJsonSafe('/api/dashboard-summary',{headers});
-if(!res.ok||!data?.success)throw new Error(data?.message||'Gagal memuat ringkasan dashboard');
-DASHBOARD_SUMMARY=data.summary||{};
-isSummaryOnlyLoaded=true;
-isInitialDataLoaded=true;
-window.__isDataReady=true;
-apiConnected=true;
-updateDashboard();
-hideInitialLoader();setMainContentLoading(false);updateApiState();
+await loadDashboardSummary();
 return;
 }catch(err){hasInitializedDataFlow=false;console.error("Dashboard summary failed",err);setStatus("error",err.message);hideInitialLoader();setMainContentLoading(false);return;}
 }
@@ -1502,19 +1521,9 @@ if(nama)BARCODE_STATE.barcodeToName.set(key,nama);
 }
 BARCODE_STATE.loaded=true;
 BARCODE_STATE.updatedAt=Date.now();
-localStorage.setItem(BARCODE_CACHE_KEY,JSON.stringify({updatedAt:BARCODE_STATE.updatedAt,rows}));
-}
-function loadBarcodeMapFromCache(){
-const raw=localStorage.getItem(BARCODE_CACHE_KEY);
-const parsed=safeJsonParse(raw,null);
-if(!parsed||!Array.isArray(parsed?.rows)||!parsed.rows.length)return false;
-rebuildBarcodeMap(parsed.rows);
-BARCODE_STATE.updatedAt=Number(parsed.updatedAt)||Date.now();
-return true;
 }
 async function loadBarcodeMaster({force=false}={}){
 if(!force&&BARCODE_STATE.loaded&&BARCODE_STATE.barcodeToSku.size)return BARCODE_STATE;
-if(!force&&loadBarcodeMapFromCache())return BARCODE_STATE;
 try{
 const raw=await fetchSheet("BARCODE");
 const rows=parseBarcodeSheet(raw);
@@ -1656,6 +1665,7 @@ return;
 toast(found?`Barcode berhasil: ${scanned} → SKU ${sku}`:`Barcode ditemukan, tetapi SKU ${sku} tidak ada di data inventory.`,"success");
 }
 async function openBarcodeScanner(targetInputId="searchInput",onResult=handleSearchScanResult){
+await loadBarcodeMaster().catch(err=>console.warn("BARCODE unavailable",err?.message||err));
 SCANNER_STATE.targetInputId=targetInputId;
 SCANNER_STATE.resultHandler=typeof onResult==="function"?onResult:handleSearchScanResult;
 return openScannerModal();
@@ -2027,7 +2037,15 @@ async function triggerManualRefresh(){
 logActivitySafe({action:'MANUAL_REFRESH',module:'System',detail:'Manual refresh dimulai',status:'SUCCESS'});
 // Balikan Store is an explicitly non-migrated source and retains its existing
 // Sheets loader. It must not fall through to the inventory refresh pipeline.
-if(getActivePage?.()==='balikan-store')return loadBalikanRows({background:true,force:true});
+const activePage=getActivePage?.();
+if(activePage==='dashboard'){
+if(isSyncing)return;
+isSyncing=true;setRefreshIndicator(true,'Refreshing dashboard...');
+try{await loadDashboardSummary();setStatus('ok','Dashboard diperbarui');}
+finally{isSyncing=false;setRefreshIndicator(false);}
+return;
+}
+if(activePage==='balikan-store')return loadBalikanRows({background:true,force:true});
 if(isSyncing)return;
 await loadAllData(true);
 }
