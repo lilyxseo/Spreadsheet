@@ -1,4 +1,4 @@
-import { getPublishableSupabaseConfig } from './_supabase-config.js';
+import { getPublishableSupabaseConfig, getSecretSupabaseConfig } from './_supabase-config.js';
 
 const DEV_SESSION_TTL_SECONDS = 60 * 60 * 12;
 
@@ -36,15 +36,46 @@ function createDevToken(secret, username) {
   return `${base}.${sig}`;
 }
 
+const INVALID_CREDENTIALS_RESPONSE = {
+  success: false,
+  reason: "INVALID_LOGIN_CREDENTIALS",
+  message: "Username atau password salah.",
+};
+
+function isEmail(identifier) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+}
+
+async function resolveLoginEmail(identifier, env) {
+  if (isEmail(identifier)) return identifier.toLowerCase();
+
+  const { url, key } = getSecretSupabaseConfig(env);
+  const params = new URLSearchParams({
+    select: "email",
+    username: `eq.${identifier}`,
+    limit: "1",
+  });
+  const response = await fetch(`${url}/rest/v1/users?${params}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Accept: "application/json",
+    },
+  });
+  const rows = await response.json().catch(() => []);
+  if (!response.ok) throw new Error("USERNAME_LOOKUP_FAILED");
+  return String(rows?.[0]?.email || "").trim().toLowerCase();
+}
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
 
-    const normalizedEmail = String(body.email || "").trim();
+    const normalizedIdentifier = String(body.identifier || body.email || "").trim();
     const normalizedPassword = String(body.password || "");
 
-    if (!normalizedEmail || !normalizedPassword) {
-      return json({ success: false, reason: "INVALID_LOGIN_PAYLOAD", message: "Email dan password wajib diisi." }, 400);
+    if (!normalizedIdentifier || !normalizedPassword) {
+      return json({ success: false, reason: "INVALID_LOGIN_PAYLOAD", message: "Username/email dan password wajib diisi." }, 400);
     }
 
     /**
@@ -61,14 +92,14 @@ export async function onRequestPost({ request, env }) {
       const devPassword = String(env.DEV_PASSWORD || "");
 
       if (
-        safeEquals(normalizedEmail, devUsername) &&
+        safeEquals(normalizedIdentifier, devUsername) &&
         safeEquals(normalizedPassword, devPassword)
       ) {
         const secret = String(
           env.DEV_SESSION_SECRET || "dev-secret"
         );
 
-        const accessToken = createDevToken(secret, normalizedEmail);
+        const accessToken = createDevToken(secret, normalizedIdentifier);
         const expiresAt =
           Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
 
@@ -83,7 +114,7 @@ export async function onRequestPost({ request, env }) {
           },
           user: {
             id: "developer",
-            email: normalizedEmail,
+            email: normalizedIdentifier,
             name: "Developer",
             role: "Mode Development",
             isDeveloper: true,
@@ -96,6 +127,8 @@ export async function onRequestPost({ request, env }) {
      * NORMAL DATABASE LOGIN VIA SUPABASE
      */
     const { url: supabaseUrl, key: supabasePublishableKey } = getPublishableSupabaseConfig(env);
+    const normalizedEmail = await resolveLoginEmail(normalizedIdentifier, env);
+    if (!normalizedEmail) return json(INVALID_CREDENTIALS_RESPONSE, 401);
 
     const resp = await fetch(
       `${supabaseUrl}/auth/v1/token?grant_type=password`,
@@ -128,7 +161,7 @@ export async function onRequestPost({ request, env }) {
         {
           success: false,
           reason: errorCode,
-          message,
+          message: errorCode === "INVALID_LOGIN_CREDENTIALS" ? INVALID_CREDENTIALS_RESPONSE.message : message,
         },
         resp.status === 401 || resp.status === 400 ? 401 : resp.status
       );
@@ -156,6 +189,10 @@ export async function onRequestPost({ request, env }) {
       user: data.user || null,
     });
   } catch (err) {
+    if (err?.message === 'USERNAME_LOOKUP_FAILED') {
+      console.error('[USERNAME_LOOKUP_FAILED] Unable to resolve login identifier.');
+      return json({ success: false, reason: "AUTH_SERVICE_UNAVAILABLE", message: "Layanan login sedang tidak tersedia." }, 502);
+    }
     if (String(err?.message || '').startsWith('SUPABASE_')) {
       console.error('Invalid Supabase login configuration:', err.message);
       return json({ success: false, reason: "AUTH_CONFIGURATION_ERROR", message: err.message }, 500);

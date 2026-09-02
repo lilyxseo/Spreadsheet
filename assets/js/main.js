@@ -158,8 +158,7 @@ window.fetch=async(input,init={})=>{
     Object.entries(authHeaders).forEach(([key,value])=>{if(!headers.has(key))headers.set(key,value);});
     const apiPath=url.split('?')[0];
     if(AUTHENTICATED_INVENTORY_PATHS.has(apiPath)&&!headers.has('Authorization')){
-      if(isPreviewBypassLoginEnabled())headers.set('X-Preview-Bypass-Login','true');
-      else throw new Error(`Sesi autentikasi diperlukan untuk ${apiPath}`);
+      throw new Error(`Sesi autentikasi diperlukan untuk ${apiPath}`);
     }
     return nativeFetch(input,{...init,headers});
   }
@@ -386,6 +385,7 @@ let hasPreloadStarted=false;
 let isPreloadStarted=false;
 let isPreloadFinished=false;
 let isUserLoggedIn=false;
+let isAuthStateReady=false;
 let isInitialDataApplied=false;
 let isRendering=false;
 let hasInitializedDataFlow=false;
@@ -393,13 +393,16 @@ let hasRenderedInitial=false;
 let lastRenderedData="";
 const CACHE_FRESH_TTL_MS=3*60*1000;
 
-function startBackgroundPreload(){
+async function startBackgroundPreload(){
+if(!isAuthStateReady||!user)return null;
+const authHeaders=await getAuthHeaders().catch(()=>({}));
+if(!authHeaders.Authorization)return null;
 if(isPreloadStarted&&preloadPromise)return preloadPromise;
 if(preloadPromise)return preloadPromise;
 isPreloadStarted=true;
 hasPreloadStarted=true;
 isPreloadFinished=false;
-preloadPromise=hydrateAllDataOnInit({allowBeforeLogin:true,useCacheFirst:true}).then((result)=>{
+preloadPromise=hydrateAllDataOnInit({useCacheFirst:true}).then((result)=>{
 isPreloadFinished=true;
 return result;
 }).catch(err=>{
@@ -413,6 +416,9 @@ return preloadPromise;
 }
 
 async function hydrateAllDataOnInit({force=false,useCacheFirst=!force}={}){
+if(!isAuthStateReady||!user)return null;
+const authHeaders=await getAuthHeaders().catch(()=>({}));
+if(!authHeaders.Authorization)return null;
 const shouldUseCache=!!useCacheFirst&&!force;
 const loadInventoryData=async()=>{
 if(shouldUseCache&&hasValidData(window.mainDataCache))return window.mainDataCache;
@@ -540,26 +546,13 @@ if(loginView){loginView.hidden=true;loginView.style.display="none";}
 if(appRoot){appRoot.hidden=false;appRoot.style.display="block";}
 setCurrentUser({id:user?.id||null,isDeveloper:user?.id==="developer",name:"",email:String(user?.email||""),role:""});
 }
-async function resolveEmailFromLoginInput(loginInput){
-const trimmedInput=String(loginInput||"").trim();
-if(!trimmedInput)return "";
-if(trimmedInput.includes("@"))return trimmedInput;
-const {data,error}=await supabase.from("users").select("email").eq("username",trimmedInput).limit(2);
-if(error)throw error;
-if(!Array.isArray(data)||data.length===0)throw new Error("Username tidak ditemukan");
-if(data.length>1)throw new Error("Username tidak unique. Hubungi admin.");
-const email=data[0]?.email?.trim();
-if(!email)throw new Error("Email user tidak valid");
-return email;
-}
-
 async function bootApplication(){
 const requestGeneration=++authRequestGeneration;
 authChecking=true;
+isAuthStateReady=false;
 applyTheme();
 renderAuthState();
 await loadRuntimeConfig();
-queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload awal gagal",err));});
 let session=null;
 try{
 if(isPreviewBypassLoginEnabled()){
@@ -588,6 +581,7 @@ user=null;
 }finally{
 if(requestGeneration!==authRequestGeneration)return;
 authChecking=false;
+isAuthStateReady=true;
 renderAuthState();
 }
 isUserLoggedIn=!!user;
@@ -626,6 +620,13 @@ user=null;
 devProfile=null;
 authChecking=false;
 isUserLoggedIn=false;
+isAuthStateReady=false;
+hasInitializedDataFlow=false;
+preloadPromise=null;
+hasPreloadStarted=false;
+isPreloadStarted=false;
+isPreloadFinished=false;
+window.mainDataPromise=null;
 clearCurrentUser();
 stopDevAutoRefresh({log:false});
 showLoginView();
@@ -653,7 +654,7 @@ signupAccessForm?.addEventListener("submit",(e)=>{e.preventDefault();if(signupAc
 signupAccessModal?.querySelectorAll("[data-signup-access-close]").forEach(el=>el.addEventListener("click",closeSignupAccessModal));
 document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&!signupAccessModal?.hidden)closeSignupAccessModal();});
 loginLink?.addEventListener("click",(e)=>{e.preventDefault();signupAccessGranted=false;showAuthMode("login");});
-form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();let resolvedEmail;try{resolvedEmail=await resolveEmailFromLoginInput(loginInput);}catch(resolveError){if(isTrustedDevelopmentEnvironment()&&!loginInput.includes("@"))resolvedEmail=loginInput;else throw resolveError;}const {data,error}=await loginWithEmailPassword(resolvedEmail,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logLogin({user:data.user?.full_name||"Akun Developer",role:"Developer",isDeveloper:true,module:"Auth",page:"/login",details:{method:"DEVELOPER_LOGIN"}});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logLogin({user:userData?.user?.email||"User",module:"Auth",page:"/login",details:{method:"PASSWORD"}});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:data?.mode==="dev"||profile?.isDeveloper===true});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
+form.addEventListener("submit",async (e)=>{e.preventDefault();showError("");setLoading(true);try{const loginInput=emailEl.value.trim();const {data,error}=await loginWithEmailPassword(loginInput,passwordEl.value);if(error)throw error;if(data?.mode==="dev"){user={id:"developer"};devProfile=data.user;logLogin({user:data.user?.full_name||"Akun Developer",role:"Developer",isDeveloper:true,module:"Auth",page:"/login",details:{method:"DEVELOPER_LOGIN"}});}else{const {data:userData,error:userErr}=await supabase.auth.getUser();if(userErr)throw userErr;user=userData?.user||null;devProfile=null;logLogin({user:userData?.user?.email||"User",module:"Auth",page:"/login",details:{method:"PASSWORD"}});}authChecking=false;isUserLoggedIn=!!user;renderAuthState();if(user){const profile=devProfile||await fetchUserProfile(user.id);renderSidebarProfile(profile,user);const loginUserSnapshot=toUserSnapshot(profile,user);setCurrentUser({...getCurrentUser(),...loginUserSnapshot,isDeveloper:data?.mode==="dev"||profile?.isDeveloper===true});if(!appInitialized){bindNav();bindEvents();bindLogoutButtons();setupSidebar();syncDeveloperMenuVisibility();renderFilters();applyRoleBasedUi();setMainContentLoading(true);document.getElementById("sheetInfo").textContent=SHEETS.join(", ");document.getElementById("spreadsheetInfo").textContent=SPREADSHEET_ID;renderRecentHistory();renderQuickResultCard(null,"","hint");renderState("results",`Ketik minimal ${SEARCH_STATE.minChars} huruf untuk mencari.`);routeFromPath(location.pathname);window.addEventListener("popstate",()=>routeFromPath(location.pathname));appInitialized=true;}else{syncDeveloperMenuVisibility();}await initAppData();applyRoleBasedUi();
 await loadBalikanSheets();}}catch(err){logLogin({module:"Auth",page:"/login",failed:true,username:emailEl.value.trim(),result:"FAILED",details:{username:emailEl.value.trim(),reason:"INVALID_CREDENTIALS"}});showError(err?.message||"Login gagal. Coba lagi.");}finally{setLoading(false);}});
 signupForm?.addEventListener("submit",async(e)=>{e.preventDefault();showSignupError("");if(!signupAccessGranted){showAuthMode("login");openSignupAccessModal();return;}const fullNameInput=document.getElementById("signupFullName"),usernameInput=document.getElementById("signupUsername"),emailInput=document.getElementById("signupEmail"),passwordInput=document.getElementById("signupPassword"),confirmPasswordInput=document.getElementById("signupConfirmPassword");const fullName=fullNameInput?.value?.trim()||"";const username=usernameInput?.value?.trim()||"";const email=emailInput?.value?.trim().toLowerCase()||"";const password=passwordInput?.value||"";const confirmPassword=confirmPasswordInput?.value||"";if(!fullName||!username||!email||!password||!confirmPassword)return showSignupError("Semua field wajib diisi.");if(username.includes(" "))return showSignupError("Username tidak boleh mengandung spasi.");if(!emailRegex.test(email))return showSignupError("Format email tidak valid.");if(password!==confirmPassword)return showSignupError("Confirm password harus sama.");setSignupLoading(true);try{await ensureSignupIdentityAvailable(email,username);const {data:authData,error:signupErr}=await supabase.auth.signUp({email,password});console.log("auth signup result",authData,signupErr);if(signupErr)throw signupErr;const authUserId=authData?.user?.id;if(!authUserId)throw new Error("Gagal mendapatkan ID user.");console.log("user id",authUserId);const profilePayload={id:authUserId,email,username,full_name:fullName,role:"Warga KST"};console.log("payload public.users",profilePayload);const {error:profileErr}=await supabase.from("users").upsert(profilePayload,{onConflict:"id"});if(profileErr){console.log("error save profile",profileErr);const profileMsg=String(profileErr?.message||"").toLowerCase();if(profileErr?.code==="42501"||profileMsg.includes("row-level security")||profileMsg.includes("rls"))return showSignupError("Akun berhasil dibuat, tapi profile gagal disimpan.");throw profileErr;}await logActivity({user_id:authUserId,user_name:fullName||username||email,role:"Warga KST",action:"REGISTER_SUCCESS",module:"Auth",detail:`User baru terdaftar: ${username||email}`,reference:authUserId,status:"SUCCESS",metadata:{email,username}});signupForm.reset();signupAccessGranted=false;showAuthMode("login");showError("Registrasi berhasil. Silakan login.");}catch(err){showSignupError(mapSignupError(err));}finally{setSignupLoading(false);}});
 showAuthMode("login");

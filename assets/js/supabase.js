@@ -102,11 +102,11 @@ export async function ensureAuthSession() {
   return restoreSession({ allowDeveloperSession: true });
 }
 
-export async function loginWithEmailPassword(email, password) {
+export async function loginWithEmailPassword(identifier, password) {
   const resp = await fetch("/api/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier, password }),
   });
   const data = await parseJsonResponse(resp, "Endpoint login tidak ditemukan");
   if (!resp.ok) throw new Error(data?.message || "Login gagal.");
