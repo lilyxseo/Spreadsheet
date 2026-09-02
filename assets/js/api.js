@@ -15,6 +15,18 @@ const BACKEND_SHEET_ENDPOINT = {
   'Barang Keluar': '/api/barang-keluar?mode=full'
 };
 
+const MIGRATED_INVENTORY_SOURCES = new Set(Object.keys(BACKEND_SHEET_ENDPOINT));
+
+export function routeSourceRows(sheetName, payload){
+  if(MIGRATED_INVENTORY_SOURCES.has(sheetName)){
+    if(!Array.isArray(payload) || payload.some(row => !row || typeof row !== 'object' || Array.isArray(row))){
+      throw new TypeError(`${sheetName}: respons Supabase harus berupa object rows`);
+    }
+    return payload;
+  }
+  return parseSheet(payload, sheetName);
+}
+
 async function fetchSheetViaBackend(sheetName){
   const endpoint = BACKEND_SHEET_ENDPOINT[sheetName];
   const res = await authFetch(endpoint);
@@ -27,8 +39,8 @@ async function fetchSheetViaBackend(sheetName){
     window.__bulkyLastSync = json.lastSync || null;
     window.__bulkySyncStatus = json.syncStatus || null;
   }
-  if(Array.isArray(json.data)) return json.data;
   if(Array.isArray(json.rows)) return json.rows;
+  if(Array.isArray(json.data)) return json.data;
   return Array.isArray(json.values) ? json.values : [];
 }
 
@@ -45,7 +57,7 @@ export async function fetchAllSheets(){
   await Promise.all(SHEETS.map(async (sheetName) => {
     try{
       const values = await fetchSheet(sheetName);
-      const parsedRows = parseSheet(values, sheetName);
+      const parsedRows = routeSourceRows(sheetName, values);
       console.log("PARSED DATA", sheetName, parsedRows.length);
       DATA[sheetName] = parsedRows;
     }catch(err){
