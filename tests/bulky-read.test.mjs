@@ -78,8 +78,8 @@ test('BULKY full mode batches all rows for the unchanged UI contract', async () 
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('frontend routes BULKY exclusively through its backend full-mode endpoint', async () => {
+test('frontend routes BULKY exclusively through its paginated backend endpoint', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../assets/js/api.js', import.meta.url), 'utf8'));
-  assert.match(source, /'BULKY': '\/api\/bulky\?mode=full'/);
+  assert.match(source, /'BULKY': '\/api\/bulky\?page=1&limit=50'/);
   assert.match(source, /window\.__bulkyLastSync = json\.lastSync/);
 });

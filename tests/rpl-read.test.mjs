@@ -75,7 +75,7 @@ test('RPL full mode batches all Supabase rows for the unchanged UI contract', as
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('frontend routes RPL through its backend full-mode endpoint', async () => {
+test('frontend routes RPL through its paginated backend endpoint', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('../assets/js/api.js', import.meta.url), 'utf8'));
-  assert.match(source, /'RPL': '\/api\/rpl\?mode=full'/);
+  assert.match(source, /'RPL': '\/api\/rpl\?page=1&limit=50'/);
 });
