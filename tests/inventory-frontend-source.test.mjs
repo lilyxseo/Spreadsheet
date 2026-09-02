@@ -29,7 +29,7 @@ test('manual refresh keeps the non-migrated Balikan source on its existing loade
 
 test('login verifies its persisted session and migrated inventory fetches require auth', async () => {
   const authSource = await readFile(new URL('../assets/js/supabase.js', import.meta.url), 'utf8');
-  assert.match(authSource, /JSON\.stringify\(\{ email, password \}\)/);
+  assert.match(authSource, /JSON\.stringify\(\{ identifier, password \}\)/);
   assert.match(authSource, /supabase\.auth\.setSession\(\{[\s\S]*access_token:[\s\S]*refresh_token:/);
   assert.match(authSource, /supabase\.auth\.getSession\(\)/);
   for (const endpoint of ['kartu-stok', 'barang-masuk', 'barang-keluar', 'rpl', 'bulky']) assert.match(mainSource, new RegExp(`'/api/${endpoint}'`));
