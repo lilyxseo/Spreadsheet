@@ -6,13 +6,17 @@ function json(body, status = 200) {
 
 const READ_ONLY_REASON = 'READ_ONLY_ROLE';
 
+function decodeBase64Url(part) {
+  const normalized = String(part || '').replace(/-/g, '+').replace(/_/g, '/');
+  return atob(normalized + '='.repeat((4 - (normalized.length % 4)) % 4));
+}
+
 function decodeJwtPayload(token) {
   try {
-    const part = String(token || '').split('.')[0];
+    const parts = String(token || '').split('.');
+    const part = parts.length === 3 ? parts[1] : '';
     if (!part) return null;
-    const normalized = part.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-    return JSON.parse(atob(padded));
+    return JSON.parse(decodeBase64Url(part));
   } catch (_err) {
     return null;
   }
@@ -35,12 +39,17 @@ function getBearerToken(request) {
   return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 }
 
-function isDeveloperRequest(request, env) {
+async function isDeveloperRequest(request, env) {
   const token = getBearerToken(request);
   const payload = decodeJwtPayload(token);
-  if (payload?.isDeveloper === true && Number(payload.exp || 0) > Math.floor(Date.now() / 1000)) return true;
-  const cookies = parseCookie(request.headers.get('cookie') || '');
-  if (isTruthy(cookies.developer) || isTruthy(request.headers.get('x-developer-user'))) return true;
+  if (payload?.isDeveloper === true && Number(payload.exp || 0) > Math.floor(Date.now() / 1000) && env?.DEV_SESSION_SECRET) {
+    try {
+      const [header, body, signature] = token.split('.');
+      const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.DEV_SESSION_SECRET)), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+      const signatureBytes = Uint8Array.from(decodeBase64Url(signature), char => char.charCodeAt(0));
+      if (await crypto.subtle.verify('HMAC', key, signatureBytes, new TextEncoder().encode(`${header}.${body}`))) return true;
+    } catch (_err) {}
+  }
   const previewEnabled = isTruthy(env?.PREVIEW_BYPASS_LOGIN ?? env?.NEXT_PUBLIC_PREVIEW_BYPASS_LOGIN ?? env?.VITE_PREVIEW_BYPASS_LOGIN);
   return previewEnabled && request.headers.get('x-preview-bypass-login') === 'true';
 }
@@ -71,7 +80,7 @@ async function getUserProfileRole(userId, email, env) {
 }
 
 export async function getRequestRole(request, env) {
-  if (isDeveloperRequest(request, env)) return 'Developer';
+  if (await isDeveloperRequest(request, env)) return 'Developer';
   const authUser = await getSupabaseAuthUser(request, env);
   const role = await getUserProfileRole(authUser?.id, authUser?.email, env);
   return role || String(authUser?.user_metadata?.role || authUser?.role || '');
@@ -101,7 +110,7 @@ async function auditDeniedCrud({ request, env, role, action = 'CRUD' }) {
 
 export async function requirePicRole({ request, env, action = 'CRUD' }) {
   const role = await getRequestRole(request, env);
-  const canCrud = String(role || '').toLowerCase().includes('pic') || isDeveloperRequest(request, env);
+  const canCrud = String(role || '').toLowerCase().includes('pic') || await isDeveloperRequest(request, env);
   if (canCrud) return { ok: true, role };
   await auditDeniedCrud({ request, env, role, action });
   return { ok: false, role, response: json({ success: false, message: 'Akses read-only. Hanya PIC atau Developer yang bisa mengubah data.', reason: READ_ONLY_REASON }, 403) };
