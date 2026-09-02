@@ -10,6 +10,8 @@ export async function handleInventorySyncRun({ request, env }, dependencies = {}
   return inventorySyncJson(result, result.success ? 200 : 500);
 }
 
+// Manual diagnostics only: production Cron must call each per-source endpoint
+// separately so every source receives a fresh Cloudflare subrequest budget.
 export function onRequestPost(context) {
   return handleInventorySyncRun(context);
 }
