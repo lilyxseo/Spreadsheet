@@ -149,7 +149,7 @@ return isActivityLogAllowed();
 }
 window.currentUser=getCurrentUser();
 const nativeFetch=window.fetch.bind(window);
-const AUTHENTICATED_INVENTORY_PATHS=new Set(['/api/kartu-stok','/api/barang-masuk','/api/barang-keluar','/api/rpl','/api/bulky']);
+const AUTHENTICATED_INVENTORY_PATHS=new Set(['/api/dashboard-summary','/api/kartu-stok','/api/barang-masuk','/api/barang-keluar','/api/rpl','/api/bulky']);
 window.fetch=async(input,init={})=>{
   const url=typeof input==='string'?input:String(input?.url||'');
   if(url.startsWith('/api/')){
@@ -294,7 +294,9 @@ return;
 runtimeConfig={previewBypassLogin:isTruthyFlag(loaded.previewBypassLogin),environment:String(loaded.environment||"unknown").toLowerCase()};
 }
 
-const INVENTORY_PRELOAD_SHEETS=["Kartu Stock","RPL","BULKY"];
+// Inventory modules are loaded on demand. Startup only requests the lightweight
+// dashboard response and never hydrates these complete Supabase tables.
+const INVENTORY_PRELOAD_SHEETS=[];
 const BARANG_COLUMNS=["tanggal","from","to","sku","namaBarang","qty","status","pic","keterangan"];
 function isBarangHeaderLike(row){
 const values=Array.isArray(row)?row:(row&&typeof row==="object"?BARANG_COLUMNS.map(key=>row[key]):[]);
@@ -419,51 +421,16 @@ async function hydrateAllDataOnInit({force=false,useCacheFirst=!force}={}){
 if(!isAuthStateReady||!user)return null;
 const authHeaders=await getAuthHeaders().catch(()=>({}));
 if(!authHeaders.Authorization)return null;
-const shouldUseCache=!!useCacheFirst&&!force;
-const loadInventoryData=async()=>{
-if(shouldUseCache&&hasValidData(window.mainDataCache))return window.mainDataCache;
-return preloadInventoryData();
-};
-const loadBarangMasukData=async()=>{
-if(shouldUseCache){const cached=normalizeBarangRows(getCacheData(MODULE_CACHE_KEYS.barangMasuk));if(cached.length)return cached;}
-return loadBarangMasuk({mode:"full"});
-};
-const loadBarangKeluarData=async()=>{
-if(shouldUseCache){const cached=normalizeBarangRows(getCacheData(MODULE_CACHE_KEYS.barangKeluar));if(cached.length)return cached;}
-return loadBarangKeluar({mode:"full"});
-};
-const loadMovementData=async()=>{
-if(shouldUseCache){const cached=getCacheData(MODULE_CACHE_KEYS.movement);if(cached.length)return cached;}
-const {res,data:json}=await fetchJsonSafe('/api/movement?mode=full');
-if(!res.ok||json?.success===false){console.error("INIT ERROR movement",json?.message||res.statusText);return [];}
-const rows=Array.isArray(json?.data)?json.data:(Array.isArray(json?.rows)?json.rows:[]);
-setCacheSafe(MODULE_CACHE_KEYS.movement,rows);return rows;
-};
-const loadBarcodeData=async()=>loadBarcodeMaster({force});
-
-const results=await Promise.allSettled([
-loadInventoryData(),loadBarangMasukData(),loadBarangKeluarData(),loadMovementData(),loadBarcodeData()
-]);
-results.forEach((res,i)=>{if(res.status==="rejected")console.error("INIT ERROR INDEX",i,res.reason);});
-const [inventoryRes,barangMasukRes,barangKeluarRes,movementRes]=results;
-const inventory=inventoryRes.status==="fulfilled"?inventoryRes.value:{};
-const barangMasukRows=barangMasukRes.status==="fulfilled"?barangMasukRes.value:[];
-const barangKeluarRows=barangKeluarRes.status==="fulfilled"?barangKeluarRes.value:[];
-const movementRows=movementRes.status==="fulfilled"?movementRes.value:[];
-applyData(inventory,{deferRender:true});
+const {res,data:summary}=await fetchJsonSafe(`/api/dashboard-summary${force?'?refresh=1':''}`,{headers:authHeaders});
+if(!res.ok||!summary?.success)throw new Error(summary?.message||'Gagal memuat ringkasan dashboard');
 window.APP_STATE=window.APP_STATE||{};
-window.APP_STATE.inventory=inventory;
-window.APP_STATE.barangMasuk=Array.isArray(barangMasukRows)?barangMasukRows:[];
-window.APP_STATE.barangKeluar=Array.isArray(barangKeluarRows)?barangKeluarRows:[];
-window.APP_STATE.movement=Array.isArray(movementRows)?movementRows:[];
-setCacheSafe(MODULE_CACHE_KEYS.barangMasuk,window.APP_STATE.barangMasuk);
-setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,window.APP_STATE.barangKeluar);
-setCacheSafe(MODULE_CACHE_KEYS.kartuStock,Array.isArray(DATA["Kartu Stock"])?DATA["Kartu Stock"]:[]);
-setCacheSafe(MODULE_CACHE_KEYS.rpl,Array.isArray(DATA["RPL"])?DATA["RPL"]:[]);
-setCacheSafe(MODULE_CACHE_KEYS.bulky,Array.isArray(DATA["BULKY"])?DATA["BULKY"]:[]);
+window.APP_STATE.dashboardSummary=summary.summary||{};
+window.APP_STATE.inventory={};
+window.APP_STATE.barangMasuk=normalizeBarangRows(summary.recent?.barangMasuk||[]);
+window.APP_STATE.barangKeluar=normalizeBarangRows(summary.recent?.barangKeluar||[]);
+window.APP_STATE.movement=[];
 DATA["Barang Masuk"]=window.APP_STATE.barangMasuk;
 DATA["Barang Keluar"]=window.APP_STATE.barangKeluar;
-await saveCache(DATA);
 return window.APP_STATE;
 }
 function preloadInventoryData(){return preloadMainData();}
@@ -559,7 +526,7 @@ if(isPreviewBypassLoginEnabled()){
 user={id:'preview-bypass',email:'preview@local'};
 devProfile={full_name:'Developer',role:'Mode Development',username:'developer',email:'preview@local'};
 }else{
-session=await restoreSession({allowDeveloperSession:isTrustedDevelopmentEnvironment()});
+session=await restoreSession({allowDeveloperSession:true});
 if(requestGeneration!==authRequestGeneration)return;
 if(session){
 if(session?.isDeveloper){
@@ -671,7 +638,7 @@ TABLE_STATE[mode].selected.clear();
 renderDataTablePage(mode,sheetName,false);
 }
 
-function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFilter(e.target?.value||""));statsFilter?.addEventListener("change",updateStats);darkBtnHeader?.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);bindDevAutoRefreshControls();const din=debounce(()=>renderDataTablePage("in","Barang Masuk"),250),dout=debounce(()=>renderDataTablePage("out","Barang Keluar"),250);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>{document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu));document.querySelectorAll(".mv-columns.open").forEach(panel=>positionColumnMenu(panel.id.replace("mv-cols-","")));});document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);const st=mode==='balikan'?ensureBalikanFilterState():(TABLE_STATE[mode]||{});ensureColumnFilterState(mode);if(!st.columnFilters)st.columnFilters={};st.columnFilters[col]=selected;st.openFilterCol=col;if(mode==='balikan')scheduleBalikanRender(false,250);else rerenderTableWithScrollRestore(mode,true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});document.addEventListener("click",e=>{const btn=e.target.closest("[data-search-page]");if(!btn)return;changeSearchPage(Number(btn.dataset.searchPage)||0);});anomalySeverity?.addEventListener("change",()=>applyAnomalyFilters(true));
+function bindEvents(){searchInput?.addEventListener("input",e=>scheduleSearchFilter(e.target?.value||""));statsFilter?.addEventListener("change",updateStats);darkBtnHeader?.addEventListener("click",toggleDark);refreshToggleHeader?.addEventListener("click",triggerManualRefresh);bindDevAutoRefreshControls();const din=debounce(()=>loadMovementPage("in",{page:1}),350),dout=debounce(()=>loadMovementPage("out",{page:1}),350);inSearch?.addEventListener("input",din);outSearch?.addEventListener("input",dout);window.addEventListener("resize",()=>{document.querySelectorAll("[data-col-filter-menu]:not([hidden])").forEach(menu=>positionColumnFilterMenu(menu));document.querySelectorAll(".mv-columns.open").forEach(panel=>positionColumnMenu(panel.id.replace("mv-cols-","")));});document.addEventListener("change",e=>{const t=e.target;if(t?.matches("[data-mv-filter]")){const m=t.dataset.mvMode;if(t.id===`mv-size-${m}`)loadMovementPage(m,{page:1,limit:Number(t.value)||50});else debouncedTableRender(m);}if(t?.closest("[data-col-filter-menu]")&&t?.matches('input[type="checkbox"]')){const menu=t.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const selected=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);const st=mode==='balikan'?ensureBalikanFilterState():(TABLE_STATE[mode]||{});ensureColumnFilterState(mode);if(!st.columnFilters)st.columnFilters={};st.columnFilters[col]=selected;st.openFilterCol=col;if(mode==='balikan')scheduleBalikanRender(false,250);else rerenderTableWithScrollRestore(mode,true);}});document.addEventListener("input",e=>{const t=e.target;if(!t?.matches("[data-col-filter-search]"))return;const q=clean(t.value);const menu=t.closest("[data-col-filter-menu]");menu?.querySelectorAll("[data-opt-item]").forEach(item=>{item.style.display=!q||clean(item.textContent).includes(q)?"":"none";});});document.addEventListener("click",e=>{const btn=e.target.closest("[data-search-page]");if(!btn)return;changeSearchPage(Number(btn.dataset.searchPage)||0);});anomalySeverity?.addEventListener("change",()=>applyAnomalyFilters(true));
 searchInput?.addEventListener("focus",()=>{if(!searchModalOpen)openSearchModal();});
 document.getElementById("btnScanSku")?.addEventListener("click",()=>{logActivitySafe({action:"SCAN_BARCODE_SKU",module:"Search",detail:"User membuka scanner barcode SKU",status:"SUCCESS"});openBarcodeScanner("searchInput",handleSearchScanResult);});
 btnScanBalikan?.addEventListener("click",()=>openBalikanScanner());
@@ -711,10 +678,10 @@ if(!e.target.closest(".mv-column-dropdown-wrap"))closeColumnMenus();
 const toggle=e.target.closest("[data-col-filter-toggle]");if(toggle){const mode=toggle.dataset.mode,col=toggle.dataset.col;document.querySelectorAll(`[data-col-filter-menu][data-mode="${mode}"]`).forEach(menu=>menu.hidden=true);const menu=document.querySelector(`[data-col-filter-menu][data-mode="${mode}"][data-col="${col}"]`);if(menu){menu.hidden=!menu.hidden;const st=TABLE_STATE[mode];if(st)st.openFilterCol=menu.hidden?"":col;if(mode==='balikan'){const balikanState=ensureBalikanFilterState();balikanState.openFilterCol=menu.hidden?'':col;}if(!menu.hidden)positionColumnFilterMenu(menu);}return;}
 if(e.target.closest("[data-col-filter-menu]")){const menu=e.target.closest("[data-col-filter-menu]");const mode=menu.dataset.mode,col=menu.dataset.col;const st=mode==='balikan'?ensureBalikanFilterState():(TABLE_STATE[mode]||{});ensureColumnFilterState(mode);if(e.target.matches("[data-col-filter-clear]")){st.columnFilters[col]=[];st.openFilterCol=col;if(mode==='balikan')scheduleBalikanRender(false,0);else rerenderTableWithScrollRestore(mode,true);}if(e.target.matches("[data-col-filter-all]")){const rowsSource=mode==='balikan'?((BALIKAN_STATE.filterState?.rows)||[]):(st.rows||[]);const applier=mode==='balikan'?applyBalikanTableFilters:applyTableFilters;st.columnFilters[col]=getUniqueOptions(applier(rowsSource,mode,col),col);st.openFilterCol=col;if(mode==='balikan')scheduleBalikanRender(false,0);else rerenderTableWithScrollRestore(mode,true);}return;}
 document.querySelectorAll("[data-col-filter-menu]").forEach(menu=>menu.hidden=true);Object.values(TABLE_STATE).forEach(st=>{if(st)st.openFilterCol="";});ensureBalikanFilterState().openFilterCol="";});}
-document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered.slice((st.page-1)*st.pageSize,st.page*st.pageSize);pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
+document.addEventListener('change',e=>{const sel=e.target.closest('[data-mv-select]');if(sel){const mode=sel.dataset.mvSelect,row=Number(sel.dataset.row),selectedSet=getSelectedSet(mode);if(sel.checked)selectedSet.add(row);else selectedSet.delete(row);renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);return;}const all=e.target.closest('[data-mv-select-all]');if(all){const mode=all.dataset.mvSelectAll;const st=TABLE_STATE[mode],selectedSet=getSelectedSet(mode);const pageRows=st.filtered;pageRows.forEach(r=>all.checked?selectedSet.add(r.rowNumber):selectedSet.delete(r.rowNumber));renderDataTablePage(mode,mode==='in'?'Barang Masuk':'Barang Keluar',true);}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape")closeColumnMenus();});
 function getBarangRejectNavPage(){return `barang-reject-${BARANG_REJECT_STATE.activeTab==='dashboard'?'dashboard':BARANG_REJECT_STATE.activeTab==='masuk'?'masuk':BARANG_REJECT_STATE.activeTab==='keluar'?'keluar':'input'}`;}
-function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`)?.classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page||(page==="barang-reject"&&b.dataset.page===getBarangRejectNavPage())));syncActiveSidebarParent(page);if(page==="barang-reject"){renderBarangRejectPage();return;}if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);}
+function showPage(page){if(page!=="search")closeScannerModal();document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(`page-${page}`)?.classList.remove("hidden");document.querySelectorAll(".side-link[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page||(page==="barang-reject"&&b.dataset.page===getBarangRejectNavPage())));syncActiveSidebarParent(page);if(page==="barang-reject"){renderBarangRejectPage();return;}if(!window.__isDataReady){console.log("DATA READY", window.__isDataReady);return;}rerenderCurrentPage({fromCache:page==="barang-masuk"||page==="barang-keluar"});refreshTransaksiPageInBackground(page);if(INVENTORY_PAGE_CONFIG[page])ensureInventoryPage(page);}
 function pageTitleFromPath(path){return String(path||"/").replace(/^\//,"").split("/").filter(Boolean).map(x=>x.replaceAll("-"," ").replace(/\b\w/g,c=>c.toUpperCase())).join(" / ")||"Dashboard";}
 let lastLoggedPath=null;
 function navigateTo(path){const from=location.pathname;if(path===from){routeFromPath(path);return;}history.pushState({},"",path);routeFromPath(path);if(user&&path!==lastLoggedPath){lastLoggedPath=path;logPageView({...currentUserIdentity(),module:pageTitleFromPath(path),page:path,from,to:path,details:{from,to:path}});}}
@@ -741,7 +708,7 @@ if(!user){
 if(isPreviewBypassLoginEnabled()){history.replaceState({},"","/");return showPage("dashboard");}
 return showLoginView();
 }
-if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-reject"||path==="/barang-reject/dashboard"){BARANG_REJECT_STATE.activeTab="dashboard";return showPage("barang-reject");}if(path==="/barang-reject/masuk"){BARANG_REJECT_STATE.activeTab="masuk";return showPage("barang-reject");}if(path==="/barang-reject/keluar"){BARANG_REJECT_STATE.activeTab="keluar";return showPage("barang-reject");}if(path==="/barang-reject/input"){BARANG_REJECT_STATE.activeTab="masuk";return showPage("barang-reject");}if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isActivityLogAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
+if(path==="/")return showPage("dashboard");if(path==="/search")return showPage("search");if(path==="/barang-reject"||path==="/barang-reject/dashboard"){BARANG_REJECT_STATE.activeTab="dashboard";return showPage("barang-reject");}if(path==="/barang-reject/masuk"){BARANG_REJECT_STATE.activeTab="masuk";return showPage("barang-reject");}if(path==="/barang-reject/keluar"){BARANG_REJECT_STATE.activeTab="keluar";return showPage("barang-reject");}if(path==="/barang-reject/input"){BARANG_REJECT_STATE.activeTab="masuk";return showPage("barang-reject");}if(path==="/barang-masuk")return showPage("barang-masuk");if(path==="/barang-keluar")return showPage("barang-keluar");if(path==="/kartu-stok")return showPage("kartu-stok");if(path==="/rpl")return showPage("rpl");if(path==="/bulky")return showPage("bulky");if(path==="/accuracy-dashboard"||path==="/accuracy"||path==="/dashboard-akurasi")return showPage("stats");if(path==="/abc-analisis")return showPage("abc-analisis");if(path==="/statistics"){history.replaceState({},"","/");return showPage("dashboard");}if(path==="/locations"||path==="/location")return showPage("locations");if(path==="/settings")return showPage("settings");if(path==="/sheet-input")return showPage("sheet-input");if(path==="/arsip")return showPage("arsip");if(path==="/asset-store")return showPage("asset-store");if(path==="/cycle-count")return showPage("cycle-count");if(path==="/movement")return showPage("movement");if(path==="/balikan-store")return showPage("balikan-store");if(path==="/import-pdf-transfer")return showPage("import-pdf-transfer");if(path==="/activity-log"){if(!isActivityLogAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("activity-log");}if(path==="/tools-dev"){if(!isToolsDevAllowed()){history.replaceState({},"","/");return showPage("dashboard");}return showPage("tools-dev");}if(path==="/anomaly"){history.replaceState({},"","/warning");return showPage("anomaly");}if(path==="/warning")return showPage("anomaly");if(path==="/stok-minus")return showPage("stok-minus");if(path.startsWith("/sku/")){currentSku=decodeURIComponent(path.split("/sku/")[1]||"");if(currentSku)showDetail(currentSku);return showPage("detail");}showPage("dashboard");}
 function syncDeveloperMenuVisibility(){
 const activityLogMenu=document.querySelector('.side-link[data-page="activity-log"]');
 if(activityLogMenu)activityLogMenu.style.display=isActivityLogAllowed()?"":"none";
@@ -950,6 +917,7 @@ if(page==="detail"&&currentSku)showDetail(currentSku);
 if(page==="search"&&String(lastQuery||"").trim()){SEARCH_STATE.filterValue=lastQuery;runSearch();}
 if(page==="barang-masuk")renderDataTablePage("in","Barang Masuk",true);
 if(page==="barang-keluar")renderDataTablePage("out","Barang Keluar",true);
+if(["kartu-stok","rpl","bulky"].includes(page))renderInventoryPage(page);
 if(page==="anomaly")renderAnomalyPage();
 if(page==="stok-minus")renderStokMinusPage();
 if(page==="cycle-count")renderCycleCountPage();
@@ -991,7 +959,7 @@ console.log("FETCH RESULT BULKY",Array.isArray(raw)?raw.length:0);
 return rows;
 }
 async function refreshBarangMasukFull(){
-const {res,data:json}=await fetchJsonSafe('/api/barang-masuk?mode=full');
+const {res,data:json}=await fetchJsonSafe('/api/barang-masuk?page=1&limit=50');
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Masuk');
 const data=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
@@ -1000,7 +968,7 @@ setCacheSafe("barangMasukCache",data);
 return data;
 }
 async function refreshBarangKeluarFull(){
-const {res,data:json}=await fetchJsonSafe('/api/barang-keluar?mode=full');
+const {res,data:json}=await fetchJsonSafe('/api/barang-keluar?page=1&limit=50');
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||'Gagal refresh Barang Keluar');
 const data=normalizeBackendRows(json);
 window.APP_STATE=window.APP_STATE||{};
@@ -1152,214 +1120,42 @@ setMainContentLoading(false);
 }
 function refreshTransaksiPageInBackground(page){
 if(page!=="barang-masuk"&&page!=="barang-keluar")return;
-if(REFRESH_STATE.isRefreshing)return;
-setRefreshIndicator(true,"Refreshing...");
-refreshTransaksiFull({render:false}).then(()=>{
 const mode=page==="barang-masuk"?"in":"out";
-rerenderTableWithScrollRestore(mode,true);
-scheduleRenderDashboard();
-}).catch(err=>console.error("Background transaksi refresh error",err)).finally(()=>setRefreshIndicator(false));
+loadMovementPage(mode,{page:TABLE_STATE[mode]?.page||1}).catch(err=>{
+const resultEl=mode==="in"?inResults:outResults;
+if(resultEl)resultEl.innerHTML=`<div class='state error'>${esc(err.message||'Gagal memuat data')}</div>`;
+});
 }
 async function initAppData(){
 if(hasInitializedDataFlow)return;
 hasInitializedDataFlow=true;
-console.log("INIT APP START");
-console.log("CURRENT ROUTE", location.pathname);
 window.APP_STATE=window.APP_STATE||{};
-
-await hydrateModuleCachesFromDb();
-const idbCache=await loadCache();
-if(idbCache&&typeof idbCache==="object"){
-if(Array.isArray(idbCache["Kartu Stock"])&&idbCache["Kartu Stock"].length)setModuleCache(MODULE_CACHE_KEYS.kartuStock,idbCache["Kartu Stock"]);
-if(Array.isArray(idbCache["RPL"])&&idbCache["RPL"].length)setModuleCache(MODULE_CACHE_KEYS.rpl,idbCache["RPL"]);
-if(Array.isArray(idbCache["BULKY"])&&idbCache["BULKY"].length)setModuleCache(MODULE_CACHE_KEYS.bulky,idbCache["BULKY"]);
-if(Array.isArray(idbCache["Barang Masuk"])&&idbCache["Barang Masuk"].length)setModuleCache(MODULE_CACHE_KEYS.barangMasuk,idbCache["Barang Masuk"]);
-if(Array.isArray(idbCache["Barang Keluar"])&&idbCache["Barang Keluar"].length)setModuleCache(MODULE_CACHE_KEYS.barangKeluar,idbCache["Barang Keluar"]);
-}
-const cachedBarangMasuk=getCacheData(MODULE_CACHE_KEYS.barangMasuk)||[];
-const cachedBarangKeluar=getCacheData(MODULE_CACHE_KEYS.barangKeluar)||[];
-const cachedKartuStock=getCacheData(MODULE_CACHE_KEYS.kartuStock)||[];
-const cachedRpl=getCacheData(MODULE_CACHE_KEYS.rpl)||[];
-const cachedBulky=getCacheData(MODULE_CACHE_KEYS.bulky)||[];
-const cachedInventory={
-  "Kartu Stock":Array.isArray(cachedKartuStock)?cachedKartuStock:[],
-  "RPL":Array.isArray(cachedRpl)?cachedRpl:[],
-  "BULKY":Array.isArray(cachedBulky)?cachedBulky:[]
-};
-const cachedMovement=getCacheData(MODULE_CACHE_KEYS.movement)||[];
-
-window.APP_STATE.barangMasuk=Array.isArray(cachedBarangMasuk)?cachedBarangMasuk:[];
-window.APP_STATE.barangKeluar=Array.isArray(cachedBarangKeluar)?cachedBarangKeluar:[];
-window.APP_STATE.inventory=cachedInventory;
-window.APP_STATE.movement=Array.isArray(cachedMovement)?cachedMovement:[];
-
-console.log("CACHE LOAD",{
-barangMasuk:window.APP_STATE.barangMasuk.length,
-barangKeluar:window.APP_STATE.barangKeluar.length,
-inventory:(window.APP_STATE.inventory?.["Kartu Stock"]?.length||0)+(window.APP_STATE.inventory?.["RPL"]?.length||0)+(window.APP_STATE.inventory?.["BULKY"]?.length||0),
-movement:window.APP_STATE.movement.length
-});
-
-if(window.APP_STATE.barangMasuk.length||window.APP_STATE.barangKeluar.length||window.APP_STATE.inventory["Kartu Stock"].length||window.APP_STATE.inventory["RPL"].length||window.APP_STATE.inventory["BULKY"].length){
-if(window.APP_STATE.inventory&&typeof window.APP_STATE.inventory==="object"){
-applyData(window.APP_STATE.inventory,{fromCache:true,deferRender:true});
-}
-console.log("CACHE LOAD KARTU STOCK",(DATA["Kartu Stock"]||cachedInventory||[]).length);
-console.log("CACHE LOAD RPL",(DATA["RPL"]||[]).length);
-console.log("CACHE LOAD BULKY",(DATA["BULKY"]||[]).length);
-isInitialDataApplied=true;
-isInitialDataLoaded=true;
-hideInitialLoader();
-setMainContentLoading(false);
-console.log("RENDER FROM CACHE");
-if(!hasPreloadStarted&&!isCacheFresh()){
-queueMicrotask(()=>{
-startBackgroundPreload().catch(err=>console.warn("Background preload gagal",err));
-refreshDataInBackground();
-});
-}
-startAutoSync();
-return;
-}
-
-if(hasValidData(window.mainDataCache)){
-console.log("[initAppData] data dari window.mainDataCache");
+try{
 await hydrateAllDataOnInit({force:false});
 isInitialDataApplied=true;
 isInitialDataLoaded=true;
+window.__isDataReady=true;
 hideInitialLoader();
 setMainContentLoading(false);
 rerenderCurrentPage();
 startAutoSync();
-if(!hasPreloadStarted&&!isCacheFresh())queueMicrotask(()=>startBackgroundPreload().catch(err=>console.warn("Background preload gagal",err)));
-return;
-}
-
-
-if(preloadPromise){
-try{
-await preloadPromise;
-if(window.APP_STATE?.inventory||window.APP_STATE?.barangMasuk?.length||window.APP_STATE?.barangKeluar?.length){
-isInitialDataApplied=true;
-isInitialDataLoaded=true;
+}catch(err){
+console.warn("Dashboard summary gagal",err);
+setStatus("error","Ringkasan dashboard belum tersedia");
 hideInitialLoader();
 setMainContentLoading(false);
-rerenderCurrentPage({fromCache:true});
 startAutoSync();
-return;
-}
-}catch(err){
-console.warn("Menunggu preload gagal, lanjut fallback",err);
-}
-}
-const cachedData=await loadCache();
-console.log("CACHE DATA", cachedData);
-if(hasValidData(cachedData)){
-window.mainDataCache=cachedData;
-await hydrateAllDataOnInit({force:false});
-isInitialDataApplied=true;
-isInitialDataLoaded=true;
-hideInitialLoader();
-setMainContentLoading(false);
-rerenderCurrentPage({fromCache:true});
-startAutoSync();
-if(window.mainDataPromise&&!isCacheFresh()){
-window.mainDataPromise.then(async (preloadedData)=>{
-if(!hasValidData(preloadedData))return;
-console.log("[initAppData] refresh dari window.mainDataPromise setelah cache");
-applyData(preloadedData,{deferRender:true});
-await saveCache(preloadedData);
-rerenderCurrentPage();
-updateRefreshMeta({changed:true,module:"movement"});
-}).catch(err=>console.warn("Preload utama gagal setelah cache",err));
-}
-return;
-}
-
-if(window.mainDataPromise){
-try{
-const preloadedData=await window.mainDataPromise;
-console.log("[initAppData] data dari window.mainDataPromise");
-if(hasValidData(preloadedData)){
-window.mainDataCache=preloadedData;
-await hydrateAllDataOnInit({force:false});
-isInitialDataApplied=true;
-isInitialDataLoaded=true;
-hideInitialLoader();
-setMainContentLoading(false);
-rerenderCurrentPage();
-startAutoSync();
-if(!hasPreloadStarted&&!isCacheFresh())queueMicrotask(()=>startBackgroundPreload().catch(err=>console.warn("Background preload gagal",err)));
-return;
-}
-}catch(err){
-console.warn("Preload utama gagal, lanjut cache/fetch biasa",err);
 }
 }
 
-try{
-await hydrateAllDataOnInit({force:true});
-isInitialDataLoaded=true;
-}catch(err){
-console.warn("Fallback fetch gagal", err);
-}
-if(!window.__isDataReady){
-setStatus("error","Data belum siap dimuat");
-}
-startAutoSync();
-}
 async function refreshDataInBackground(){
-if(!isInitialDataLoaded)return;
-if(REFRESH_STATE.isRefreshing)return;
-if(isPreloadStarted&&!isPreloadFinished)return;
-if(isCacheFresh())return;
-console.log("BACKGROUND REFRESH START");
-setRefreshIndicator(true,"Refreshing...");
+if(!isInitialDataLoaded||REFRESH_STATE.isRefreshing)return;
 try{
-const [barangMasuk,barangKeluar]=await Promise.allSettled([
-loadBarangMasuk({mode:"full"}),
-loadBarangKeluar({mode:"full"})
-]);
-const inventoryRes=await Promise.allSettled(INVENTORY_PRELOAD_SHEETS.map(sheet=>fetchSheet(sheet).then(raw=>routeFetchedSourceRows(sheet,raw,{chunked:true}))));
-if(barangMasuk.status==="fulfilled"&&Array.isArray(barangMasuk.value)&&barangMasuk.value.length){
-window.APP_STATE=window.APP_STATE||{};
-window.APP_STATE.barangMasuk=barangMasuk.value;
-setCacheSafe(MODULE_CACHE_KEYS.barangMasuk,barangMasuk.value);
-}
-if(barangKeluar.status==="fulfilled"&&Array.isArray(barangKeluar.value)&&barangKeluar.value.length){
-window.APP_STATE=window.APP_STATE||{};
-window.APP_STATE.barangKeluar=barangKeluar.value;
-setCacheSafe(MODULE_CACHE_KEYS.barangKeluar,barangKeluar.value);
-}
-let inventoryChanged=false;
-for(let i=0;i<INVENTORY_PRELOAD_SHEETS.length;i++){
-if(inventoryRes[i]?.status!=="fulfilled")continue;
-const sheet=INVENTORY_PRELOAD_SHEETS[i];
-const nextRows=Array.isArray(inventoryRes[i].value)?inventoryRes[i].value:[];
-const prevRows=Array.isArray(DATA[sheet])?DATA[sheet]:[];
-if(sheetChecksum(prevRows)!==sheetChecksum(nextRows)){
-DATA[sheet]=nextRows;
-inventoryChanged=true;
-}
-}
-const prevMasuk=Array.isArray(DATA["Barang Masuk"])?DATA["Barang Masuk"]:[];
-const prevKeluar=Array.isArray(DATA["Barang Keluar"])?DATA["Barang Keluar"]:[];
-const nextMasuk=Array.isArray(window.APP_STATE?.barangMasuk)?window.APP_STATE.barangMasuk:[];
-const nextKeluar=Array.isArray(window.APP_STATE?.barangKeluar)?window.APP_STATE.barangKeluar:[];
-const changed=prevMasuk.length!==nextMasuk.length||prevKeluar.length!==nextKeluar.length;
-if(changed){
-DATA["Barang Masuk"]=nextMasuk;
-console.log("MANUAL REFRESH APPLY BARANG MASUK",{rows:nextMasuk.length});
-DATA["Barang Keluar"]=nextKeluar;
-console.log("MANUAL REFRESH APPLY BARANG KELUAR",{rows:nextKeluar.length});
+await hydrateAllDataOnInit({force:true,useCacheFirst:false});
 rerenderCurrentPage();
-updateRefreshMeta({changed:true,module:"movement"});
+}catch(err){console.warn("Background summary refresh gagal",err);}
 }
-if(inventoryChanged||changed)await saveCache(DATA);
-}catch(err){
-console.error("Background refresh error",err);
-}finally{setRefreshIndicator(false);}
-}
+
 function getLastSyncTs(){return Number(localStorage.getItem(CACHE_KEYS.lastSync)||0);}
 function shouldAutoSyncNow(){const ts=getLastSyncTs();return !ts||Date.now()-ts>=AUTO_SYNC_INTERVAL_MS;}
 function maybeAutoSync(){if(REFRESH_STATE.isRefreshing||isSyncing)return;if(shouldAutoSyncNow())syncData({force:true,silent:true});}
@@ -1370,8 +1166,8 @@ setInterval(maybeAutoSync,AUTO_SYNC_CHECK_INTERVAL_MS);
 
 async function loadAllData(manual=true,silent=false){return syncData({force:!!manual,silent:!!silent});}
 async function loadBarangMasuk(_opts={}){
-const {mode="full",limit=1000}=_opts||{};
-const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
+const {page=1,limit=50,q=""}=_opts||{};
+const qs=`?page=${Math.max(1,Number(page)||1)}&limit=${Math.min(100,Math.max(1,Number(limit)||50))}${q?`&q=${encodeURIComponent(q)}`:""}`;
 const {res,data:json}=await fetchJsonSafe(`/api/barang-masuk${qs}`);
 if(!res.ok||!json?.success)throw new Error((json&&json.message)||res.statusText||'Gagal membaca Barang Masuk dari Supabase');
 const barangMasukRows=normalizeBackendRows(json);
@@ -1383,8 +1179,8 @@ console.log("DASHBOARD BARANG MASUK", window.APP_STATE.barangMasuk?.length);
 return barangMasukRows;
 }
 async function loadBarangKeluar(_opts={}){
-const {mode="full",limit=1000}=_opts||{};
-const qs=mode==="latest"?`?mode=latest&limit=${Number(limit)||1000}`:`?mode=full`;
+const {page=1,limit=50,q=""}=_opts||{};
+const qs=`?page=${Math.max(1,Number(page)||1)}&limit=${Math.min(100,Math.max(1,Number(limit)||50))}${q?`&q=${encodeURIComponent(q)}`:""}`;
 const {res,data:json}=await fetchJsonSafe(`/api/barang-keluar${qs}`);
 if(!res.ok||!json?.success)throw new Error((json&&json.message)||res.statusText||'Gagal membaca Barang Keluar dari Supabase');
 const barangKeluarRows=normalizeBackendRows(json);
@@ -1396,12 +1192,12 @@ console.log("DASHBOARD BARANG KELUAR", window.APP_STATE.barangKeluar?.length);
 return barangKeluarRows;
 }
 const FRONTEND_SOURCE_ROUTES=Object.freeze({
-'Kartu Stock':{kind:'supabase',endpoint:'/api/kartu-stok?mode=full'},
-'Kartu Stok':{kind:'supabase',endpoint:'/api/kartu-stok?mode=full'},
-'Barang Masuk':{kind:'supabase',endpoint:'/api/barang-masuk?mode=full'},
-'Barang Keluar':{kind:'supabase',endpoint:'/api/barang-keluar?mode=full'},
-'RPL':{kind:'supabase',endpoint:'/api/rpl?mode=full'},
-'BULKY':{kind:'supabase',endpoint:'/api/bulky?mode=full'},
+'Kartu Stock':{kind:'supabase',endpoint:'/api/kartu-stok?page=1&pageSize=50'},
+'Kartu Stok':{kind:'supabase',endpoint:'/api/kartu-stok?page=1&pageSize=50'},
+'Barang Masuk':{kind:'supabase',endpoint:'/api/barang-masuk?page=1&limit=50'},
+'Barang Keluar':{kind:'supabase',endpoint:'/api/barang-keluar?page=1&limit=50'},
+'RPL':{kind:'supabase',endpoint:'/api/rpl?page=1&limit=50'},
+'BULKY':{kind:'supabase',endpoint:'/api/bulky?page=1&limit=50'},
 'BARCODE':{kind:'sheets'}
 });
 function getFrontendSourceRoute(sourceName){
@@ -1411,8 +1207,8 @@ throw new Error(`${sourceName}: source frontend tidak didukung`);
 }
 async function fetchSheet(sheetName){
 const route=getFrontendSourceRoute(sheetName);
-if(sheetName==='Barang Masuk')return loadBarangMasuk({mode:'full'});
-if(sheetName==='Barang Keluar')return loadBarangKeluar({mode:'full'});
+if(sheetName==='Barang Masuk')return loadBarangMasuk({page:1,limit:50});
+if(sheetName==='Barang Keluar')return loadBarangKeluar({page:1,limit:50});
 if(route.kind==='supabase'){
 const {res,data:json}=await fetchJsonSafe(route.endpoint);
 if(!res.ok||!json?.success)throw new Error(json?.message||res.statusText||`Gagal membaca ${sheetName} dari Supabase`);
@@ -1795,7 +1591,22 @@ const uniqueStatuses=[...new Set(normalizedRows.map(row=>normalizeStatus(getVal(
 console.table([{source:label,totalRawRows:normalizedRows.length,totalStatusBarangMasuk:included.length,totalExcludedRows:normalizedRows.length-included.length,uniqueStatusSamples:uniqueStatuses.join(", ")}]);
 return included;
 }
-function updateDashboard(){const skuSet=new Set();const totals={};SHEETS.forEach(s=>{const sourceRows=s==="Barang Masuk"?getBarangMasukRows():s==="Barang Keluar"?getBarangKeluarRows():(DATA[s]||[]);totals[s]=sourceRows.length;if(s==="Barang Masuk")totals[s]=sourceRows.filter(r=>clean(getVal(r,["sku"]))).length;sourceRows.forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
+function updateDashboard(){const serverSummary=window.APP_STATE?.dashboardSummary;if(serverSummary&&Object.keys(serverSummary).length){
+const cards=[
+{name:"Total SKU",value:serverSummary.uniqueSku??0},
+{name:"Baris Kartu Stock",value:serverSummary.kartuStok?.rows??0},
+{name:"Baris RPL",value:serverSummary.rpl?.rows??0},
+{name:"Baris BULKY",value:serverSummary.bulky?.rows??0},
+{name:"Barang Masuk",value:serverSummary.barangMasuk?.validCount??serverSummary.barangMasuk?.rows??0,delta:`+${serverSummary.barangMasuk?.todayCount??0} hari ini`,deltaClass:"metric-delta metric-delta--in"},
+{name:"Barang Keluar",value:serverSummary.barangKeluar?.validCount??serverSummary.barangKeluar?.rows??0,delta:`+${serverSummary.barangKeluar?.todayCount??0} hari ini`,deltaClass:"metric-delta metric-delta--out"},
+{name:"Total Stok",value:serverSummary.totalStock??0},
+{name:"Data dikecualikan",value:serverSummary.excludedCount??0}
+];
+dashboardCards.innerHTML=cards.map(c=>`<div class='metric'><div class='k'>${c.name}</div><div class='row' style='justify-content:space-between;align-items:center;gap:8px'><div class='v'>${c.value}</div>${c.delta?`<div class='${c.deltaClass||"metric-delta"}'>${c.delta}</div>`:""}</div></div>`).join("");
+recentMove.innerHTML=`<div class='dashboard-sections'>${renderDashboardTableSection("Barang Masuk","50 data terbaru dari Supabase",getBarangMasukRows(),"b-in")}${renderDashboardTableSection("Barang Keluar","50 data terbaru dari Supabase",getBarangKeluarRows(),"b-out")}</div>`;
+return;
+}
+const skuSet=new Set();const totals={};SHEETS.forEach(s=>{const sourceRows=s==="Barang Masuk"?getBarangMasukRows():s==="Barang Keluar"?getBarangKeluarRows():(DATA[s]||[]);totals[s]=sourceRows.length;if(s==="Barang Masuk")totals[s]=sourceRows.filter(r=>clean(getVal(r,["sku"]))).length;sourceRows.forEach(r=>{const sku=getVal(r,["sku"]);if(sku)skuSet.add(clean(sku));});});
 const lokasiTerpakaiSet=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const lokasiRaw=getVal(r,["lokasi","location","rak","bin","area"]);const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(!lokasiRaw||stokAkhir<=0)return;const parsed=parseLocationCode(lokasiRaw);if(parsed.valid&&!parsed.blocked)lokasiTerpakaiSet.add(parsed.raw);});
 const TOTAL_LOKASI_AKTIF=getAllValidLocations().length,lokasiTerpakai=lokasiTerpakaiSet.size,lokasiTersisa=Math.max(TOTAL_LOKASI_AKTIF-lokasiTerpakai,0);
 const barangMasukRows=debugBarangMasukRows(getBarangMasukRows(),"Dashboard",isBarangMasukCountRow);
@@ -2005,11 +1816,20 @@ function syncThemeButton(){if(!darkBtnHeader)return;const dark=document.document
 
 async function triggerManualRefresh(){
 logActivitySafe({action:'MANUAL_REFRESH',module:'System',detail:'Manual refresh dimulai',status:'SUCCESS'});
-// Balikan Store is an explicitly non-migrated source and retains its existing
-// Sheets loader. It must not fall through to the inventory refresh pipeline.
-if(getActivePage?.()==='balikan-store')return loadBalikanRows({background:true,force:true});
-if(isSyncing)return;
-await loadAllData(true);
+const page=getActivePage?.()||'dashboard';
+if(page==='barang-masuk')return loadMovementPage('in',{page:TABLE_STATE.in.page,limit:TABLE_STATE.in.pageSize});
+if(page==='barang-keluar')return loadMovementPage('out',{page:TABLE_STATE.out.page,limit:TABLE_STATE.out.pageSize});
+if(INVENTORY_PAGE_CONFIG[page]){const state=INVENTORY_PAGE_STATE[page];return loadInventoryPage(page,{page:state.page,limit:state.limit,search:state.search});}
+if(page==='dashboard')return hydrateAllDataOnInit({force:true,useCacheFirst:false}).then(()=>updateDashboard());
+// Legacy pages keep their existing Sheets-backed loaders and refresh only the
+// active module. Refresh never invokes an inventory sync worker.
+if(page==='balikan-store')return loadBalikanRows({background:true,force:true});
+if(page==='asset-store')return refreshAssetStore();
+if(page==='arsip')return refreshArchive();
+if(page==='barang-reject')return loadBarangRejectData({force:true,background:false});
+if(page==='cycle-count'){CYCLE_HISTORY_REMOTE.loaded=false;return ensureCycleHistoryLoaded().then(renderCycleCountPage);}
+if(page==='movement'){MOVEMENT_HISTORY_REMOTE.loaded=false;return ensureMovementHistoryLoaded().then(renderMovementPage);}
+toast('Halaman ini tidak memiliki sumber data yang perlu di-refresh.','info');
 }
 function syncRefreshButton(){if(!refreshToggleHeader)return;refreshToggleHeader.innerHTML=`<i data-lucide="refresh-cw"></i>`;refreshToggleHeader.title="Refresh data manual";refreshToggleHeader.setAttribute("aria-label","Refresh data manual");if(window.lucide)lucide.createIcons();}
 function getDevAutoRefreshEls(){
@@ -2153,7 +1973,47 @@ function debouncedTableRender(mode){return (DEBOUNCED_RENDER[mode]||(()=>{}))();
 const selectedBarangMasukRows=new Set();
 const selectedBarangKeluarRows=new Set();
 function getSelectedSet(mode){return mode==="in"?selectedBarangMasukRows:selectedBarangKeluarRows;}
-const TABLE_STATE={in:{page:1,pageSize:25,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangMasukRows,deletingRows:new Set(),bulkDeleting:false,cache:{rawHash:"",filterHash:"",sort:"latest",search:"",columnFilterHash:"",filteredRows:[]}},out:{page:1,pageSize:25,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangKeluarRows,deletingRows:new Set(),bulkDeleting:false,cache:{rawHash:"",filterHash:"",sort:"latest",search:"",columnFilterHash:"",filteredRows:[]}}};
+const TABLE_STATE={in:{page:1,pageSize:50,serverTotal:0,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangMasukRows,deletingRows:new Set(),bulkDeleting:false,cache:{rawHash:"",filterHash:"",sort:"latest",search:"",columnFilterHash:"",filteredRows:[]}},out:{page:1,pageSize:50,serverTotal:0,rows:[],filtered:[],openFilterCol:"",selected:selectedBarangKeluarRows,deletingRows:new Set(),bulkDeleting:false,cache:{rawHash:"",filterHash:"",sort:"latest",search:"",columnFilterHash:"",filteredRows:[]}}};
+async function loadMovementPage(mode,{page=1,limit=50}={}){
+const st=TABLE_STATE[mode],isIn=mode==="in",q=String((isIn?inSearch:outSearch)?.value||"").trim();
+st.page=Math.max(1,page);st.pageSize=Math.min(100,Math.max(1,limit));
+const endpoint=isIn?'/api/barang-masuk':'/api/barang-keluar';
+const qs=new URLSearchParams({page:String(st.page),limit:String(st.pageSize)});if(q)qs.set('q',q);
+const {res,data:json}=await fetchJsonSafe(`${endpoint}?${qs}`);
+if(!res.ok||!json?.success)throw new Error(json?.message||`Gagal membaca ${isIn?'Barang Masuk':'Barang Keluar'}`);
+const rows=normalizeBackendRows(json);st.serverTotal=Number(json.total)||rows.length;
+window.APP_STATE=window.APP_STATE||{};window.APP_STATE[isIn?'barangMasuk':'barangKeluar']=rows;
+DATA[isIn?'Barang Masuk':'Barang Keluar']=rows;st.cache.rawHash="";st.cache.filterHash="";
+renderDataTablePage(mode,isIn?'Barang Masuk':'Barang Keluar',true);
+return rows;
+}
+const INVENTORY_PAGE_CONFIG=Object.freeze({
+"kartu-stok":{label:"Kartu Stok",endpoint:"/api/kartu-stok",pageSizeKey:"pageSize",searchKey:"search",dataKey:"Kartu Stock"},
+rpl:{label:"RPL",endpoint:"/api/rpl",pageSizeKey:"limit",searchKey:"q",dataKey:"RPL"},
+bulky:{label:"BULKY",endpoint:"/api/bulky",pageSizeKey:"limit",searchKey:"q",dataKey:"BULKY"}
+});
+const INVENTORY_PAGE_STATE=Object.fromEntries(Object.keys(INVENTORY_PAGE_CONFIG).map(key=>[key,{page:1,limit:50,total:0,rows:[],search:"",loading:false,error:"",loaded:false,requestId:0,timer:null}]));
+async function loadInventoryPage(key,{page,limit,search}={}){
+const config=INVENTORY_PAGE_CONFIG[key],state=INVENTORY_PAGE_STATE[key];if(!config||!state)return;
+state.page=Math.max(1,Number(page??state.page)||1);state.limit=Math.min(100,Math.max(1,Number(limit??state.limit)||50));if(search!==undefined)state.search=String(search||"").trim();
+const requestId=++state.requestId;state.loading=true;state.error="";renderInventoryPage(key);
+const params=new URLSearchParams({page:String(state.page),[config.pageSizeKey]:String(state.limit)});if(state.search)params.set(config.searchKey,state.search);
+try{
+const {res,data:json}=await fetchJsonSafe(`${config.endpoint}?${params}`);if(!res.ok||!json?.success)throw new Error(json?.message||`Gagal membaca ${config.label}`);if(requestId!==state.requestId)return;
+state.rows=Array.isArray(json.rows)?json.rows:(Array.isArray(json.data)?json.data:[]);state.total=Number(json.total)||0;state.page=Number(json.page)||state.page;state.loaded=true;
+DATA[config.dataKey]=state.rows;window.APP_STATE=window.APP_STATE||{};window.APP_STATE.inventory={...(window.APP_STATE.inventory||{}),[config.dataKey]:state.rows};
+}catch(err){if(requestId===state.requestId)state.error=err?.message||`Gagal membaca ${config.label}`;}finally{if(requestId===state.requestId){state.loading=false;renderInventoryPage(key);}}
+}
+function ensureInventoryPage(key){const state=INVENTORY_PAGE_STATE[key];if(state&&!state.loaded&&!state.loading)loadInventoryPage(key,{page:1,limit:50});}
+function renderInventoryPage(key){
+const config=INVENTORY_PAGE_CONFIG[key],state=INVENTORY_PAGE_STATE[key],host=document.getElementById(`inventoryPage-${key}`);if(!config||!state||!host)return;
+const columns=state.rows.length?Object.keys(state.rows[0]).filter(column=>!column.startsWith('_')):[];const totalPages=Math.max(1,Math.ceil(state.total/state.limit));const start=state.rows.length?(state.page-1)*state.limit+1:0;const end=state.rows.length?Math.min(start+state.rows.length-1,state.total):0;
+const table=state.rows.length?`<div class='table-wrap table-wrap-full'><table><thead><tr>${columns.map(c=>`<th>${esc(c.toUpperCase())}</th>`).join("")}</tr></thead><tbody>${state.rows.map(row=>`<tr>${columns.map(c=>`<td>${esc(row[c]??"")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class='state'>${state.loading?'Memuat data…':'Tidak ada data.'}</div>`;
+host.innerHTML=`<section class='dashboard-section'><div class='card'><div class='section-header'><div><h3 class='page-title'>${esc(config.label)}</h3><small class='section-subtitle'>Data Supabase — server pagination</small></div><button class='btn-ghost' data-inventory-refresh='${key}' ${state.loading?'disabled':''}><i data-lucide='refresh-cw'></i> Refresh</button></div><div class='movement-toolbar'><input class='search-lg' data-inventory-search='${key}' placeholder='Cari SKU atau nama barang' value='${esc(state.search)}'><select data-inventory-limit='${key}'><option value='50' ${state.limit===50?'selected':''}>50</option><option value='100' ${state.limit===100?'selected':''}>100</option></select></div>${state.error?`<div class='state error'>${esc(state.error)}</div>`:''}${table}<div class='mv-pagination'><span>${start}–${end} dari ${state.total.toLocaleString('id-ID')}</span><div class='row'><button class='btn-ghost' data-inventory-page='${key}' data-step='-1' ${state.page<=1||state.loading?'disabled':''}>Previous</button><span>Halaman ${state.page} / ${totalPages}</span><button class='btn-ghost' data-inventory-page='${key}' data-step='1' ${state.page>=totalPages||state.loading?'disabled':''}>Next</button></div></div></div></section>`;if(window.lucide)window.lucide.createIcons();
+}
+document.addEventListener('input',event=>{const input=event.target.closest?.('[data-inventory-search]');if(!input)return;const key=input.dataset.inventorySearch,state=INVENTORY_PAGE_STATE[key];clearTimeout(state.timer);state.timer=setTimeout(()=>loadInventoryPage(key,{page:1,search:input.value}),350);});
+document.addEventListener('change',event=>{const select=event.target.closest?.('[data-inventory-limit]');if(select)loadInventoryPage(select.dataset.inventoryLimit,{page:1,limit:Number(select.value)||50});});
+document.addEventListener('click',event=>{const pager=event.target.closest?.('[data-inventory-page]');if(pager){const key=pager.dataset.inventoryPage,state=INVENTORY_PAGE_STATE[key];loadInventoryPage(key,{page:state.page+(Number(pager.dataset.step)||0)});return;}const refresh=event.target.closest?.('[data-inventory-refresh]');if(refresh){const key=refresh.dataset.inventoryRefresh,state=INVENTORY_PAGE_STATE[key];loadInventoryPage(key,{page:state.page,limit:state.limit,search:state.search});}});
 const FILTERABLE_COLUMNS=[];
 const FILTER_LABELS={};
 const EMPTY_FILTER_VALUE="__WMS_EMPTY_VALUE__";
@@ -2229,7 +2089,7 @@ function positionColumnFilterMenu(menu){
   if(prevHidden){menu.hidden=true;}
 }
 function sortTableRows(rows,sort){const m={latest:(a,b)=>(b._sheetOrder??0)-(a._sheetOrder??0),oldest:(a,b)=>(a._sheetOrder??0)-(b._sheetOrder??0),sku:(a,b)=>String(getVal(a,["sku"])||"").localeCompare(String(getVal(b,["sku"])||"")),name:(a,b)=>String(getVal(a,["nama barang","namabarang","namaBarang","nama","item","description"])||"").localeCompare(String(getVal(b,["nama barang","namabarang","namaBarang","nama","item","description"])||"")),qtyDesc:(a,b)=>(b._qty||0)-(a._qty||0),qtyAsc:(a,b)=>(a._qty||0)-(b._qty||0)};return [...rows].sort(m[sort]||m.latest);}
-function paginateRows(mode,action){const st=TABLE_STATE[mode];const max=Math.max(1,Math.ceil(st.filtered.length/st.pageSize));if(action==="prev")st.page=Math.max(1,st.page-1);if(action==="next")st.page=Math.min(max,st.page+1);renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true);}
+function paginateRows(mode,action){const st=TABLE_STATE[mode];const max=Math.max(1,Math.ceil(st.serverTotal/st.pageSize));const page=action==="prev"?Math.max(1,st.page-1):Math.min(max,st.page+1);if(page!==st.page)loadMovementPage(mode,{page,limit:st.pageSize});}
 function toggleColumnVisibility(mode){const root=document.getElementById(`mv-cols-${mode}`);const cols=[...root.querySelectorAll('input[type="checkbox"]')].filter(c=>c.checked).map(c=>c.value);renderDataTablePage(mode,mode==="in"?"Barang Masuk":"Barang Keluar",true,cols);}
 function closeColumnMenus(){document.querySelectorAll(".mv-columns.open").forEach(el=>el.classList.remove("open"));Object.keys(TABLE_STATE).forEach(k=>TABLE_STATE[k].columnMenuOpen=false);}
 function positionColumnMenu(mode){
@@ -2242,16 +2102,16 @@ function positionColumnMenu(mode){
 function toggleColumnMenu(mode){const target=document.getElementById(`mv-cols-${mode}`);if(!target)return;const willOpen=!target.classList.contains("open");closeColumnMenus();if(willOpen){target.classList.add("open");TABLE_STATE[mode].columnMenuOpen=true;positionColumnMenu(mode);}}
 function toggleAllColumns(mode,checked){const root=document.getElementById(`mv-cols-${mode}`);if(!root)return;root.querySelectorAll('input[type="checkbox"]').forEach(c=>{c.checked=!!checked;});toggleColumnVisibility(mode);}
 function exportFilteredCsv(mode){const st=TABLE_STATE[mode];const cols=st.columns||[];const lines=[cols.join(","),...st.filtered.map(r=>cols.map(c=>`"${String(r?._rawCells?.[c]??"").replaceAll('"','""')}"`).join(","))];const blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=mode==="in"?"barang-masuk-filtered.csv":"barang-keluar-filtered.csv";a.click();URL.revokeObjectURL(a.href);} 
-function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.filtered=getMovementFilteredRows(mode,sheetName);const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=getMovementColumns(rows);ensureMovementFilterColumns(allCols);st.columns=allCols;st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||25);if(![25,50,100].includes(st.pageSize))st.pageSize=25;if(!keepPage)st.page=1;const size=st.pageSize;
-const pageRows=st.filtered.slice((st.page-1)*size,st.page*size);const totalQty=st.filtered.reduce((n,r)=>n+(r._qty||0),0),totalSku=new Set(st.filtered.map(r=>clean(String(getVal(r,["sku"])||""))).filter(Boolean)).size;
-const totalRowCount=st.filtered.length;
-summaryEl.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Total Row</div><div class='v'>${totalRowCount}</div></div><div class='summary-card'><div class='k'>Total Qty</div><div class='v'>${totalQty}</div></div><div class='summary-card'><div class='k'>Total SKU</div><div class='v'>${totalSku}</div></div></div>`;
+function renderDataTablePage(mode,sheetName,keepPage=false,selectedCols){const isIn=mode==="in", resultEl=isIn?inResults:outResults, summaryEl=isIn?inSummary:outSummary;if(!resultEl)return;const st=TABLE_STATE[mode];st.filtered=getMovementFilteredRows(mode,sheetName);const rows=st.rows;if(!rows.length){resultEl.innerHTML='<div class="state">Belum ada data.</div>';summaryEl.textContent='0 data';return;}const allCols=getMovementColumns(rows);ensureMovementFilterColumns(allCols);st.columns=allCols;st.pageSize=Number(document.getElementById(`mv-size-${mode}`)?.value||st.pageSize||50);if(![25,50,100].includes(st.pageSize))st.pageSize=50;if(!keepPage)st.page=1;const size=st.pageSize;
+const pageRows=st.filtered;const totalQty=st.filtered.reduce((n,r)=>n+(r._qty||0),0),totalSku=new Set(st.filtered.map(r=>clean(String(getVal(r,["sku"])||""))).filter(Boolean)).size;
+const totalRowCount=st.serverTotal||st.filtered.length;
+summaryEl.innerHTML=`<div class='summary-grid'><div class='summary-card'><div class='k'>Total Row</div><div class='v'>${totalRowCount}</div></div><div class='summary-card'><div class='k'>Qty halaman</div><div class='v'>${totalQty}</div></div><div class='summary-card'><div class='k'>SKU halaman</div><div class='v'>${totalSku}</div></div></div>`;
 const filterHtml=`<div class='mv-toolbar'><button class='btn-ghost' data-mv-action='reset' data-mv-mode='${mode}'>Reset Filter</button><button class='btn-ghost' data-mv-action='export' data-mv-mode='${mode}'>Export CSV</button><select id='mv-sort-${mode}' data-mv-filter data-mv-mode='${mode}'><option value='latest'>Terbaru</option><option value='oldest'>Terlama</option><option value='sku'>SKU A-Z</option><option value='name'>Nama A-Z</option><option value='qtyDesc'>Qty terbesar</option><option value='qtyAsc'>Qty terkecil</option></select><select id='mv-size-${mode}' data-mv-filter data-mv-mode='${mode}'><option value='25' ${st.pageSize===25?'selected':''}>25</option><option value='50' ${st.pageSize===50?'selected':''}>50</option><option value='100' ${st.pageSize===100?'selected':''}>100</option></select></div>`;
 const filters=ensureColumnFilterState(mode);
 const headerWithFilter=(c)=>{if(!FILTERABLE_COLUMNS.includes(c))return `<th>${esc((FILTER_LABELS[c]||c).toUpperCase())}</th>`;const selected=filters[c]||[];const active=selected.length>0;const options=getUniqueOptions(applyTableFilters(rows,mode,c),c);return `<th><div class='th-filter-wrap'>${esc((FILTER_LABELS[c]||c).toUpperCase())}<button class='th-filter-btn ${active?'active':''}' type='button' data-col-filter-toggle data-mode='${mode}' data-col='${c}'><span class='th-filter-icon'>▾</span>${active?`<span class='th-filter-count'>${selected.length}</span>`:''}</button><div class='th-filter-dropdown' data-col-filter-menu data-mode='${mode}' data-col='${c}' hidden><input class='th-filter-search' data-col-filter-search placeholder='Cari nilai...'><div class='th-filter-actions'><button type='button' data-col-filter-clear>Semua</button></div><div class='th-filter-options'>${renderColumnFilterOptions(options,selected)}</div></div></div></th>`;};
-const allVisibleSelected=pageRows.length>0&&pageRows.every(r=>st.selected.has(r.rowNumber));const headers=`<th><input type='checkbox' data-mv-select-all='${mode}' ${allVisibleSelected?"checked":""}></th>`+st.columns.map(c=>headerWithFilter(c)).join("")+`<th>Aksi</th>`;const bodyRows=[];for(const r of pageRows){const isDeleting=st.deletingRows?.has(r.rowNumber);bodyRows.push(`<tr class='${st.selected.has(r.rowNumber)?"mv-row-selected":""}'><td><input type='checkbox' data-mv-select='${mode}' data-row='${r.rowNumber}' ${st.selected.has(r.rowNumber)?"checked":""} ${isDeleting?"disabled":""}></td>${st.columns.map(c=>`<td class='editable-cell' data-mv-cell='1' data-mode='${mode}' data-row='${r.rowNumber}' data-field='${c}'>${esc(r?._rawCells?.[c]??"")}</td>`).join("")}<td><button class='icon-btn danger' data-mv-delete='${mode}' data-row='${r.rowNumber}' title='Delete' aria-label='Delete' ${isDeleting?"disabled":""}>${isDeleting?"<span class='btn-spinner-inline' aria-hidden='true'></span>":"<i data-lucide='trash-2'></i>"}</button></td></tr>`);}const body=bodyRows.join("");const start=st.filtered.length?((st.page-1)*st.pageSize+1):0;const end=st.filtered.length?Math.min(st.page*st.pageSize,st.filtered.length):0;
+const allVisibleSelected=pageRows.length>0&&pageRows.every(r=>st.selected.has(r.rowNumber));const headers=`<th><input type='checkbox' data-mv-select-all='${mode}' ${allVisibleSelected?"checked":""}></th>`+st.columns.map(c=>headerWithFilter(c)).join("")+`<th>Aksi</th>`;const bodyRows=[];for(const r of pageRows){const isDeleting=st.deletingRows?.has(r.rowNumber);bodyRows.push(`<tr class='${st.selected.has(r.rowNumber)?"mv-row-selected":""}'><td><input type='checkbox' data-mv-select='${mode}' data-row='${r.rowNumber}' ${st.selected.has(r.rowNumber)?"checked":""} ${isDeleting?"disabled":""}></td>${st.columns.map(c=>`<td class='editable-cell' data-mv-cell='1' data-mode='${mode}' data-row='${r.rowNumber}' data-field='${c}'>${esc(r?._rawCells?.[c]??"")}</td>`).join("")}<td><button class='icon-btn danger' data-mv-delete='${mode}' data-row='${r.rowNumber}' title='Delete' aria-label='Delete' ${isDeleting?"disabled":""}>${isDeleting?"<span class='btn-spinner-inline' aria-hidden='true'></span>":"<i data-lucide='trash-2'></i>"}</button></td></tr>`);}const body=bodyRows.join("");const start=st.filtered.length?((st.page-1)*st.pageSize+1):0;const end=st.filtered.length?Math.min(start+st.filtered.length-1,st.serverTotal||st.filtered.length):0;
 const selCount=st.selected.size;const bulkBar=selCount?`<div class='mv-toolbar mv-bulkbar ${st.bulkDeleting?"is-loading":""}' data-mv-bulkbar='${mode}'><span class='mv-bulkbar-count'>Selected ${selCount} item</span><button class='btn-ghost mv-bulk-btn' type='button' data-mv-bulk-edit='${mode}' ${st.bulkDeleting?"disabled":""}><i data-lucide='pencil'></i> <span>Edit</span></button><button class='btn-ghost mv-bulk-btn' type='button' data-mv-bulk-delete='${mode}' ${st.bulkDeleting?"disabled":""}>${st.bulkDeleting?"<span class='btn-spinner-inline' aria-hidden='true'></span> <span>Menghapus...</span>":"<i data-lucide='trash-2'></i> <span>Delete</span>"}</button></div>`:"";
-resultEl.innerHTML=`${bulkBar}${filterHtml}<div class='table-wrap table-wrap-full'><table><thead><tr>${headers}</tr></thead><tbody>${body||`<tr><td colspan='${st.columns.length+2}'><div class='state'>Tidak ada data.</div></td></tr>`}</tbody></table></div><div class='mv-pagination'><span>Menampilkan ${start}–${end} dari ${st.filtered.length} data</span><div class='row'><button class='btn-ghost' data-mv-action='prev' data-mv-mode='${mode}'>Prev</button><button class='btn-ghost' data-mv-action='next' data-mv-mode='${mode}'>Next</button></div></div>`;if(st.openFilterCol){const menu=resultEl.querySelector(`[data-col-filter-menu][data-mode='${mode}'][data-col='${st.openFilterCol}']`);if(menu){menu.hidden=false;positionColumnFilterMenu(menu);}}if(window.lucide)window.lucide.createIcons();}
+const totalPages=Math.max(1,Math.ceil((st.serverTotal||st.filtered.length)/st.pageSize));resultEl.innerHTML=`${bulkBar}${filterHtml}<div class='table-wrap table-wrap-full'><table><thead><tr>${headers}</tr></thead><tbody>${body||`<tr><td colspan='${st.columns.length+2}'><div class='state'>Tidak ada data.</div></td></tr>`}</tbody></table></div><div class='mv-pagination'><span>${start}–${end} dari ${(st.serverTotal||st.filtered.length).toLocaleString('id-ID')}</span><div class='row'><button class='btn-ghost' data-mv-action='prev' data-mv-mode='${mode}' ${st.page<=1?'disabled':''}>Previous</button><span>Halaman ${st.page} / ${totalPages}</span><button class='btn-ghost' data-mv-action='next' data-mv-mode='${mode}' ${st.page>=totalPages?'disabled':''}>Next</button></div></div>`;if(st.openFilterCol){const menu=resultEl.querySelector(`[data-col-filter-menu][data-mode='${mode}'][data-col='${st.openFilterCol}']`);if(menu){menu.hidden=false;positionColumnFilterMenu(menu);}}if(window.lucide)window.lucide.createIcons();}
 function resetMovementFilter(mode){if(mode==="in"){if(inSearch)inSearch.value="";}else{if(outSearch)outSearch.value="";}TABLE_STATE[mode].columnFilters={};if(TABLE_STATE[mode])TABLE_STATE[mode].page=1;if(BALIKAN_STATE.filterState&&mode==='balikan')BALIKAN_STATE.filterState.page=1;rerenderTableByMode(mode,true);} 
 function getAllValidLocations(){const all=[];for(let zoneCode=65;zoneCode<=72;zoneCode++){const zone=String.fromCharCode(zoneCode);for(let slot=1;slot<=20;slot++){for(let floor=1;floor<=5;floor++){const code=`${zone}${String(slot).padStart(2,"0")}-${floor}`;const parsed=parseLocationCode(code);if(parsed.valid&&!parsed.blocked)all.push(parsed.raw);}}}return all;}
 function renderEmptyLocations(){const used=new Set();(DATA["Kartu Stock"]||[]).forEach(r=>{const stokAkhir=parseNumber(getVal(r,["stok akhir","closing stock","ending stock","saldo akhir"]));if(stokAkhir<=0)return;const locRaw=getVal(r,["lokasi","location","rak","bin","area"]);const parsed=parseLocationCode(locRaw);if(parsed.valid&&!parsed.blocked)used.add(parsed.raw);});const empty=getAllValidLocations().filter(code=>!used.has(code));if(!empty.length){emptyLocationResult.innerHTML='<div class="state">Tidak ada lokasi kosong.</div>';return;}const rows=empty.map((code,idx)=>`<tr><td>${idx+1}</td><td>${esc(code)}</td></tr>`).join("");emptyLocationResult.innerHTML=`<div class="detail-note"><div class="note-box"><div class="note-title">Daftar Lokasi Kosong</div><div class="note-value">${empty.length} lokasi kosong</div></div></div><div class="table-wrap"><table class="location-empty-table"><thead><tr><th>No</th><th>Lokasi Kosong</th></tr></thead><tbody>${rows}</tbody></table></div>`;}

@@ -77,10 +77,37 @@ test('unknown username returns the same generic credential error without calling
   assert.equal(calls, 1);
 });
 
-test('legacy username field is rejected as an invalid payload', async () => {
+test('legacy username field remains compatible with server-side username resolution', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async url => String(url).includes('/rest/v1/users?')
+    ? Response.json([])
+    : Response.json({}, { status: 500 });
   const response = await onRequestPost({ request: request({ username: 'user', password: 'password' }), env });
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { success: false, reason: 'INVALID_LOGIN_PAYLOAD', message: 'Username/email dan password wajib diisi.' });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).reason, 'INVALID_LOGIN_CREDENTIALS');
+});
+
+test('explicit developer credentials create a signed developer session', async () => {
+  const developerEnv = { ...env, DEV_USERNAME: 'developer', DEV_PASSWORD: 'correct-dev-password', DEV_SESSION_SECRET: 'a-long-server-only-signing-secret' };
+  const response = await onRequestPost({ request: request({ identifier: 'developer', password: 'correct-dev-password' }), env: developerEnv });
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(payload.success, true);
+  assert.equal(payload.mode, 'dev');
+  assert.equal(payload.user.isDeveloper, true);
+  assert.equal(payload.session.access_token.split('.').length, 3);
+  assert.ok(!JSON.stringify(payload).includes(developerEnv.DEV_SESSION_SECRET));
+});
+
+test('wrong developer password safely continues to normal lookup and returns 401', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => Response.json([]);
+  const developerEnv = { ...env, DEV_USERNAME: 'developer', DEV_PASSWORD: 'correct-dev-password', DEV_SESSION_SECRET: 'a-long-server-only-signing-secret' };
+  const response = await onRequestPost({ request: request({ identifier: 'developer', password: 'wrong' }), env: developerEnv });
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { success: false, reason: 'INVALID_LOGIN_CREDENTIALS', message: 'Username atau password salah.' });
 });
 
 test('frontend sends the identifier to login API and does not query users to resolve username', async () => {

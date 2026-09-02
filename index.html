@@ -230,6 +230,9 @@
             <button class="side-link nav-item submenu-item" data-page="search" data-route="/search" title="Cari SKU"><i data-lucide="search"></i><span>Cari SKU</span></button>
             <button class="side-link nav-item submenu-item" data-page="barang-masuk" data-route="/barang-masuk" title="Barang Masuk"><i data-lucide="package-plus"></i><span>Barang Masuk</span></button>
             <button class="side-link nav-item submenu-item" data-page="barang-keluar" data-route="/barang-keluar" title="Barang Keluar"><i data-lucide="package-plus"></i><span>Barang Keluar</span></button>
+            <button class="side-link nav-item submenu-item" data-page="kartu-stok" data-route="/kartu-stok" title="Kartu Stok"><i data-lucide="package-search"></i><span>Kartu Stok</span></button>
+            <button class="side-link nav-item submenu-item" data-page="rpl" data-route="/rpl" title="RPL"><i data-lucide="clipboard-list"></i><span>RPL</span></button>
+            <button class="side-link nav-item submenu-item" data-page="bulky" data-route="/bulky" title="BULKY"><i data-lucide="boxes"></i><span>BULKY</span></button>
             <button class="side-link nav-item submenu-item" data-page="locations" data-route="/locations" title="Lokasi"><i data-lucide="map-pin"></i><span>Lokasi</span></button>
             <button class="side-link nav-item submenu-item" data-page="arsip" data-route="/arsip" title="Arsip"><i data-lucide="archive"></i><span>Arsip</span></button>
             <button class="side-link nav-item submenu-item" data-page="asset-store" data-route="/asset-store" title="Asset Store"><i data-lucide="store"></i><span>Asset Store</span></button>
@@ -332,6 +335,9 @@
 
     <section id="page-barang-masuk" class="panel page hidden"><section class="dashboard-section"><div class="card"><div class="section-header"><div><h3 class="page-title">Barang Masuk</h3><small class="section-subtitle">Semua data dari sheet Barang Masuk</small></div><span class="badge b-in">IN</span></div><div class="movement-layout"><div class="movement-toolbar"><input id="inSearch" class="search-lg" placeholder="Cari SKU, nama barang, lokasi asal"/></div><div id="inSummary" class="subtitle"></div><div id="inResults" class="movement-results"></div></div></div></section></section>
     <section id="page-barang-keluar" class="panel page hidden"><section class="dashboard-section"><div class="card"><div class="section-header"><div><h3 class="page-title">Barang Keluar</h3><small class="section-subtitle">Semua data dari sheet Barang Keluar</small></div><span class="badge b-out">OUT</span></div><div class="movement-layout"><div class="movement-toolbar"><input id="outSearch" class="search-lg" placeholder="Cari SKU, nama barang, lokasi tujuan"/></div><div id="outSummary" class="subtitle"></div><div id="outResults" class="movement-results"></div></div></div></section></section>
+    <section id="page-kartu-stok" class="panel page hidden"><div id="inventoryPage-kartu-stok"></div></section>
+    <section id="page-rpl" class="panel page hidden"><div id="inventoryPage-rpl"></div></section>
+    <section id="page-bulky" class="panel page hidden"><div id="inventoryPage-bulky"></div></section>
     <section id="page-stats" class="panel page hidden"><h3 class="page-title">Dashboard Akurasi Stok</h3><div id="statsCards" class="grid stats"></div><div id="statsChart"></div></section>
     <section id="page-abc-analisis" class="panel page hidden">
       <h3 class="page-title">ABC Analisis</h3>

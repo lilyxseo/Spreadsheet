@@ -3,16 +3,12 @@ import { parseSheet } from './parser.js';
 import { authFetch } from './supabase.js';
 
 const BACKEND_SHEET_ENDPOINT = {
-  'Kartu Stock': '/api/kartu-stok?mode=full',
-  'Kartu Stok': '/api/kartu-stok?mode=full',
-  'RPL': '/api/rpl?mode=full',
-  'BULKY': '/api/bulky?mode=full',
-  // Legacy dashboards need the complete inbound history; ordinary endpoint calls
-  // remain paginated by default.
-  'Barang Masuk': '/api/barang-masuk?mode=full',
-  // Preserve the legacy full-history frontend contract while the endpoint itself
-  // defaults to server-side pagination.
-  'Barang Keluar': '/api/barang-keluar?mode=full'
+  'Kartu Stock': '/api/kartu-stok?page=1&pageSize=50',
+  'Kartu Stok': '/api/kartu-stok?page=1&pageSize=50',
+  'RPL': '/api/rpl?page=1&limit=50',
+  'BULKY': '/api/bulky?page=1&limit=50',
+  'Barang Masuk': '/api/barang-masuk?page=1&limit=50',
+  'Barang Keluar': '/api/barang-keluar?page=1&limit=50'
 };
 
 const MIGRATED_INVENTORY_SOURCES = new Set(Object.keys(BACKEND_SHEET_ENDPOINT));

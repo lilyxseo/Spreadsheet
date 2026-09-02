@@ -45,7 +45,7 @@ test('main preload routes fetched inventory rows by source shape', () => {
 });
 
 test('manual refresh keeps the non-migrated Balikan source on its existing loader', () => {
-  assert.match(mainSource, /if\(getActivePage\?\.\(\)===['"]balikan-store['"]\)return loadBalikanRows\(\{background:true,force:true\}\)/);
+  assert.match(mainSource, /if\(page===['"]balikan-store['"]\)return loadBalikanRows\(\{background:true,force:true\}\)/);
 });
 
 test('login verifies its persisted session and migrated inventory fetches require auth', async () => {

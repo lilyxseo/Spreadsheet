@@ -77,7 +77,7 @@ export function clearAppAuthState() {
   }
 }
 
-export async function restoreSession({ allowDeveloperSession = false } = {}) {
+export async function restoreSession({ allowDeveloperSession = true } = {}) {
   const raw = localStorage.getItem(DEV_SESSION_KEY);
   if (raw && allowDeveloperSession) {
     try {

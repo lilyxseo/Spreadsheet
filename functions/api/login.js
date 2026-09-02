@@ -21,7 +21,12 @@ function safeEquals(a, b) {
   return out === 0;
 }
 
-function createDevToken(secret, username) {
+function base64Url(bytes) {
+  const binary = typeof bytes === 'string' ? bytes : String.fromCharCode(...new Uint8Array(bytes));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function createDevToken(secret, username) {
   const payload = {
     sub: "developer",
     username,
@@ -30,10 +35,12 @@ function createDevToken(secret, username) {
     exp: Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS,
   };
 
-  const base = btoa(JSON.stringify(payload));
-  const sig = btoa(`${base}.${secret}`).replace(/=+$/g, "");
-
-  return `${base}.${sig}`;
+  const header = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = base64Url(JSON.stringify(payload));
+  const unsigned = `${header}.${body}`;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(unsigned));
+  return `${unsigned}.${base64Url(signature)}`;
 }
 
 const INVALID_CREDENTIALS_RESPONSE = {
@@ -71,7 +78,7 @@ export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
 
-    const normalizedIdentifier = String(body.identifier || body.email || "").trim();
+    const normalizedIdentifier = String(body.identifier || body.email || body.username || "").trim();
     const normalizedPassword = String(body.password || "");
 
     if (!normalizedIdentifier || !normalizedPassword) {
@@ -82,10 +89,10 @@ export async function onRequestPost({ request, env }) {
      * OPTIONAL DEVELOPER LOGIN
      * Tidak boleh mengganggu login Supabase/database normal.
      */
-    const devLoginReady =
-      String(env.DEV_LOGIN_ENABLED || "").toLowerCase() === "true" &&
-      env.DEV_USERNAME &&
-      env.DEV_PASSWORD;
+    // This is an explicit credential path, not an automatic preview bypass.
+    // Requiring all three secrets makes it safe on production deployments where
+    // DEV_LOGIN_ENABLED was historically omitted.
+    const devLoginReady = env.DEV_USERNAME && env.DEV_PASSWORD && env.DEV_SESSION_SECRET;
 
     if (devLoginReady) {
       const devUsername = String(env.DEV_USERNAME || "");
@@ -95,15 +102,14 @@ export async function onRequestPost({ request, env }) {
         safeEquals(normalizedIdentifier, devUsername) &&
         safeEquals(normalizedPassword, devPassword)
       ) {
-        const secret = String(
-          env.DEV_SESSION_SECRET || "dev-secret"
-        );
+        const secret = String(env.DEV_SESSION_SECRET);
 
-        const accessToken = createDevToken(secret, normalizedIdentifier);
+        const accessToken = await createDevToken(secret, normalizedIdentifier);
         const expiresAt =
           Math.floor(Date.now() / 1000) + DEV_SESSION_TTL_SECONDS;
 
         return json({
+          success: true,
           mode: "dev",
           session: {
             access_token: accessToken,

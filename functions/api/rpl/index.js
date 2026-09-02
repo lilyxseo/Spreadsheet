@@ -69,7 +69,10 @@ export async function handleRplRequest({ request, env }) {
     const lokasi = String(url.searchParams.get('lokasi') || '').trim();
     const filters = [];
     if (sku) filters.push(`sku=ilike.${encodeURIComponent(`%${escapeLike(sku)}%`)}`);
-    if (search) filters.push(`nama_barang=ilike.${encodeURIComponent(`%${escapeLike(search)}%`)}`);
+    if (search) {
+      const term = encodeURIComponent(`*${escapeLike(search)}*`);
+      filters.push(`or=(sku.ilike.${term},nama_barang.ilike.${term})`);
+    }
     if (lokasi) filters.push(`lokasi_bulky=eq.${encodeURIComponent(lokasi)}`);
     const filterQuery = filters.length ? `&${filters.join('&')}` : '';
 
