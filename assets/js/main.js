@@ -482,7 +482,7 @@ const freshData={};
 for(const sheet of INVENTORY_PRELOAD_SHEETS){
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
-freshData[sheet]=parseSheet(raw, sheet);
+freshData[sheet]=routeFetchedSourceRows(sheet,raw);
 }
 window.mainDataCache=freshData;
 console.log("[preloadData] selesai fetch baru");
@@ -974,19 +974,19 @@ const freshData={};
 const sheet="Kartu Stock";
 const raw=await fetchSheet(sheet);
 await new Promise(resolve=>scheduleUIWork(resolve));
-freshData[sheet]=await parseSheetChunked(raw);
+freshData[sheet]=await routeFetchedSourceRows(sheet,raw,{chunked:true});
 console.log("FETCH RESULT",sheet,Array.isArray(raw)?raw.length:0);
 console.log("PARSED DATA",sheet,freshData[sheet].length);
 return freshData;
 }
 async function refreshRplFull(){
 const raw=await fetchSheet("RPL");
-const rows=await parseSheetChunked(raw);
+const rows=await routeFetchedSourceRows("RPL",raw,{chunked:true});
 return rows;
 }
 async function refreshBulkyFull(){
 const raw=await fetchSheet("BULKY");
-const rows=await parseSheetChunked(raw);
+const rows=await routeFetchedSourceRows("BULKY",raw,{chunked:true});
 console.log("FETCH RESULT BULKY",Array.isArray(raw)?raw.length:0);
 return rows;
 }
@@ -1320,7 +1320,7 @@ const [barangMasuk,barangKeluar]=await Promise.allSettled([
 loadBarangMasuk({mode:"full"}),
 loadBarangKeluar({mode:"full"})
 ]);
-const inventoryRes=await Promise.allSettled(INVENTORY_PRELOAD_SHEETS.map(sheet=>fetchSheet(sheet).then(raw=>parseSheetChunked(raw))));
+const inventoryRes=await Promise.allSettled(INVENTORY_PRELOAD_SHEETS.map(sheet=>fetchSheet(sheet).then(raw=>routeFetchedSourceRows(sheet,raw,{chunked:true}))));
 if(barangMasuk.status==="fulfilled"&&Array.isArray(barangMasuk.value)&&barangMasuk.value.length){
 window.APP_STATE=window.APP_STATE||{};
 window.APP_STATE.barangMasuk=barangMasuk.value;
@@ -1421,7 +1421,7 @@ if(sheetName==='BULKY'){
 window.__bulkyLastSync=json.lastSync||null;
 window.__bulkySyncStatus=json.syncStatus||null;
 }
-return Array.isArray(json.data)?json.data:(Array.isArray(json.rows)?json.rows:[]);
+return Array.isArray(json.rows)?json.rows:(Array.isArray(json.data)?json.data:[]);
 }
 // BARCODE is a separate, non-inventory source that has not migrated to Supabase.
 const range=`${sheetName}!A1:ZZ`;
@@ -1432,9 +1432,16 @@ if(!res.ok||json.error) throw new Error(`${sheetName}: ${(json.error&&json.error
 return json.values||[];
 }
 function parseSheet(values){if(!Array.isArray(values)||!values.length)return[];const h=detectHeaderIndex(values);if(h<0)return[];const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];for(let r=h+1;r<values.length;r++){const row=values[r]||[];if(!row.length||row.every(c=>!String(c||"").trim()))continue;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);}return rows;}
+function routeFetchedSourceRows(sourceName,payload,{chunked=false}={}){
+const route=getFrontendSourceRoute(sourceName);
+if(route.kind==='supabase'){
+if(!Array.isArray(payload)||payload.some(row=>!row||typeof row!=='object'||Array.isArray(row)))throw new TypeError(`${sourceName}: respons Supabase harus berupa object rows`);
+return payload;
+}
+return chunked?parseSheetChunked(payload):parseSheet(payload);
+}
 async function parseSheetChunked(values){
 if(!Array.isArray(values)||!values.length)return[];
-if(values.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))return values;
 const h=detectHeaderIndex(values);if(h<0)return[];
 const headers=values[h].map((v,i)=>normalizeHeader(v)||`col_${i+1}`);const rows=[];const body=values.slice(h+1);
 await runChunked(body,(row)=>{if(!row?.length||row.every(c=>!String(c||"").trim()))return;const obj={};headers.forEach((k,i)=>obj[k]=row[i]||"");rows.push(obj);},{chunkSize:600,timeout:120});
@@ -1503,7 +1510,7 @@ BARCODE_STATE.loaded=true;
 }
 return BARCODE_STATE;
 }
-function detectHeaderIndex(values){const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){const t=(values[i]||[]).map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
+function detectHeaderIndex(values){if(!Array.isArray(values))return-1;const req=["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];let bi=-1,bs=0;for(let i=0;i<Math.min(values.length,25);i++){if(!Array.isArray(values[i]))continue;const t=values[i].map(clean).join("|");let s=0;req.forEach(k=>t.includes(clean(k))&&s++);if(s>bs){bs=s;bi=i;}}return bs>=1?bi:-1;}
 function withAlphaNumericSearchVariants(value){const base=normalizeSearch(value);const joined=base.replace(/(\d)\s+([a-z])/g,"$1$2").replace(/([a-z])\s+(\d)/g,"$1$2");return joined&&joined!==base?`${base} ${joined}`:base;}
 function getRowSearchText(row){return withAlphaNumericSearchVariants([
   getVal(row,["sku","kode sku","item code"]),

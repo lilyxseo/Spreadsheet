@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { detectHeaderIndex, parseSheet } from '../assets/js/parser.js';
 
 const INVENTORY_SOURCES = ['Kartu Stock', 'Barang Masuk', 'Barang Keluar', 'RPL', 'BULKY'];
 const mainSource = await readFile(new URL('../assets/js/main.js', import.meta.url), 'utf8');
@@ -21,6 +22,26 @@ test('module API maps all inventory names and has no Google Sheets fallback', as
   for (const endpoint of ['kartu-stok', 'barang-masuk', 'barang-keluar', 'rpl', 'bulky']) assert.match(mapping, new RegExp(`/api/${endpoint}`));
   assert.match(source, /if\(BACKEND_SHEET_ENDPOINT\[sheetName\]\) return fetchSheetViaBackend\(sheetName\)/);
   assert.doesNotMatch(source, /sheets\.googleapis\.com|API_KEY|SPREADSHEET_ID|\/api\/sync\/inventory\//);
+});
+
+test('migrated object rows bypass the legacy Sheets parser', async () => {
+  const source = await readFile(new URL('../assets/js/api.js', import.meta.url), 'utf8');
+  assert.match(source, /if\(MIGRATED_INVENTORY_SOURCES\.has\(sheetName\)\)/);
+  assert.match(source, /return payload;[\s\S]*return parseSheet\(payload, sheetName\)/);
+  assert.match(source, /if\(Array\.isArray\(json\.rows\)\) return json\.rows;[\s\S]*if\(Array\.isArray\(json\.data\)\) return json\.data;/);
+});
+
+test('legacy parser safely ignores malformed non-array rows', () => {
+  assert.equal(detectHeaderIndex({ rows: [{ sku: 'SKU-1' }] }), -1);
+  assert.equal(detectHeaderIndex([{ sku: 'SKU-1' }, ['sku']]), 1);
+  assert.deepEqual(parseSheet([{ sku: 'SKU-1' }], 'malformed'), []);
+});
+
+test('main preload routes fetched inventory rows by source shape', () => {
+  assert.match(mainSource, /freshData\[sheet\]=routeFetchedSourceRows\(sheet,raw\)/);
+  assert.doesNotMatch(mainSource, /freshData\[sheet\]=parseSheet\(raw/);
+  assert.doesNotMatch(mainSource, /fetchSheet\(sheet\)\.then\(raw=>parseSheetChunked\(raw\)\)/);
+  assert.match(mainSource, /return chunked\?parseSheetChunked\(payload\):parseSheet\(payload\)/);
 });
 
 test('manual refresh keeps the non-migrated Balikan source on its existing loader', () => {

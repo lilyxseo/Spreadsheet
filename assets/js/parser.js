@@ -1,11 +1,13 @@
 import { clean, normalizeHeader } from './utils.js';
 
 export function detectHeaderIndex(values){
+  if(!Array.isArray(values)) return -1;
   const req = ["sku","nama","nama barang","item","description","qty","tanggal","from","to","lokasi"];
   let bi = -1, bs = 0;
 
   for(let i=0;i<Math.min(values.length,25);i++){
-    const t = (values[i] || []).map(clean).join("|");
+    if(!Array.isArray(values[i])) continue;
+    const t = values[i].map(clean).join("|");
     let s = 0;
     req.forEach(k => t.includes(clean(k)) && s++);
     if(s > bs){
@@ -21,10 +23,6 @@ export function parseSheet(values, sheetName = "unknown"){
   if(!Array.isArray(values) || !values.length){
     console.warn(`[parseSheet] ${sheetName}: empty values`, values);
     return [];
-  }
-
-  if(values.every(row => row && typeof row === "object" && !Array.isArray(row))){
-    return values;
   }
 
   let h = detectHeaderIndex(values);
