@@ -21,7 +21,7 @@ test('run endpoint requires the inventory bearer secret', async () => {
   }
 });
 
-test('run endpoint accepts the Supabase Cron POST request', async () => {
+test('run endpoint remains available for an authenticated manual diagnostic', async () => {
   let receivedEnv;
   const env = { INVENTORY_SYNC_SECRET: SECRET };
   const response = await handleInventorySyncRun(
