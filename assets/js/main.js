@@ -158,8 +158,7 @@ window.fetch=async(input,init={})=>{
     Object.entries(authHeaders).forEach(([key,value])=>{if(!headers.has(key))headers.set(key,value);});
     const apiPath=url.split('?')[0];
     if(AUTHENTICATED_INVENTORY_PATHS.has(apiPath)&&!headers.has('Authorization')){
-      if(isPreviewBypassLoginEnabled())headers.set('X-Preview-Bypass-Login','true');
-      else throw new Error(`Sesi autentikasi diperlukan untuk ${apiPath}`);
+      throw new Error(`Sesi autentikasi diperlukan untuk ${apiPath}`);
     }
     return nativeFetch(input,{...init,headers});
   }
@@ -386,6 +385,7 @@ let hasPreloadStarted=false;
 let isPreloadStarted=false;
 let isPreloadFinished=false;
 let isUserLoggedIn=false;
+let isAuthStateReady=false;
 let isInitialDataApplied=false;
 let isRendering=false;
 let hasInitializedDataFlow=false;
@@ -393,13 +393,16 @@ let hasRenderedInitial=false;
 let lastRenderedData="";
 const CACHE_FRESH_TTL_MS=3*60*1000;
 
-function startBackgroundPreload(){
+async function startBackgroundPreload(){
+if(!isAuthStateReady||!user)return null;
+const authHeaders=await getAuthHeaders().catch(()=>({}));
+if(!authHeaders.Authorization)return null;
 if(isPreloadStarted&&preloadPromise)return preloadPromise;
 if(preloadPromise)return preloadPromise;
 isPreloadStarted=true;
 hasPreloadStarted=true;
 isPreloadFinished=false;
-preloadPromise=hydrateAllDataOnInit({allowBeforeLogin:true,useCacheFirst:true}).then((result)=>{
+preloadPromise=hydrateAllDataOnInit({useCacheFirst:true}).then((result)=>{
 isPreloadFinished=true;
 return result;
 }).catch(err=>{
@@ -413,6 +416,9 @@ return preloadPromise;
 }
 
 async function hydrateAllDataOnInit({force=false,useCacheFirst=!force}={}){
+if(!isAuthStateReady||!user)return null;
+const authHeaders=await getAuthHeaders().catch(()=>({}));
+if(!authHeaders.Authorization)return null;
 const shouldUseCache=!!useCacheFirst&&!force;
 const loadInventoryData=async()=>{
 if(shouldUseCache&&hasValidData(window.mainDataCache))return window.mainDataCache;
@@ -556,10 +562,10 @@ return email;
 async function bootApplication(){
 const requestGeneration=++authRequestGeneration;
 authChecking=true;
+isAuthStateReady=false;
 applyTheme();
 renderAuthState();
 await loadRuntimeConfig();
-queueMicrotask(()=>{startBackgroundPreload().catch(err=>console.warn("Preload awal gagal",err));});
 let session=null;
 try{
 if(isPreviewBypassLoginEnabled()){
@@ -588,6 +594,7 @@ user=null;
 }finally{
 if(requestGeneration!==authRequestGeneration)return;
 authChecking=false;
+isAuthStateReady=true;
 renderAuthState();
 }
 isUserLoggedIn=!!user;
@@ -626,6 +633,7 @@ user=null;
 devProfile=null;
 authChecking=false;
 isUserLoggedIn=false;
+isAuthStateReady=false;
 clearCurrentUser();
 stopDevAutoRefresh({log:false});
 showLoginView();
