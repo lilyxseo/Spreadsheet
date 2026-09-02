@@ -1,0 +1,14 @@
+name = "wms-inventory-cron"
+main = "worker/inventory-cron.js"
+compatibility_date = "2026-09-02"
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[[durable_objects.bindings]]
+name = "INVENTORY_CRON_LOCK"
+class_name = "InventoryCronLock"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["InventoryCronLock"]
