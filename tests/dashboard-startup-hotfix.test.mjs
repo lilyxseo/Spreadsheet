@@ -15,7 +15,7 @@ function bodyBetween(start, end) {
 test('dashboard initialization fetches and renders only its authoritative summary', () => {
   const init = bodyBetween('async function initAppData()', 'async function refreshDataInBackground()');
   const landing = init.slice(0, init.indexOf('await hydrateModuleCachesFromDb()'));
-  assert.match(landing, /await loadDashboardSummary\(\)/);
+  assert.match(landing, /Promise\.allSettled\(\[loadDashboardSummary\(\),loadInventorySyncStatus\(\)\]\)/);
   assert.doesNotMatch(landing, /hydrateAllDataOnInit|preloadData|mode=['"]full|BARCODE|barang-masuk|barang-keluar/);
 
   const summary = bodyBetween('async function loadDashboardSummary()', 'async function loadDetailPageData(page)');
